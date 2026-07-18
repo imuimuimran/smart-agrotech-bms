@@ -8,6 +8,7 @@ import hpp from "hpp";
 import mongoSanitize from "express-mongo-sanitize";
 
 import env from "./config/env.js";
+import authRoutes from "./modules/auth/auth.routes.js";
 import notFoundMiddleware from "./middlewares/notFound.middleware.js";
 import errorMiddleware from "./middlewares/error.middleware.js";
 
@@ -61,6 +62,13 @@ app.get("/api/v1/health", (req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+/**
+ * API Routes
+ */
+app.use("/api/v1/auth", authRoutes); // 2. Add this route mounting here
+
+/**
 
 /**
  * 404 Middleware
