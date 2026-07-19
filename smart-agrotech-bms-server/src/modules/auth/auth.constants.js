@@ -12,4 +12,6 @@ export const AUTH_MESSAGES = Object.freeze({
   TOKEN_REQUIRED: "Access token is required.",
 
   INVALID_TOKEN: "Invalid or expired token.",
+
+  ACCOUNT_DEACTIVATED: "Your account has been deactivated.",
 });

@@ -2,6 +2,8 @@ import { Router } from "express";
 
 import validate from "../../middlewares/validate.middleware.js";
 
+import verifyToken from "../../middlewares/auth.middleware.js";
+
 import { AuthController } from "./auth.controller.js";
 
 import {
@@ -35,6 +37,7 @@ router.post(
  */
 router.get(
   "/me",
+  verifyToken,
   AuthController.me
 );
 
