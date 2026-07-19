@@ -25,6 +25,12 @@ const env = {
 
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
 
+  cookieName: process.env.COOKIE_NAME || "bms_access_token",
+
+  cookieExpiresIn: Number(process.env.COOKIE_EXPIRES_IN) || 7,
+
+  cookieSecure: process.env.COOKIE_SECURE === "true",
+
   clientUrl: process.env.CLIENT_URL,
 };
 

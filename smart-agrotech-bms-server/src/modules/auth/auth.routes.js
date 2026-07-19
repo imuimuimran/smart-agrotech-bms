@@ -34,6 +34,16 @@ router.post(
   AuthController.login
 );
 
+
+/**
+ * Logout
+ */
+router.post(
+    "/logout",
+
+    AuthController.logout
+);
+
 /**
  * Current User
  * (Protected later)

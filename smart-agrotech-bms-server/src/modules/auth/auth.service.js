@@ -8,10 +8,9 @@ import HTTP_STATUS from "../../constants/httpStatus.js";
 
 import generatePublicId from "../../utils/generatePublicId.js";
 
-import {
-  generateAccessToken,
-  buildJwtPayload,
-} from "./auth.utils.js";
+import { generateAccessToken, buildJwtPayload, } from "./auth.utils.js";
+
+import { sanitizeUser, } from "../users/user.utils.js";
 
 import { AUTH_MESSAGES } from "./auth.constants.js";
 
@@ -37,7 +36,7 @@ const registerUser = async (payload) => {
     publicId: generatePublicId("USR"),
   });
 
-  return user;
+  return sanitizeUser(user);
 };
 
 const loginUser = async ({ email, password }) => {
@@ -78,7 +77,7 @@ const loginUser = async ({ email, password }) => {
 
   return {
     token,
-    user,
+     user: sanitizeUser(user),
   };
 };
 

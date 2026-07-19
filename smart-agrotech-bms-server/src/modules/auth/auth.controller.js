@@ -2,6 +2,10 @@ import catchAsync from "../../shared/catchAsync.js";
 import sendResponse from "../../shared/sendResponse.js";
 import HTTP_STATUS from "../../constants/httpStatus.js";
 
+import env from "../../config/env.js";
+
+import { getAccessTokenCookieOptions, } from "./auth.cookies.js";
+
 import { AuthService } from "./auth.service.js";
 import { AUTH_MESSAGES } from "./auth.constants.js";
 
@@ -24,13 +28,19 @@ const register = catchAsync(async (req, res) => {
   sendResponse({
     res,
     statusCode: HTTP_STATUS.CREATED,
-    message: AUTH_MESSAGES.REGISTER_SUCCESS,    
+    message: AUTH_MESSAGES.REGISTER_SUCCESS,
     data: sanitizedUser,
   });
 });
 
 const login = catchAsync(async (req, res) => {
   const result = await AuthService.loginUser(req.body);
+
+  res.cookie(
+    env.cookieName,
+    result.token,
+    getAccessTokenCookieOptions()
+  );
 
   sendResponse({
     res,
@@ -49,8 +59,21 @@ const me = catchAsync(async (req, res) => {
   });
 });
 
+const logout = catchAsync(async (req, res) => {
+  res.clearCookie(env.cookieName);
+
+  sendResponse({
+    res,
+
+    statusCode: HTTP_STATUS.OK,
+
+    message: "Logged out successfully.",
+  });
+});
+
 export const AuthController = {
   register,
   login,
   me,
+  logout,
 };
