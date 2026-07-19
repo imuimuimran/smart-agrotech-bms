@@ -61,6 +61,11 @@ const verifyToken = async (req, res, next) => {
 
         next();
     } catch (error) {
+        if (error.name === "JsonWebTokenError" || error.name === "TokenExpiredError") {
+            return next(
+                new ApiError(HTTP_STATUS.UNAUTHORIZED, AUTH_MESSAGES.INVALID_TOKEN)
+            );
+        }
         next(error);
     }
 };

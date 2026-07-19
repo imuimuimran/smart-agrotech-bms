@@ -9,8 +9,17 @@ const register = catchAsync(async (req, res) => {
   const user = await AuthService.registerUser(req.body);
 
   // 1. Convert the Mongoose document to a plain object and delete the password
-  const sanitizedUser = user.toObject ? user.toObject() : { ...user };
-  delete sanitizedUser.password;
+  // const sanitizedUser = user.toObject ? user.toObject() : { ...user };
+  // delete sanitizedUser.password;
+
+  const sanitizedUser = {
+    id: user._id,
+    publicId: user.publicId,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    status: user.status,
+  };
 
   sendResponse({
     res,
