@@ -8,11 +8,15 @@ import { AUTH_MESSAGES } from "./auth.constants.js";
 const register = catchAsync(async (req, res) => {
   const user = await AuthService.registerUser(req.body);
 
+  // 1. Convert the Mongoose document to a plain object and delete the password
+  const sanitizedUser = user.toObject ? user.toObject() : { ...user };
+  delete sanitizedUser.password;
+
   sendResponse({
     res,
     statusCode: HTTP_STATUS.CREATED,
     message: AUTH_MESSAGES.REGISTER_SUCCESS,    
-    data: user,
+    data: sanitizedUser,
   });
 });
 

@@ -1,21 +1,41 @@
 import { Router } from "express";
 
+import validate from "../../middlewares/validate.middleware.js";
+
+import { AuthController } from "./auth.controller.js";
+
+import {
+  registerSchema,
+  loginSchema,
+} from "./auth.validation.js";
+
 const router = Router();
 
-// POST /api/v1/auth/register
-router.post("/register", (req, res, next) => {
-  try {
-    const { email, password } = req.body;
+/**
+ * Register
+ */
+router.post(
+  "/register",
+  validate(registerSchema),
+  AuthController.register
+);
 
-    // Temporary mock response to test your connection
-    return res.status(201).json({
-      success: true,
-      message: "Route hit successfully!",
-      data: { email, password }
-    });
-  } catch (error) {
-    next(error); // Sends errors to your global errorMiddleware
-  }
-});
+/**
+ * Login
+ */
+router.post(
+  "/login",
+  validate(loginSchema),
+  AuthController.login
+);
+
+/**
+ * Current User
+ * (Protected later)
+ */
+router.get(
+  "/me",
+  AuthController.me
+);
 
 export default router;
