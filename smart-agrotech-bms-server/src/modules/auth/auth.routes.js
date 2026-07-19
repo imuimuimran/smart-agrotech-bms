@@ -4,6 +4,9 @@ import validate from "../../middlewares/validate.middleware.js";
 
 import verifyToken from "../../middlewares/auth.middleware.js";
 
+import authorize from "../../middlewares/authorize.middleware.js";
+import ROLES from "../../constants/roles.js";
+
 import { AuthController } from "./auth.controller.js";
 
 import {
@@ -35,6 +38,20 @@ router.post(
  * Current User
  * (Protected later)
  */
+router.get(
+  "/admin-test",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  (req, res) => {
+    res.json({
+      success: true,
+      message: "Welcome Admin!",
+      data: req.user,
+    });
+  }
+);
+
+
 router.get(
   "/me",
   verifyToken,
