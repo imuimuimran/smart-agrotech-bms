@@ -47,7 +47,24 @@ const getUser = catchAsync(async (req, res) => {
   });
 });
 
+const updateUser = catchAsync(async (req, res) => {
+  const result =
+    await UserService.updateUser(
+      req.params.publicId,
+      req.body
+    );
+
+  sendResponse({
+    res,
+    statusCode: HTTP_STATUS.OK,
+    message:
+      USER_MESSAGES.UPDATE_SUCCESS,
+    data: result,
+  });
+});
+
 export const UserController = {
   getUsers,
   getUser,
+  updateUser,
 };

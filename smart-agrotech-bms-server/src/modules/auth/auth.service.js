@@ -67,7 +67,10 @@ const loginUser = async ({ email, password }) => {
 
   user.lastLogin = new Date();
 
-  await user.save();
+  // await user.save();
+  await user.save({
+    validateBeforeSave: true,
+  });
 
   const token = generateAccessToken(
     buildJwtPayload(user)
@@ -77,7 +80,7 @@ const loginUser = async ({ email, password }) => {
 
   return {
     token,
-     user: sanitizeUser(user),
+    user: sanitizeUser(user),
   };
 };
 

@@ -33,21 +33,6 @@ const getUsers = async (query) => {
   };
 };
 
-// const getUser = async (publicId) => {
-//   const user = await User.findOne({
-//     publicId,
-//   });
-
-//   if (!user) {
-//     throw new ApiError(
-//       HTTP_STATUS.NOT_FOUND,
-//       USER_MESSAGES.USER_NOT_FOUND
-//     );
-//   }
-
-//   return sanitizeUser(user);
-// };
-
 const getUser = async (publicId) => {
   const user = await findByPublicId(
     User,
@@ -58,87 +43,60 @@ const getUser = async (publicId) => {
   return sanitizeUser(user);
 };
 
+const updateUser = async (
+  publicId,
+  payload
+) => {
+  const user =
+    await findByPublicId(
+      User,
+      publicId,
+      USER_MESSAGES.USER_NOT_FOUND
+    );
+
+  const forbiddenFields = [
+    "role",
+    "status",
+    "password",
+    "publicId",
+    "_id",
+    "__v",
+  ];
+
+  forbiddenFields.forEach((field) => {
+    delete payload[field];
+  });
+
+  if (
+    payload.email &&
+    payload.email !== user.email
+  ) {
+    const existingUser =
+      await User.findOne({
+        email: payload.email,
+      });
+
+    if (existingUser) {
+      throw new ApiError(
+        HTTP_STATUS.CONFLICT,
+        USER_MESSAGES.EMAIL_ALREADY_EXISTS
+      );
+    }
+  }
+
+  Object.assign(user, payload);
+
+  await user.save({
+    validateBeforeSave: true,
+  });
+
+  return sanitizeUser(user);
+};
+
 
 export const UserService = {
   getUsers,
   getUser,
+  updateUser,
 };
 
-
-
-
-// import PAGINATION from "../../constants/pagination.js";
-
-// import { User } from "./user.model.js";
-
-// const getUsers = async (query) => {
-//     const page =
-//         Number(query.page) ||
-//         PAGINATION.DEFAULT_PAGE;
-
-//     const limit = Math.min(
-//         Number(query.limit) ||
-//         PAGINATION.DEFAULT_LIMIT,
-//         PAGINATION.MAX_LIMIT
-//     );
-
-//     const skip = (page - 1) * limit;
-
-//     const sortBy =
-//         query.sortBy ||
-//         PAGINATION.DEFAULT_SORT_BY;
-
-//     const sortOrder =
-//         query.sortOrder === "asc"
-//             ? 1
-//             : -1;
-
-//     const filter = {};
-
-//     if (query.search) {
-//         filter.$or = [
-//             {
-//                 name: {
-//                     $regex: query.search,
-//                     $options: "i",
-//                 },
-//             },
-//             {
-//                 email: {
-//                     $regex: query.search,
-//                     $options: "i",
-//                 },
-//             },
-//         ];
-//     }
-
-//     const users =
-//         await User.find(filter).select(
-//             "-password -__v"
-//         )
-//             .sort({
-//                 [sortBy]: sortOrder,
-//             })
-//             .skip(skip)
-//             .limit(limit);
-
-//     const total =
-//         await User.countDocuments(filter);
-
-//     return {
-//         meta: {
-//             page,
-//             limit,
-//             total,
-//             totalPages: Math.ceil(
-//                 total / limit
-//             ),
-//         },
-
-//         data: users,
-//     };
-// };
-
-// export const UserService = {
-//     getUsers,
-// };

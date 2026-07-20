@@ -18,6 +18,8 @@ export const USER_MESSAGES = Object.freeze({
   ROLE_UPDATED: "User role updated successfully.",
 
   USER_NOT_FOUND: "User not found.",
+
+  EMAIL_ALREADY_EXISTS: "Email already exists.",
 });
 
 export const USER_SORT_FIELDS = [
