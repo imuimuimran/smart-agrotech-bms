@@ -2,7 +2,6 @@ import ROLES from "../../constants/roles.js";
 import STATUS from "../../constants/status.js";
 
 export const USER_ROLES = ROLES;
-
 export const USER_STATUS = STATUS;
 
 export const USER_MESSAGES = Object.freeze({
@@ -20,3 +19,13 @@ export const USER_MESSAGES = Object.freeze({
 
   USER_NOT_FOUND: "User not found.",
 });
+
+export const USER_SORT_FIELDS = [
+  "name",
+  "email",
+  "role",
+  "status",
+  "createdAt",
+  "updatedAt",
+  "lastLogin",
+];
