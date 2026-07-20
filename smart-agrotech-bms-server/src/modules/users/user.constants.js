@@ -24,6 +24,12 @@ export const USER_MESSAGES = Object.freeze({
   ROLE_ALREADY_ASSIGNED: "User already has this role.",
 
   CANNOT_CHANGE_OWN_ROLE: "You cannot change your own role.",
+
+  CANNOT_CHANGE_OWN_STATUS: "You cannot deactivate your own account.",
+
+  STATUS_ALREADY_ASSIGNED: "User already has this status.",
+
+  LAST_ADMIN_DEACTIVATION: "The last active administrator cannot be deactivated.",
 });
 
 export const USER_SORT_FIELDS = [

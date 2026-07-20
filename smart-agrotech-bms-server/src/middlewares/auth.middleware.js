@@ -1,10 +1,8 @@
 import ApiError from "../shared/ApiError.js";
 import HTTP_STATUS from "../constants/httpStatus.js";
 
-import STATUS from "../constants/status.js";
-
+import { USER_STATUS } from "../modules/users/index.js"; 
 import { User } from "../modules/users/index.js";
-
 import {
     verifyAccessToken,
     AUTH_MESSAGES,
@@ -29,27 +27,24 @@ const verifyToken = async (req, res, next) => {
         }
 
         const token = authorization.split(" ")[1];
-
         const decoded = verifyAccessToken(token);
-
         const user = await User.findById(decoded.id);
 
         if (!user) {
-
             throw new ApiError(
                 HTTP_STATUS.UNAUTHORIZED,
                 AUTH_MESSAGES.UNAUTHORIZED
             );
         }
 
-        if (user.status !== STATUS.ACTIVE) {
+        
+        if (user.status !== USER_STATUS.ACTIVE) {
             throw new ApiError(
-                HTTP_STATUS.FORBIDDEN,
-                AUTH_MESSAGES.ACCOUNT_DEACTIVATED,
+                HTTP_STATUS.UNAUTHORIZED,
+                AUTH_MESSAGES.ACCOUNT_DEACTIVATED
             );
         }
 
-        // req.user = user;
         req.user = {
             id: user._id,
             publicId: user.publicId,

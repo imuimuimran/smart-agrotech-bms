@@ -1,5 +1,6 @@
 import { z } from "zod";
 import ROLES from "../../constants/roles.js";
+import USER_STATUS from "../../constants/userStatus.js";
 
 export const updateUserSchema = z.object({
   params: z.object({
@@ -28,14 +29,28 @@ export const updateUserSchema = z.object({
 // });
 
 export const updateUserRoleSchema = z.object({
-  // 1. You must include this params block so Express doesn't lose the publicId!
   params: z.object({
     publicId: z.string({
       required_error: "Public ID is required",
     }),
   }),
-  // 2. The body block for updating the role
+
   body: z.object({
     role: z.enum(Object.values(ROLES)),
+  }),
+});
+
+export const updateUserStatusSchema = z.object({
+  params: z.object({
+    publicId: z.string({
+      required_error: "Public ID is required",
+    }),
+  }),
+  
+  body: z.object({
+    status: z.enum([
+      USER_STATUS.ACTIVE,
+      USER_STATUS.INACTIVE,
+    ]),
   }),
 });

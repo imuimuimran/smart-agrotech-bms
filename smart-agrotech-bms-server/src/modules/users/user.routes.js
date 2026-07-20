@@ -14,6 +14,8 @@ import { updateUserSchema } from "./user.validation.js";
 
 import { updateUserRoleSchema, } from "./user.validation.js";
 
+import { updateUserStatusSchema, } from "./user.validation.js";
+
 const router = Router();
 
 router.get(
@@ -29,6 +31,16 @@ router.patch(
   authorize(ROLES.ADMIN),
   validateRequest(updateUserRoleSchema),
   UserController.updateUserRole
+);
+
+router.patch(
+  "/:publicId/status",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  validateRequest(
+    updateUserStatusSchema
+  ),
+  UserController.updateUserStatus
 );
 
 router.get(

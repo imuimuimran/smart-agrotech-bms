@@ -3,6 +3,9 @@ import QueryBuilder from "../../builder/QueryBuilder.js";
 import ApiError from "../../shared/ApiError.js";
 import HTTP_STATUS from "../../constants/httpStatus.js";
 
+import ROLES from "../../constants/roles.js";
+import USER_STATUS from "../../constants/userStatus.js";
+
 import { User } from "./user.model.js";
 
 import { USER_SORT_FIELDS, } from "./user.constants.js";
@@ -129,10 +132,66 @@ const updateUserRole = async (
   return sanitizeUser(user);
 };
 
+const updateUserStatus = async (
+  publicId,
+  status,
+  currentUser
+) => {
+  const user =
+    await findByPublicId(
+      User,
+      publicId,
+      USER_MESSAGES.USER_NOT_FOUND
+    );
+
+  if (
+    user.publicId === currentUser.publicId &&
+    status === USER_STATUS.INACTIVE
+  ) {
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      USER_MESSAGES.CANNOT_CHANGE_OWN_STATUS
+    );
+  }
+
+  if (user.status === status) {
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      USER_MESSAGES.STATUS_ALREADY_ASSIGNED
+    );
+  }
+
+  if (
+    user.role === ROLES.ADMIN &&
+    user.status === USER_STATUS.ACTIVE &&
+    status === USER_STATUS.INACTIVE
+  ) {
+    const activeAdminCount =
+      await User.countDocuments({
+        role: ROLES.ADMIN,
+        status: USER_STATUS.ACTIVE,
+      });
+
+    if (activeAdminCount <= 1) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        USER_MESSAGES.LAST_ADMIN_DEACTIVATION
+      );
+    }
+  }
+
+  user.status = status;
+
+  await user.save();
+
+  return sanitizeUser(user);
+};
+
 export const UserService = {
   getUsers,
   getUser,
   updateUser,
   updateUserRole,
+  updateUserStatus,
 };
 
