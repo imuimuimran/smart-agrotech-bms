@@ -63,8 +63,30 @@ const updateUser = catchAsync(async (req, res) => {
   });
 });
 
+const updateUserRole = catchAsync(
+  async (req, res) => {
+    const result =
+      await UserService.updateUserRole(
+        req.params.publicId,
+        req.body.role,
+        req.user
+      );
+
+    sendResponse({
+      res,
+
+      statusCode: HTTP_STATUS.OK,
+
+      message: USER_MESSAGES.ROLE_UPDATED,
+
+      data: result,
+    });
+  }
+);
+
 export const UserController = {
   getUsers,
   getUser,
   updateUser,
+  updateUserRole,
 };

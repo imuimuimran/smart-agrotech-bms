@@ -20,6 +20,10 @@ export const USER_MESSAGES = Object.freeze({
   USER_NOT_FOUND: "User not found.",
 
   EMAIL_ALREADY_EXISTS: "Email already exists.",
+
+  ROLE_ALREADY_ASSIGNED: "User already has this role.",
+
+  CANNOT_CHANGE_OWN_ROLE: "You cannot change your own role.",
 });
 
 export const USER_SORT_FIELDS = [

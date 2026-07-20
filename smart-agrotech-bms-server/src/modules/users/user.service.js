@@ -94,9 +94,45 @@ const updateUser = async (
 };
 
 
+const updateUserRole = async (
+  publicId,
+  role,
+  currentUser
+) => {
+  const user =
+    await findByPublicId(
+      User,
+      publicId,
+      USER_MESSAGES.USER_NOT_FOUND
+    );
+
+  if (
+    user.publicId === currentUser.publicId
+  ) {
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      USER_MESSAGES.CANNOT_CHANGE_OWN_ROLE
+    );
+  }
+
+  if (user.role === role) {
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      USER_MESSAGES.ROLE_ALREADY_ASSIGNED
+    );
+  }
+
+  user.role = role;
+
+  await user.save();
+
+  return sanitizeUser(user);
+};
+
 export const UserService = {
   getUsers,
   getUser,
   updateUser,
+  updateUserRole,
 };
 
