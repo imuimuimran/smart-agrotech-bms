@@ -1,6 +1,6 @@
-export { default as User } from "./user.model.js";
+// export { default as User } from "./user.model.js";
 
-// export { User } from "./user.model.js";
+export { User } from "./user.model.js";
 
 export * from "./user.constants.js";
 
