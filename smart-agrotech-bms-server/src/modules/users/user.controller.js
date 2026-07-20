@@ -29,6 +29,25 @@ const getUsers = catchAsync(
   }
 );
 
+const getUser = catchAsync(async (req, res) => {
+  const user =
+    await UserService.getUser(
+      req.params.publicId
+    );
+
+  sendResponse({
+    res,
+
+    statusCode: HTTP_STATUS.OK,
+
+    message:
+      USER_MESSAGES.FETCH_ONE_SUCCESS,
+
+    data: user,
+  });
+});
+
 export const UserController = {
   getUsers,
+  getUser,
 };

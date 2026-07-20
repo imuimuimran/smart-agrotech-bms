@@ -17,4 +17,11 @@ router.get(
   UserController.getUsers
 );
 
+router.get(
+  "/:publicId",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  UserController.getUser
+);
+
 export default router;
