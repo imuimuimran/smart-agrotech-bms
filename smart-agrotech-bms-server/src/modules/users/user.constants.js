@@ -30,6 +30,12 @@ export const USER_MESSAGES = Object.freeze({
   STATUS_ALREADY_ASSIGNED: "User already has this status.",
 
   LAST_ADMIN_DEACTIVATION: "The last active administrator cannot be deactivated.",
+
+  USER_ALREADY_DELETED: "User has already been deleted.",
+
+  CANNOT_DELETE_OWN_ACCOUNT: "You cannot delete your own account.",
+
+  LAST_ADMIN_DELETE: "The last active administrator cannot be deleted.",
 });
 
 export const USER_SORT_FIELDS = [

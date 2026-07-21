@@ -61,12 +61,28 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
     versionKey: false,
   }
 );
+
+userSchema.pre(/^find/, function () {
+  if (this.getOptions().skipDeletedCheck) {
+    return;
+  }
+  this.find({ isDeleted: false });
+});
 
 // const User = mongoose.model("User", userSchema);
 

@@ -64,10 +64,14 @@ const updateUser = async (
     "publicId",
     "_id",
     "__v",
+    "isDeleted",
+    "deletedAt",
   ];
 
   forbiddenFields.forEach((field) => {
-    delete payload[field];
+    if (payload && field in payload) {
+      delete payload[field];
+    }
   });
 
   if (
@@ -187,11 +191,77 @@ const updateUserStatus = async (
   return sanitizeUser(user);
 };
 
+const deleteUser = async (
+  publicId,
+  currentUser
+) => {
+  const user =
+    await findByPublicId(
+      User,
+      publicId,
+      USER_MESSAGES.USER_NOT_FOUND
+    );
+
+  if (
+    user.publicId ===
+    currentUser.publicId
+  ) {
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      USER_MESSAGES
+        .CANNOT_DELETE_OWN_ACCOUNT
+    );
+  }
+
+  if (user.isDeleted) {
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      USER_MESSAGES
+        .USER_ALREADY_DELETED
+    );
+  }
+
+  if (
+    user.role === ROLES.ADMIN &&
+    user.status ===
+      USER_STATUS.ACTIVE
+  ) {
+    const activeAdmins =
+      await User.countDocuments({
+        role: ROLES.ADMIN,
+        status:
+          USER_STATUS.ACTIVE,
+        isDeleted: false,
+      });
+
+    if (activeAdmins <= 1) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        USER_MESSAGES
+          .LAST_ADMIN_DELETE
+      );
+    }
+  }
+
+  user.isDeleted = true;
+
+  user.deletedAt =
+    new Date();
+
+  await user.save();
+
+  return {
+    publicId:
+      user.publicId,
+  };
+};
+
 export const UserService = {
   getUsers,
   getUser,
   updateUser,
   updateUserRole,
   updateUserStatus,
+  deleteUser,
 };
 

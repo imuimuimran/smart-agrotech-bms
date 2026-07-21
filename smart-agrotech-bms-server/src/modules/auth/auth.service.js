@@ -34,6 +34,7 @@ const registerUser = async (payload) => {
     password: hashedPassword,
     // publicId: `USR-${Date.now()}`,
     publicId: generatePublicId("USR"),
+    isDeleted: false,
   });
 
   return sanitizeUser(user);
@@ -44,7 +45,9 @@ const loginUser = async ({ email, password }) => {
 
   const user = await User.findOne({
     email: normalizedEmail,
-  }).select("+password");
+  })
+  .select("+password")
+  .setOptions({ skipDeletedCheck: true });
 
   if (!user) {
     throw new ApiError(

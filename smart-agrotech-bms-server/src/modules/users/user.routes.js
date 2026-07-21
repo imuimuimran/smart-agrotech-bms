@@ -58,4 +58,11 @@ router.patch(
   UserController.updateUser
 );
 
+router.delete(
+  "/:publicId",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  UserController.deleteUser
+);
+
 export default router;
