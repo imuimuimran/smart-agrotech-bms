@@ -180,6 +180,27 @@ const updateMyProfile =
 
 });
 
+const changePassword = catchAsync(
+  async (req, res) => {
+    await UserService.changePassword(
+      req.user.publicId,
+      req.body
+    );
+
+    sendResponse({
+      res,
+
+      statusCode:
+        HTTP_STATUS.OK,
+
+      message:
+        USER_MESSAGES.PASSWORD_CHANGED,
+
+      data: null,
+    });
+  }
+);
+
 export const UserController = {
   getUsers,
   getUser,
@@ -189,4 +210,5 @@ export const UserController = {
   deleteUser,
   getMyProfile,
   updateMyProfile,
+  changePassword,
 };

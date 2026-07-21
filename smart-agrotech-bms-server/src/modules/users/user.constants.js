@@ -40,6 +40,12 @@ export const USER_MESSAGES = Object.freeze({
   PROFILE_FETCH_SUCCESS: "Profile retrieved successfully.",
 
   PROFILE_UPDATED: "Profile updated successfully.",
+
+  PASSWORD_CHANGED: "Password changed successfully.",
+
+  CURRENT_PASSWORD_INVALID: "Current password is incorrect.",
+
+  PASSWORD_REUSE: "New password cannot be the same as the current password.",
 });
 
 export const USER_SORT_FIELDS = [

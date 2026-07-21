@@ -1,7 +1,7 @@
 import ApiError from "../shared/ApiError.js";
 import HTTP_STATUS from "../constants/httpStatus.js";
 
-import { USER_STATUS } from "../modules/users/index.js"; 
+import { USER_STATUS } from "../modules/users/index.js";
 import { User } from "../modules/users/index.js";
 import {
     verifyAccessToken,
@@ -37,11 +37,24 @@ const verifyToken = async (req, res, next) => {
             );
         }
 
-        
+
         if (user.status !== USER_STATUS.ACTIVE) {
             throw new ApiError(
                 HTTP_STATUS.UNAUTHORIZED,
                 AUTH_MESSAGES.ACCOUNT_DEACTIVATED
+            );
+        }
+
+        if (
+            user.passwordChangedAt &&
+            decoded.iat * 1000 <
+            user.passwordChangedAt.getTime()
+        ) {
+            return next(
+                new ApiError(
+                    HTTP_STATUS.UNAUTHORIZED,
+                    "Please log in again."
+                )
             );
         }
 

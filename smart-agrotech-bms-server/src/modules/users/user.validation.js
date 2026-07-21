@@ -71,3 +71,34 @@ export const updateProfileSchema = z.object({
   })
   .strict(),
 });
+
+export const changePasswordSchema = z.object({
+  body: z
+    .object({
+      currentPassword: z
+        .string()
+        .min(8),
+
+      newPassword: z
+        .string()
+        .min(8)
+        .regex(
+          /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).+$/,
+          "Password must contain uppercase, lowercase, number and special character."
+        ),
+
+      confirmPassword: z
+        .string()
+        .min(8),
+    })
+    .refine(
+      (data) =>
+        data.newPassword ===
+        data.confirmPassword,
+      {
+        message:
+          "Passwords do not match.",
+        path: ["confirmPassword"],
+      }
+    ),
+});

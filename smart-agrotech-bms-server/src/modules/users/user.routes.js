@@ -10,6 +10,8 @@ import validateRequest from "../../middlewares/validate.middleware.js";
 
 import { UserController } from "./user.controller.js";
 
+import { changePasswordSchema, } from "./user.validation.js";
+
 import {
   updateUserSchema,
   updateUserRoleSchema,
@@ -62,6 +64,18 @@ router.patch(
   ),
 
   UserController.updateMyProfile
+);
+
+router.patch(
+  "/profile/password",
+
+  verifyToken,
+
+  validateRequest(
+    changePasswordSchema
+  ),
+
+  UserController.changePassword
 );
 
 router.get(

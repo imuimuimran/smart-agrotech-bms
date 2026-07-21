@@ -6,6 +6,8 @@ import HTTP_STATUS from "../../constants/httpStatus.js";
 import ROLES from "../../constants/roles.js";
 import USER_STATUS from "../../constants/userStatus.js";
 
+import bcrypt from "bcryptjs";
+
 import { User } from "./user.model.js";
 
 import { USER_SORT_FIELDS, } from "./user.constants.js";
@@ -313,6 +315,62 @@ async (
 
 };
 
+const changePassword = async (
+  publicId,
+  payload
+) => {
+  const user =
+    await User.findOne({
+      publicId,
+    }).select("+password");
+
+  if (!user) {
+    throw new ApiError(
+      HTTP_STATUS.NOT_FOUND,
+      USER_MESSAGES.USER_NOT_FOUND
+    );
+  }
+
+  const passwordMatched =
+    await bcrypt.compare(
+      payload.currentPassword,
+      user.password
+    );
+
+  if (!passwordMatched) {
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      USER_MESSAGES.CURRENT_PASSWORD_INVALID
+    );
+  }
+
+  const reusedPassword =
+    await bcrypt.compare(
+      payload.newPassword,
+      user.password
+    );
+
+  if (reusedPassword) {
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      USER_MESSAGES.PASSWORD_REUSE
+    );
+  }
+
+  user.password =
+    await bcrypt.hash(
+      payload.newPassword,
+      12
+    );
+
+  user.passwordChangedAt =
+    new Date();
+
+  await user.save();
+
+  return;
+};
+
 export const UserService = {
   getUsers,
   getUser,
@@ -322,5 +380,6 @@ export const UserService = {
   deleteUser,
   getMyProfile,
   updateMyProfile,
+  changePassword,
 };
 
