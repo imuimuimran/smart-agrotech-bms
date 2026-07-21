@@ -16,7 +16,8 @@ export const updateUserSchema = z.object({
     email: z.string().email().optional(),
 
     profileImage: z.string().url().optional(),
-  }),
+  })
+  .strict(),
 });
 
 // export const updateUserRoleSchema = z.object({
@@ -37,7 +38,8 @@ export const updateUserRoleSchema = z.object({
 
   body: z.object({
     role: z.enum(Object.values(ROLES)),
-  }),
+  })
+  .strict(),
 });
 
 export const updateUserStatusSchema = z.object({
@@ -52,5 +54,20 @@ export const updateUserStatusSchema = z.object({
       USER_STATUS.ACTIVE,
       USER_STATUS.INACTIVE,
     ]),
-  }),
+  })
+  .strict(),
+});
+
+export const updateProfileSchema = z.object({
+  body: z.object({
+    name: z.string().min(2).max(100).optional(),
+
+    phone: z.string().min(8).max(20).optional(),
+
+    profileImage: z
+      .string()
+      .url()
+      .optional(),
+  })
+  .strict(),
 });

@@ -128,6 +128,58 @@ const deleteUser = catchAsync(
   }
 );
 
+const getMyProfile =
+    catchAsync(async (req, res) => {
+
+        const result =
+            await UserService.getMyProfile(
+                req.user.publicId
+            );
+
+        sendResponse({
+
+            res,
+
+            statusCode:
+                HTTP_STATUS.OK,
+
+            message:
+                USER_MESSAGES.PROFILE_FETCH_SUCCESS,
+
+            data: result,
+
+        });
+
+});
+
+const updateMyProfile =
+    catchAsync(async (req, res) => {
+
+        const result =
+            await UserService.updateMyProfile(
+
+                req.user.publicId,
+
+                req.body
+
+            );
+
+        sendResponse({
+
+            res,
+
+            statusCode:
+                HTTP_STATUS.OK,
+
+            message:
+                USER_MESSAGES.PROFILE_UPDATED,
+
+            data: result,
+
+        });
+
+});
+
 export const UserController = {
   getUsers,
   getUser,
@@ -135,4 +187,6 @@ export const UserController = {
   updateUserRole,
   updateUserStatus,
   deleteUser,
+  getMyProfile,
+  updateMyProfile,
 };

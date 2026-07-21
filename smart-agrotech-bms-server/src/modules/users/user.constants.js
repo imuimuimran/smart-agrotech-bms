@@ -36,6 +36,10 @@ export const USER_MESSAGES = Object.freeze({
   CANNOT_DELETE_OWN_ACCOUNT: "You cannot delete your own account.",
 
   LAST_ADMIN_DELETE: "The last active administrator cannot be deleted.",
+
+  PROFILE_FETCH_SUCCESS: "Profile retrieved successfully.",
+
+  PROFILE_UPDATED: "Profile updated successfully.",
 });
 
 export const USER_SORT_FIELDS = [

@@ -10,11 +10,12 @@ import validateRequest from "../../middlewares/validate.middleware.js";
 
 import { UserController } from "./user.controller.js";
 
-import { updateUserSchema } from "./user.validation.js";
-
-import { updateUserRoleSchema, } from "./user.validation.js";
-
-import { updateUserStatusSchema, } from "./user.validation.js";
+import {
+  updateUserSchema,
+  updateUserRoleSchema,
+  updateUserStatusSchema,
+  updateProfileSchema
+} from "./user.validation.js";
 
 const router = Router();
 
@@ -41,6 +42,26 @@ router.patch(
     updateUserStatusSchema
   ),
   UserController.updateUserStatus
+);
+
+router.get(
+  "/profile/me",
+
+  verifyToken,
+
+  UserController.getMyProfile
+);
+
+router.patch(
+  "/profile/me",
+
+  verifyToken,
+
+  validateRequest(
+    updateProfileSchema
+  ),
+
+  UserController.updateMyProfile
 );
 
 router.get(

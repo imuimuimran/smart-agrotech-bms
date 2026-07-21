@@ -256,6 +256,63 @@ const deleteUser = async (
   };
 };
 
+const getMyProfile =
+async (publicId) => {
+
+    const user =
+        await findByPublicId(
+
+            User,
+
+            publicId,
+
+            USER_MESSAGES.USER_NOT_FOUND
+
+        );
+
+    return sanitizeUser(user);
+
+};
+
+const updateMyProfile =
+async (
+    publicId,
+    payload
+) => {
+
+    const user =
+        await findByPublicId(
+
+            User,
+
+            publicId,
+
+            USER_MESSAGES.USER_NOT_FOUND
+
+        );
+
+    const allowedFields = [
+        "name",
+        "phone",
+        "profileImage",
+    ];
+
+    const updates = {};
+
+    allowedFields.forEach((field) => {
+        if (payload[field] !== undefined) {
+            updates[field] = payload[field];
+        }
+    });
+
+    Object.assign(user, updates);
+
+    await user.save();
+
+    return sanitizeUser(user);
+
+};
+
 export const UserService = {
   getUsers,
   getUser,
@@ -263,5 +320,7 @@ export const UserService = {
   updateUserRole,
   updateUserStatus,
   deleteUser,
+  getMyProfile,
+  updateMyProfile,
 };
 
