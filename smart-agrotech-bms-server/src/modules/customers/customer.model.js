@@ -55,6 +55,7 @@ const customerSchema = new mongoose.Schema(
                 "business",
                 "wholesale",
                 "retail",
+                "Government",
             ],
             default: "individual",
             index: true,
