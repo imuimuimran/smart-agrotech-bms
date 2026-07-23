@@ -71,6 +71,22 @@ export const generateCustomerPublicId =
       customer.updatedAt,
   });
 
+  export const normalizePhoneNumber = (phone) => {
+  if (!phone) return "";
+  
+  // Strip out all spaces, dashes, parentheses, or dots
+  let cleaned = phone.replace(/[\s\-\(\)\.]/g, "");
+
+  // If it starts with international prefix +880 or 880, normalize it to starting with 0
+  if (cleaned.startsWith("+880")) {
+    cleaned = "0" + cleaned.slice(4);
+  } else if (cleaned.startsWith("880")) {
+    cleaned = "0" + cleaned.slice(3);
+  }
+
+  return cleaned;
+};
+
   export const searchableFields = [
   "name",
   "phone",

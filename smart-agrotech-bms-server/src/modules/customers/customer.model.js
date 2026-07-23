@@ -4,6 +4,12 @@ import addressSchema from "../../shared/schemas/address.schema.js";
 
 import USER_STATUS from "../../constants/userStatus.js";
 
+import {
+  CUSTOMER_TYPES,
+  MEMBERSHIP_LEVELS,
+  PAYMENT_TERMS,
+} from "./customer.constants.js";
+
 const customerSchema = new mongoose.Schema(
     {
         publicId: {
@@ -50,14 +56,8 @@ const customerSchema = new mongoose.Schema(
 
         customerType: {
             type: String,
-            enum: [
-                "individual",
-                "business",
-                "wholesale",
-                "retail",
-                "Government",
-            ],
-            default: "individual",
+            enum: Object.values(CUSTOMER_TYPES),
+            default: CUSTOMER_TYPES.INDIVIDUAL,
             index: true,
         },
 
@@ -101,7 +101,8 @@ const customerSchema = new mongoose.Schema(
 
         paymentTerms: {
             type: String,
-            default: "Cash",
+            enum: Object.values(PAYMENT_TERMS),
+            default: PAYMENT_TERMS.CASH,
         },
 
         currency: {
@@ -131,7 +132,8 @@ const customerSchema = new mongoose.Schema(
 
         membershipLevel: {
             type: String,
-            default: "Bronze",
+            enum: Object.values(MEMBERSHIP_LEVELS),
+            default: MEMBERSHIP_LEVELS.BRONZE,
         },
 
         status: {
@@ -170,12 +172,10 @@ const customerSchema = new mongoose.Schema(
     }
 );
 
-customerSchema.pre(/^find/, function (next) {
+customerSchema.pre(/^find/, function () {
     this.find({
         isDeleted: false,
     });
-
-    next();
 });
 
 customerSchema.index({
