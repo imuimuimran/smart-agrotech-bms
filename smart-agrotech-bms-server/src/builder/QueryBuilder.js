@@ -23,7 +23,7 @@ class QueryBuilder {
         return this;
     }
 
-    filter() {
+    filter(allowedFields = []) {
         const queryObject = { ...this.query };
 
         const excludedFields = [
@@ -38,6 +38,14 @@ class QueryBuilder {
         excludedFields.forEach((field) => {
             delete queryObject[field];
         });
+
+        if (allowedFields.length > 0) {
+            Object.keys(queryObject).forEach((key) => {
+                if (!allowedFields.includes(key)) {
+                    delete queryObject[key];
+                }
+            });
+        }
 
         this.modelQuery =
             this.modelQuery.find(queryObject);

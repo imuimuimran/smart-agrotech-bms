@@ -66,3 +66,10 @@ export const CUSTOMER_MESSAGES = Object.freeze({
     "Only one default shipping address is allowed.",
 });
 
+export const CUSTOMER_FILTERABLE_FIELDS = [
+  "status",
+  "customerType",
+  "membershipLevel",
+  "companyName",
+];
+

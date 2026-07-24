@@ -87,7 +87,7 @@ export const generateCustomerPublicId =
   return cleaned;
 };
 
-  export const searchableFields = [
+  export const CUSTOMER_SEARCHABLE_FIELDS = [
   "name",
   "phone",
   "email",

@@ -1,6 +1,5 @@
 import { Router } from "express";
 
-// import verifyToken from "../../middlewares/verifyToken.js";
 import verifyToken from "../../middlewares/auth.middleware.js"
 
 import authorize from "../../middlewares/authorize.middleware.js";
@@ -34,6 +33,25 @@ router.post(
   ),
 
   CustomerController.createCustomer
+);
+
+router.get(
+    "/",
+
+    verifyToken,
+
+    authorize(
+
+        ROLES.ADMIN,
+
+        ROLES.MODERATOR,
+
+        ROLES.SALES
+
+    ),
+
+    CustomerController
+        .getCustomers
 );
 
 export default router;
