@@ -7,7 +7,8 @@ export const generateCustomerPublicId =
         .sort({
           createdAt: -1,
         })
-        .select("publicId");
+        .select("publicId")
+        .setOptions({ skipDeletedCheck: true });;
 
     if (!lastCustomer) {
       return "CUS-100001";

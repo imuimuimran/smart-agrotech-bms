@@ -84,4 +84,16 @@ router.patch(
   CustomerController.updateCustomer
 );
 
+router.delete(
+  "/:publicId",
+
+  verifyToken,
+
+  authorize(
+    ROLES.ADMIN
+  ),
+
+  CustomerController.deleteCustomer
+);
+
 export default router;

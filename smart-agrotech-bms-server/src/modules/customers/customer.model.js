@@ -5,9 +5,9 @@ import addressSchema from "../../shared/schemas/address.schema.js";
 import USER_STATUS from "../../constants/userStatus.js";
 
 import {
-  CUSTOMER_TYPES,
-  MEMBERSHIP_LEVELS,
-  PAYMENT_TERMS,
+    CUSTOMER_TYPES,
+    MEMBERSHIP_LEVELS,
+    PAYMENT_TERMS,
 } from "./customer.constants.js";
 
 const customerSchema = new mongoose.Schema(
@@ -157,6 +157,11 @@ const customerSchema = new mongoose.Schema(
             default: null,
         },
 
+        deletedBy: {
+            type: String,
+            default: null,
+        },
+
         createdBy: {
             type: String,
             required: true,
@@ -173,6 +178,9 @@ const customerSchema = new mongoose.Schema(
 );
 
 customerSchema.pre(/^find/, function () {
+    if (this.getOptions().skipDeletedCheck) {
+        return;
+    }
     this.find({
         isDeleted: false,
     });

@@ -168,9 +168,53 @@ const updateCustomer = async (publicId, payload, reqUser) => {
   return sanitizeCustomer(updatedCustomer);
 };
 
+const deleteCustomer = async (
+  publicId,
+  reqUser
+) => {
+
+  const customer =
+    await Customer.findOne({
+      publicId,
+    });
+
+  if (!customer) {
+    throw new ApiError(
+      HTTP_STATUS.NOT_FOUND,
+      CUSTOMER_MESSAGES.CUSTOMER_NOT_FOUND
+    );
+  }
+
+  // Future Rule #1
+  // Prevent deletion if customer has outstanding balance
+  if (customer.currentBalance > 0) {
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      CUSTOMER_MESSAGES.CUSTOMER_HAS_OUTSTANDING_BALANCE
+    );
+  }
+
+  // Future Rule #2
+  // Prevent deletion if customer has sales history
+  // (We'll replace this placeholder once the Sales module exists.)
+
+  await Customer.findOneAndUpdate(
+    { publicId },
+    {
+      isDeleted: true,
+      deletedAt: new Date(),
+      deletedBy: reqUser.publicId,
+      updatedBy: reqUser.publicId,
+    }
+  );
+
+  return null;
+};
+
 export const CustomerService = {
   createCustomer,
   getCustomers,
   getCustomer,
   updateCustomer,
+  deleteCustomer,
 };
