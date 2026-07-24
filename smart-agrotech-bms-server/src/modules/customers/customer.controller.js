@@ -67,7 +67,30 @@ res
 
 });
 
+const getCustomer = catchAsync(
+  async (req, res) => {
+    const result =
+      await CustomerService.getCustomer(
+        req.params.publicId
+      );
+
+    sendResponse({
+      res,
+
+      statusCode: HTTP_STATUS.OK,
+
+      success: true,
+
+      message:
+        CUSTOMER_MESSAGES.FETCH_ONE_SUCCESS,
+
+      data: result,
+    });
+  }
+);
+
 export const CustomerController = {
   createCustomer,
   getCustomers,
+  getCustomer,
 };

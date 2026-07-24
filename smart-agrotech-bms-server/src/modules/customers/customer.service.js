@@ -124,7 +124,23 @@ async (query) => {
 
 };
 
+const getCustomer = async (publicId) => {
+  const customer = await Customer.findOne({
+    publicId,
+  });
+
+  if (!customer) {
+    throw new ApiError(
+      HTTP_STATUS.NOT_FOUND,
+      CUSTOMER_MESSAGES.CUSTOMER_NOT_FOUND
+    );
+  }
+
+  return sanitizeCustomer(customer);
+};
+
 export const CustomerService = {
   createCustomer,
   getCustomers,
+  getCustomer,
 };

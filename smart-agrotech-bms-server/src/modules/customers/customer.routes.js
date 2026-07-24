@@ -18,6 +18,7 @@ import {
 
 const router = Router();
 
+// Create a Customer
 router.post(
   "/",
 
@@ -35,6 +36,7 @@ router.post(
   CustomerController.createCustomer
 );
 
+// Get All Customers (List)
 router.get(
     "/",
 
@@ -52,6 +54,21 @@ router.get(
 
     CustomerController
         .getCustomers
+);
+
+// Get Single Customer (New Route Added Here)
+router.get(
+  "/:publicId",
+
+  verifyToken,
+
+  authorize(
+    ROLES.ADMIN,
+    ROLES.MODERATOR,
+    ROLES.SALES
+  ),
+
+  CustomerController.getCustomer
 );
 
 export default router;
