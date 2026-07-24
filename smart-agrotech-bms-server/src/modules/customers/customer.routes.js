@@ -8,13 +8,9 @@ import validateRequest from "../../middlewares/validate.middleware.js";
 
 import ROLES from "../../constants/roles.js";
 
-import {
-  createCustomerSchema,
-} from "./customer.validation.js";
+import { createCustomerSchema, updateCustomerSchema, } from "./customer.validation.js";
 
-import {
-  CustomerController,
-} from "./customer.controller.js";
+import { CustomerController, } from "./customer.controller.js";
 
 const router = Router();
 
@@ -69,6 +65,23 @@ router.get(
   ),
 
   CustomerController.getCustomer
+);
+
+router.patch(
+  "/:publicId",
+
+  verifyToken,
+
+  authorize(
+    ROLES.ADMIN,
+    ROLES.MODERATOR
+  ),
+
+  validateRequest(
+    updateCustomerSchema
+  ),
+
+  CustomerController.updateCustomer
 );
 
 export default router;

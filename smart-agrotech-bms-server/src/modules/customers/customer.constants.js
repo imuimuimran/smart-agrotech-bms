@@ -73,3 +73,18 @@ export const CUSTOMER_FILTERABLE_FIELDS = [
   "companyName",
 ];
 
+export const CUSTOMER_ALLOWED_UPDATE_FIELDS = [
+  "name",
+  "email",
+  "phone",
+  "companyName",
+  "companyType",
+  "customerType",
+  "billingAddress",
+  "shippingAddresses",
+  "creditLimit",
+  "paymentTerms",
+  "membershipLevel",
+  "status",
+];
+

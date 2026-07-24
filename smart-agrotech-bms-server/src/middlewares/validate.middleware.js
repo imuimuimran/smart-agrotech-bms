@@ -8,9 +8,12 @@ const validate = (schema) => async (req, res, next) => {
     });
     
     // Assigns cleaned, validated data back to the request object
-    req.body = parsed.body;
-    req.query = parsed.query;
-    req.params = parsed.params;
+    // req.body = parsed.body;
+    // req.query = parsed.query;
+    // req.params = parsed.params;
+    if (parsed.body) req.body = parsed.body;
+    if (parsed.query) req.query = parsed.query;
+    if (parsed.params) req.params = parsed.params;
     
     return next();
   } catch (error) {
