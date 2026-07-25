@@ -211,10 +211,86 @@ const deleteCustomer = async (
   return null;
 };
 
+const getCustomerStatistics =
+async () => {
+
+  const totalCustomers =
+    await Customer.countDocuments();
+
+  const activeCustomers =
+    await Customer.countDocuments({
+      status: "active",
+    });
+
+  const inactiveCustomers =
+    await Customer.countDocuments({
+      status: "inactive",
+    });
+
+  const totalOutstanding =
+    await Customer.aggregate([
+      {
+        $group: {
+          _id: null,
+          total: {
+            $sum:
+              "$currentBalance",
+          },
+        },
+      },
+    ]);
+
+  return {
+
+    totalCustomers,
+
+    activeCustomers,
+
+    inactiveCustomers,
+
+    totalOutstanding:
+      totalOutstanding[0]
+        ?.total || 0,
+
+  };
+
+};
+
+const getCustomersNearCreditLimit = async () => {
+  return await Customer.find({
+    status: "active", // Only assess operational business clients
+    creditLimit: { $gt: 0 }, // Filter out cash-only/zero-limit accounts
+    $expr: {
+      $gte: [
+        "$currentBalance",
+        { $multiply: ["$creditLimit", 0.8] }
+      ]
+    }
+  }).select("publicId name phone creditLimit currentBalance");
+};
+
+const getCustomerDashboard = async () => {
+  const [statistics, criticalCreditRisk] = await Promise.all([
+    getCustomerStatistics(),
+    getCustomersNearCreditLimit()
+  ]);
+
+  return {
+    statistics,
+    recentCustomers: [], 
+    topCustomers: [],
+    customersNearCreditLimit: criticalCreditRisk, 
+    recentReturns: [],
+  };
+};
+
 export const CustomerService = {
   createCustomer,
   getCustomers,
   getCustomer,
   updateCustomer,
   deleteCustomer,
+  getCustomerStatistics,
+  getCustomersNearCreditLimit,
+  getCustomerDashboard,
 };

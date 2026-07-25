@@ -96,4 +96,18 @@ router.delete(
   CustomerController.deleteCustomer
 );
 
+router.get(
+  "/statistics/overview",
+
+  verifyToken,
+
+  authorize(
+    ROLES.ADMIN,
+    ROLES.MODERATOR
+  ),
+
+  CustomerController
+    .getCustomerStatistics
+);
+
 export default router;

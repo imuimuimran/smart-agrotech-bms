@@ -154,10 +154,41 @@ res
 
 });
 
+const getCustomerStatistics =
+catchAsync(
+async (
+req,
+res
+) => {
+
+  const result =
+    await CustomerService
+      .getCustomerStatistics();
+
+  sendResponse({
+
+    res,
+
+    statusCode:
+      HTTP_STATUS.OK,
+
+    success: true,
+
+    message:
+      "Customer statistics retrieved successfully.",
+
+    data:
+      result,
+
+  });
+
+});
+
 export const CustomerController = {
   createCustomer,
   getCustomers,
   getCustomer,
   updateCustomer,
   deleteCustomer,
+  getCustomerStatistics,
 };

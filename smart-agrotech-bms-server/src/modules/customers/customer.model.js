@@ -186,6 +186,11 @@ customerSchema.pre(/^find/, function () {
     });
 });
 
+// customerSchema.index({ phone: 1 });
+// customerSchema.index({ email: 1 });
+// customerSchema.index({ customerType: 1 });
+customerSchema.index({ membershipLevel: 1 });
+
 customerSchema.index({
     name: "text",
     companyName: "text",
