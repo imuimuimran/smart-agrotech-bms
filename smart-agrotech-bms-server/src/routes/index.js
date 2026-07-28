@@ -6,6 +6,8 @@ import userRoutes from "../modules/users/user.routes.js";
 
 import customerRoutes from "../modules/customers/customer.routes.js";
 
+import { SupplierRoutes } from "../modules/suppliers/supplier.routes.js";
+
 const router = Router();
 
 router.use("/auth", authRoutes);
@@ -13,5 +15,7 @@ router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
 
 router.use("/customers", customerRoutes);
+
+router.use("/suppliers", SupplierRoutes);
 
 export default router;

@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 const { Schema, model } = mongoose;
-import { addressSchema } from "../../shared/schemas/address.schema.js";
+import addressSchema from "../../shared/schemas/address.schema.js";
 import {
   SUPPLIER_TYPES,
   SUPPLIER_STATUS,
@@ -73,19 +73,18 @@ const supplierSchema = new Schema({
   toObject: { virtuals: true },
 });
 
-supplierSchema.index({ supplierName: "text", companyName: "text" });
-supplierSchema.index({ phone: 1 });
-supplierSchema.index({ email: 1 });
+// supplierSchema.index({ supplierName: "text", companyName: "text" });
+// supplierSchema.index({ phone: 1 });
+// supplierSchema.index({ email: 1 });
 supplierSchema.index({ supplierType: 1 });
-supplierSchema.index({ status: 1 });
+// supplierSchema.index({ status: 1 });
 
 supplierSchema.virtual("availableCredit").get(function () {
   return this.creditLimit - this.currentPayable;
 });
 
-supplierSchema.pre(/^find/, function (next) {
+supplierSchema.pre(/^find/, function () {
   this.find({ isDeleted: false });
-  next();
 });
 
 const Supplier = model("Supplier", supplierSchema);

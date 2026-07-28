@@ -1,20 +1,40 @@
-import { Supplier } from './supplier.model.js';
-import { generateSupplierPublicId } from './supplier.utils.js';
-import { SUPPLIER_STATUS } from './supplier.constants.js';
+import Supplier from './supplier.model.js';
+import QueryBuilder from "../../builder/QueryBuilder.js";
+import { generateSupplierPublicId, sanitizeSupplier } from './supplier.utils.js';
+import { SUPPLIER_STATUS, SUPPLIER_SEARCHABLE_FIELDS, SUPPLIER_FILTERABLE_FIELDS } from './supplier.constants.js';
 
-export const createSupplierIntoDB = async (supplierData, userId) => {
+const createSupplier = async (supplierData, userId) => {
   const publicId = await generateSupplierPublicId();
   
   const finalData = {
     ...supplierData,
     publicId,
-    supplierCode: publicId, // Standardizing matching references initially
+    supplierCode: publicId,
     createdBy: userId,
   };
 
-  return await Supplier.create(finalData);
+  const result = await Supplier.create(finalData);
+  return sanitizeSupplier(result);
 };
 
+const getSuppliers = async (query) => {
+  const supplierQuery = new QueryBuilder(Supplier.find(), query)
+    .search(SUPPLIER_SEARCHABLE_FIELDS)
+    .filter(SUPPLIER_FILTERABLE_FIELDS)
+    .sort()
+    .paginate()
+    .fields();
+
+  const suppliers = await supplierQuery.modelQuery;
+  const meta = await supplierQuery.countTotal();
+
+  return {
+    meta,
+    data: suppliers.map(sanitizeSupplier),
+  };
+};
+
+// Internal utility method for cross-module procurement validations
 export const validateSupplierForProcurement = async (publicId) => {
   const supplier = await Supplier.findOne({ publicId, isDeleted: false });
   
@@ -27,4 +47,9 @@ export const validateSupplierForProcurement = async (publicId) => {
   }
   
   return supplier;
+};
+
+export const SupplierService = {
+  createSupplier,
+  getSuppliers,
 };
