@@ -66,6 +66,106 @@ const getSupplier = async (
 
 };
 
+const updateSupplier = async (
+  publicId,
+  payload,
+  reqUser
+) => {
+
+  const supplier =
+    await Supplier.findOne({
+      publicId,
+    });
+
+  if (!supplier) {
+    throw new ApiError(
+      httpStatus.NOT_FOUND,
+      SUPPLIER_MESSAGES.SUPPLIER_NOT_FOUND
+    );
+  }
+
+  // Prevent duplicate email
+  if (
+    payload.email &&
+    payload.email !== supplier.email
+  ) {
+
+    const emailExists =
+      await Supplier.exists({
+
+        email: payload.email,
+
+        publicId: {
+          $ne: publicId,
+        },
+
+      });
+
+    if (emailExists) {
+
+      throw new ApiError(
+        httpStatus.CONFLICT,
+        SUPPLIER_MESSAGES.EMAIL_ALREADY_EXISTS
+      );
+
+    }
+
+  }
+
+  // Prevent duplicate phone
+  if (
+    payload.phone &&
+    payload.phone !== supplier.phone
+  ) {
+
+    const phoneExists =
+      await Supplier.exists({
+
+        phone: payload.phone,
+
+        publicId: {
+          $ne: publicId,
+        },
+
+      });
+
+    if (phoneExists) {
+
+      throw new ApiError(
+        httpStatus.CONFLICT,
+        SUPPLIER_MESSAGES.PHONE_ALREADY_EXISTS
+      );
+
+    }
+
+  }
+
+  payload.updatedBy =
+    reqUser.publicId;
+
+  const updatedSupplier =
+    await Supplier.findOneAndUpdate(
+
+      { publicId },
+
+      payload,
+
+      {
+
+        new: true,
+
+        runValidators: true,
+
+      }
+
+    );
+
+  return sanitizeSupplier(
+    updatedSupplier
+  );
+
+};
+
 // Internal utility method for cross-module procurement validations
 export const validateSupplierForProcurement = async (publicId) => {
   const supplier = await Supplier.findOne({ publicId, isDeleted: false });
@@ -85,4 +185,5 @@ export const SupplierService = {
   createSupplier,
   getSuppliers,
   getSupplier,
+  updateSupplier,
 };

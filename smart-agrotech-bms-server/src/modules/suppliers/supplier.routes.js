@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { SupplierController } from "./supplier.controller.js";
 import validateRequest from "../../middlewares/validate.middleware.js"; 
-import { createSupplierSchema } from "./supplier.validation.js";
+import { createSupplierSchema, updateSupplierSchema, } from "./supplier.validation.js";
 import verifyToken from "../../middlewares/auth.middleware.js";
 import authorize from "../../middlewares/authorize.middleware.js";
 import ROLES from "../../constants/roles.js";
@@ -37,6 +37,26 @@ router.get(
   ),
 
   SupplierController.getSupplier
+);
+
+router.patch(
+
+  "/:publicId",
+
+  verifyToken,
+
+  authorize(
+    ROLES.ADMIN,
+    ROLES.MODERATOR
+  ),
+
+  validateRequest(
+    updateSupplierSchema
+  ),
+
+  SupplierController
+    .updateSupplier
+
 );
 
 export const SupplierRoutes = router;

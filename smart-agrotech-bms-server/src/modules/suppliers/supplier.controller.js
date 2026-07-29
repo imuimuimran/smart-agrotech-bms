@@ -60,8 +60,47 @@ res
 
 });
 
+const updateSupplier =
+catchAsync(
+async (
+req,
+res
+) => {
+
+  const result =
+    await SupplierService
+      .updateSupplier(
+
+        req.params.publicId,
+
+        req.body,
+
+        req.user
+
+      );
+
+  sendResponse({
+
+    res,
+
+    statusCode: 200,
+
+    success: true,
+
+    message:
+      SUPPLIER_MESSAGES
+        .UPDATED_SUCCESS,
+
+    data:
+      result,
+
+  });
+
+});
+
 export const SupplierController = {
   createSupplier,
   getSuppliers,
   getSupplier,
+  updateSupplier,
 };
