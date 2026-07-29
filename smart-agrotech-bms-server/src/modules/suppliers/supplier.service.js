@@ -166,6 +166,76 @@ const updateSupplier = async (
 
 };
 
+const deleteSupplier = async (
+    publicId,
+    reqUser
+) => {
+
+    const supplier =
+        await Supplier.findOne({
+            publicId,
+        });
+
+    if (!supplier) {
+
+        throw new ApiError(
+            httpStatus.NOT_FOUND,
+            SUPPLIER_MESSAGES.SUPPLIER_NOT_FOUND
+        );
+
+    }
+
+    /*
+    Business Rule #1
+
+    Outstanding payable
+    */
+
+    if (
+        supplier.currentPayable > 0
+    ) {
+
+        throw new ApiError(
+            httpStatus.BAD_REQUEST,
+            SUPPLIER_MESSAGES.SUPPLIER_HAS_OUTSTANDING_PAYABLE
+        );
+
+    }
+
+    /*
+    Business Rule #2
+
+    Purchase history
+
+    Placeholder until Purchase Module
+    */
+
+    await Supplier.findOneAndUpdate(
+
+        {
+            publicId,
+        },
+
+        {
+
+            isDeleted: true,
+
+            deletedAt: new Date(),
+
+            deletedBy:
+                reqUser.publicId,
+
+            updatedBy:
+                reqUser.publicId,
+
+        }
+
+    );
+
+    return null;
+
+};
+
 // Internal utility method for cross-module procurement validations
 export const validateSupplierForProcurement = async (publicId) => {
   const supplier = await Supplier.findOne({ publicId, isDeleted: false });
@@ -186,4 +256,5 @@ export const SupplierService = {
   getSuppliers,
   getSupplier,
   updateSupplier,
+  deleteSupplier,
 };

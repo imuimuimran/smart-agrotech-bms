@@ -98,9 +98,44 @@ res
 
 });
 
+const deleteSupplier =
+catchAsync(
+async (
+req,
+res
+) => {
+
+    await SupplierService
+        .deleteSupplier(
+
+            req.params.publicId,
+
+            req.user
+
+        );
+
+    sendResponse({
+
+        res,
+
+        statusCode: 200,
+
+        success: true,
+
+        message:
+            SUPPLIER_MESSAGES
+                .DELETED_SUCCESS,
+
+        data: null,
+
+    });
+
+});
+
 export const SupplierController = {
   createSupplier,
   getSuppliers,
   getSupplier,
   updateSupplier,
+  deleteSupplier,
 };

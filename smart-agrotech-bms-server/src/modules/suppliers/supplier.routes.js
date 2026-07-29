@@ -59,4 +59,19 @@ router.patch(
 
 );
 
+router.delete(
+
+    "/:publicId",
+
+    verifyToken,
+
+    authorize(
+        ROLES.ADMIN
+    ),
+
+    SupplierController
+        .deleteSupplier
+
+);
+
 export const SupplierRoutes = router;
