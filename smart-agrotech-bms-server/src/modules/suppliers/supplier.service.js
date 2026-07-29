@@ -1,7 +1,17 @@
 import Supplier from './supplier.model.js';
 import QueryBuilder from "../../builder/QueryBuilder.js";
-import { generateSupplierPublicId, sanitizeSupplier } from './supplier.utils.js';
-import { SUPPLIER_STATUS, SUPPLIER_SEARCHABLE_FIELDS, SUPPLIER_FILTERABLE_FIELDS } from './supplier.constants.js';
+import ApiError from "../../shared/ApiError.js";
+import httpStatus from "../../constants/httpStatus.js";
+import { 
+  generateSupplierPublicId, 
+  sanitizeSupplier 
+} from './supplier.utils.js';
+import { 
+  SUPPLIER_STATUS, 
+  SUPPLIER_SEARCHABLE_FIELDS, 
+  SUPPLIER_FILTERABLE_FIELDS,
+  SUPPLIER_MESSAGES,
+ } from './supplier.constants.js';
 
 const createSupplier = async (supplierData, userId) => {
   const publicId = await generateSupplierPublicId();
@@ -34,6 +44,28 @@ const getSuppliers = async (query) => {
   };
 };
 
+const getSupplier = async (
+  publicId
+) => {
+
+  const supplier =
+    await Supplier.findOne({
+      publicId,
+    });
+
+  if (!supplier) {
+    throw new ApiError(
+      httpStatus.NOT_FOUND,
+      SUPPLIER_MESSAGES.SUPPLIER_NOT_FOUND
+    );
+  }
+
+  return sanitizeSupplier(
+    supplier
+  );
+
+};
+
 // Internal utility method for cross-module procurement validations
 export const validateSupplierForProcurement = async (publicId) => {
   const supplier = await Supplier.findOne({ publicId, isDeleted: false });
@@ -52,4 +84,5 @@ export const validateSupplierForProcurement = async (publicId) => {
 export const SupplierService = {
   createSupplier,
   getSuppliers,
+  getSupplier,
 };

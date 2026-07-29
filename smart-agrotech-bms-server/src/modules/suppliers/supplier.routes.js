@@ -23,4 +23,20 @@ router.get(
   SupplierController.getSuppliers
 );
 
+// "/statistics/..." router placed here
+
+router.get(
+  "/:publicId",
+
+  verifyToken,
+
+  authorize(
+    ROLES.ADMIN,
+    ROLES.MODERATOR,
+    ROLES.PURCHASE
+  ),
+
+  SupplierController.getSupplier
+);
+
 export const SupplierRoutes = router;
