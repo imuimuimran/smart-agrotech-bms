@@ -132,10 +132,54 @@ res
 
 });
 
+const getSupplierStatistics =
+catchAsync(
+async (
+req,
+res
+) => {
+
+    const result =
+        await SupplierService
+            .getSupplierStatistics();
+
+    sendResponse({
+
+        res,
+
+        statusCode: 200,
+
+        success:true,
+
+        message:
+            "Supplier statistics retrieved successfully.",
+
+        data:
+            result,
+
+    });
+
+});
+
+const getSupplierDashboardSummary = catchAsync(async (req, res) => {
+  const result = await SupplierService.getSupplierDashboard();
+
+  sendResponse({
+    res,
+    statusCode: 200,
+    success: true,
+    message: "Supplier workspace dashboard indicators populated successfully.",
+    data: result,
+  });
+});
+
+
 export const SupplierController = {
   createSupplier,
   getSuppliers,
   getSupplier,
   updateSupplier,
   deleteSupplier,
+  getSupplierStatistics,
+  getSupplierDashboardSummary,
 };

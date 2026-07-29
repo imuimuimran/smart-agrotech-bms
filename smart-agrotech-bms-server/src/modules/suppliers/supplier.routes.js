@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { SupplierController } from "./supplier.controller.js";
-import validateRequest from "../../middlewares/validate.middleware.js"; 
+import validateRequest from "../../middlewares/validate.middleware.js";
 import { createSupplierSchema, updateSupplierSchema, } from "./supplier.validation.js";
 import verifyToken from "../../middlewares/auth.middleware.js";
 import authorize from "../../middlewares/authorize.middleware.js";
@@ -8,6 +8,7 @@ import ROLES from "../../constants/roles.js";
 
 const router = Router();
 
+// 1. Collection Operations
 router.post(
   "/",
   verifyToken,
@@ -23,8 +24,32 @@ router.get(
   SupplierController.getSuppliers
 );
 
-// "/statistics/..." router placed here
+// 2. Static Endpoints (Must be placed before dynamic parameters)
+router.get(
 
+  "/statistics/overview",
+
+  verifyToken,
+
+  authorize(
+    ROLES.ADMIN,
+    ROLES.MODERATOR,
+    ROLES.PURCHASE
+  ),
+
+  SupplierController
+    .getSupplierStatistics
+
+);
+
+router.get(
+  "/dashboard/summary",
+  verifyToken,
+  authorize(ROLES.ADMIN, ROLES.MODERATOR, ROLES.PURCHASE),
+  SupplierController.getSupplierDashboardSummary
+);
+
+// 3. Dynamic Parameter Endpoints 
 router.get(
   "/:publicId",
 
@@ -61,16 +86,16 @@ router.patch(
 
 router.delete(
 
-    "/:publicId",
+  "/:publicId",
 
-    verifyToken,
+  verifyToken,
 
-    authorize(
-        ROLES.ADMIN
-    ),
+  authorize(
+    ROLES.ADMIN
+  ),
 
-    SupplierController
-        .deleteSupplier
+  SupplierController
+    .deleteSupplier
 
 );
 

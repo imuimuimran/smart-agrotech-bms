@@ -236,6 +236,87 @@ const deleteSupplier = async (
 
 };
 
+const getSupplierStatistics =
+async () => {
+
+    const totalSuppliers =
+        await Supplier.countDocuments();
+
+    const activeSuppliers =
+        await Supplier.countDocuments({
+            status: "active",
+        });
+
+    const inactiveSuppliers =
+        await Supplier.countDocuments({
+            status: "inactive",
+        });
+
+    const blacklistedSuppliers =
+        await Supplier.countDocuments({
+            status: "blacklisted",
+        });
+
+    const totalPayable =
+        await Supplier.aggregate([
+            {
+                $group:{
+                    _id:null,
+                    total:{
+                        $sum:
+                        "$currentPayable",
+                    },
+                },
+            },
+        ]);
+
+    return {
+
+        totalSuppliers,
+
+        activeSuppliers,
+
+        inactiveSuppliers,
+
+        blacklistedSuppliers,
+
+        totalPayable:
+            totalPayable[0]?.total || 0,
+
+    };
+
+};
+
+const getSuppliersNearCreditLimit = async () => {
+  const highRiskSuppliers = await Supplier.find({
+    $expr: {
+      $gte: [
+        "$currentPayable",
+        { $multiply: ["$creditLimit", 0.8] }
+      ]
+    }
+  });
+  
+  return highRiskSuppliers.map(sanitizeSupplier);
+};
+
+const getSupplierDashboard = async () => {
+  // Pull baseline statistics and high risk credit exposures concurrently to avoid event-loop blocking
+  const [statistics, suppliersNearCreditLimit, recentSuppliers] = await Promise.all([
+    getSupplierStatistics(),
+    getSuppliersNearCreditLimit(),
+    Supplier.find().sort({ createdAt: -1 }).limit(5)
+  ]);
+
+  return {
+    statistics,
+    recentSuppliers: recentSuppliers.map(sanitizeSupplier),
+    topSuppliers: [], // Placeholder until Purchase Module aggregation
+    suppliersNearCreditLimit,
+    recentPurchaseReturns: [], // Aligns with supplier returns and exchanges framework
+  };
+};
+
 // Internal utility method for cross-module procurement validations
 export const validateSupplierForProcurement = async (publicId) => {
   const supplier = await Supplier.findOne({ publicId, isDeleted: false });
@@ -257,4 +338,7 @@ export const SupplierService = {
   getSupplier,
   updateSupplier,
   deleteSupplier,
+  getSupplierStatistics,
+  getSuppliersNearCreditLimit,
+  getSupplierDashboard,
 };
