@@ -104,9 +104,8 @@ const productCategorySchema = new Schema(
 );
 
 // Global Query Middleware for Soft Delete Isolation
-productCategorySchema.pre(/^find/, function (next) {
+productCategorySchema.pre(/^find/, function () {
   this.find({ isDeleted: false });
-  next();
 });
 
 // Text Optimization & Performance Lookup Indexes
@@ -115,7 +114,7 @@ productCategorySchema.index({
   description: "text",
 });
 
-productCategorySchema.index({ categoryCode: 1 });
+// productCategorySchema.index({ categoryCode: 1 });
 productCategorySchema.index({ parentCategory: 1 });
 productCategorySchema.index({ status: 1 });
 
