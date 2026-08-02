@@ -1,12 +1,8 @@
 import { z } from "zod";
 
-// Future implementation will import constants here:
-// import { CATEGORY_STATUS } from "./productCategory.constants.js";
+import { CATEGORY_STATUS } from "./productCategory.constants.js";
 
-/**
- * Create Category Schema
- * Handles structural validation, type checks, and formatting for creating a category.
- */
+
 export const createProductCategorySchema = z.object({
   body: z.object({
     categoryName: z
@@ -60,7 +56,7 @@ export const createProductCategorySchema = z.object({
 
     // Future status configuration will replace z.string() with a centralized enum
     status: z
-      .string()
+      .enum(Object.values(CATEGORY_STATUS))
       .optional(),
   }),
 });

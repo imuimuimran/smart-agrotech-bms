@@ -1,4 +1,9 @@
 import mongoose from "mongoose";
+import {
+  CATEGORY_STATUS,
+  DEFAULT_CATEGORY_LEVEL,
+  DEFAULT_SORT_ORDER,
+} from "./productCategory.constants.js";
 
 const { Schema, model } = mongoose;
 
@@ -46,20 +51,20 @@ const productCategorySchema = new Schema(
 
     level: {
       type: Number,
-      default: 0,
+      default: DEFAULT_CATEGORY_LEVEL,
       min: 0,
     },
 
     // Sorting & Status Configuration
     sortOrder: {
       type: Number,
-      default: 0,
+      default: DEFAULT_SORT_ORDER,
     },
 
     status: {
       type: String,
-      enum: ["active", "inactive"],
-      default: "active",
+      enum: Object.values(CATEGORY_STATUS),
+      default: CATEGORY_STATUS.ACTIVE,
     },
 
     // Soft Delete Architecture
