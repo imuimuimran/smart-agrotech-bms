@@ -54,4 +54,11 @@ router.patch(
   ProductCategoryController.updateProductCategory
 );
 
+router.delete(
+  "/:publicId",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  ProductCategoryController.deleteProductCategory
+);
+
 export default router;

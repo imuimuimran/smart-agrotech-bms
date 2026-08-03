@@ -19,6 +19,7 @@ export const PRODUCT_CATEGORY_MESSAGES = Object.freeze({
   PARENT_CATEGORY_NOT_FOUND: "Parent category not found.",
   INVALID_PARENT_CATEGORY: "A category cannot be its own parent.",
   CATEGORY_HAS_PRODUCTS: "Category contains products and cannot be deleted.",
+  CATEGORY_HAS_CHILDREN: "Category contains child categories and cannot be deleted.",
 });
 
 export const PRODUCT_CATEGORY_SEARCHABLE_FIELDS = [

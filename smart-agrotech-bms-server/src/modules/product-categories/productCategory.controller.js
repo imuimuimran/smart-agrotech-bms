@@ -72,9 +72,25 @@ const updateProductCategory = catchAsync(async (req, res) => {
   });
 });
 
+const deleteProductCategory = catchAsync(async (req, res) => {
+  await ImportedService.deleteProductCategory(
+    req.params.publicId,
+    req.user
+  );
+
+  sendResponse({
+    res,
+    statusCode: httpStatus.OK,
+    success: true,
+    message: PRODUCT_CATEGORY_MESSAGES.DELETED_SUCCESS,
+    data: null,
+  });
+});
+
 export const ProductCategoryController = {
   createProductCategory,
   getProductCategories,
   getProductCategory,
   updateProductCategory,
+  deleteProductCategory,
 };

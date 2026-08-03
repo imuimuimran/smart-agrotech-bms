@@ -180,9 +180,52 @@ const updateProductCategory = async (publicId, payload, reqUser) => {
   return sanitizeProductCategory(updatedCategory);
 };
 
+const deleteProductCategory = async (publicId, reqUser) => {
+  // Use .find() over configuration bypass to bypass pre-find logic if checking deleted state manually
+  // or use direct findOne as it naturally filters out active items depending on index scope.
+  const category = await ProductCategory.findOne({ publicId });
+
+  if (!category) {
+    throw new ApiError(
+      httpStatus.NOT_FOUND,
+      PRODUCT_CATEGORY_MESSAGES.CATEGORY_NOT_FOUND
+    );
+  }
+
+  // Already Deleted Check
+  if (category.isDeleted) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      PRODUCT_CATEGORY_MESSAGES.CATEGORY_ALREADY_DELETED
+    );
+  }
+
+  // Child Category Existence Check
+  const childExists = await ProductCategory.exists({
+    parentCategory: category._id,
+    isDeleted: false,
+  });
+
+  if (childExists) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      PRODUCT_CATEGORY_MESSAGES.CATEGORY_HAS_CHILDREN
+    );
+  }
+
+  // Execute State Isolation Updates
+  category.isDeleted = true;
+  category.deletedAt = new Date();
+  category.deletedBy = reqUser.publicId;
+  category.updatedBy = reqUser.publicId;
+
+  await category.save();
+};
+
 export const ProductCategoryService = {
   createProductCategory,
   getProductCategories,
   getProductCategory,
-  updateProductCategory, 
+  updateProductCategory,
+  deleteProductCategory, 
 };
