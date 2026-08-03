@@ -32,7 +32,22 @@ const getProductCategories = catchAsync(async (req, res) => {
   });
 });
 
+const getProductCategory = catchAsync(async (req, res) => {
+  const result = await ProductCategoryService.getProductCategory(
+    req.params.publicId
+  );
+
+  sendResponse({
+    res,
+    statusCode: httpStatus.OK,
+    success: true,
+    message: PRODUCT_CATEGORY_MESSAGES.FETCH_ONE_SUCCESS,
+    data: result,
+  });
+});
+
 export const ProductCategoryController = {
   createProductCategory,
   getProductCategories,
+  getProductCategory,
 };

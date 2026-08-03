@@ -22,6 +22,19 @@ router.get(
   ProductCategoryController.getProductCategories
 );
 
+router.get(
+  "/:publicId",
+  verifyToken,
+  authorize(
+    ROLES.ADMIN,
+    ROLES.MODERATOR,
+    ROLES.MANAGER,
+    ROLES.SALES,
+    ROLES.PURCHASE
+  ),
+  ProductCategoryController.getProductCategory
+);
+
 router.post(
   "/",
   verifyToken,

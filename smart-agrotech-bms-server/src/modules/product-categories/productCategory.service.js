@@ -84,7 +84,24 @@ const getProductCategories = async (query) => {
   };
 };
 
+const getProductCategory = async (publicId) => {
+  const category = await ProductCategory.findOne({ publicId }).populate(
+    "parentCategory",
+    "publicId categoryName categoryCode"
+  );
+
+  if (!category) {
+    throw new ApiError(
+      httpStatus.NOT_FOUND,
+      PRODUCT_CATEGORY_MESSAGES.CATEGORY_NOT_FOUND
+    );
+  }
+
+  return sanitizeProductCategory(category);
+};
+
 export const ProductCategoryService = {
   createProductCategory,
   getProductCategories,
+  getProductCategory,
 };
