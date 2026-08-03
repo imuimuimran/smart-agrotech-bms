@@ -9,6 +9,19 @@ import { ProductCategoryController } from "./productCategory.controller.js";
 
 const router = express.Router();
 
+router.get(
+  "/",
+  verifyToken,
+  authorize(
+    ROLES.ADMIN,
+    ROLES.MODERATOR,
+    ROLES.MANAGER,
+    ROLES.SALES,
+    ROLES.PURCHASE
+  ),
+  ProductCategoryController.getProductCategories
+);
+
 router.post(
   "/",
   verifyToken,
