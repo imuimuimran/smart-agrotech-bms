@@ -100,8 +100,89 @@ const getProductCategory = async (publicId) => {
   return sanitizeProductCategory(category);
 };
 
+const updateProductCategory = async (publicId, payload, reqUser) => {
+  const category = await ProductCategory.findOne({ publicId });
+
+  if (!category) {
+    throw new ApiError(
+      httpStatus.NOT_FOUND,
+      PRODUCT_CATEGORY_MESSAGES.CATEGORY_NOT_FOUND
+    );
+  }
+
+  // Duplicate Category Name Validation
+  if (payload.categoryName && payload.categoryName !== category.categoryName) {
+    const nameExists = await ProductCategory.exists({
+      categoryName: payload.categoryName,
+      publicId: { $ne: publicId },
+    });
+
+    if (nameExists) {
+      throw new ApiError(
+        httpStatus.CONFLICT,
+        PRODUCT_CATEGORY_MESSAGES.CATEGORY_NAME_ALREADY_EXISTS
+      );
+    }
+  }
+
+  // Duplicate Category Code Validation
+  if (payload.categoryCode && payload.categoryCode !== category.categoryCode) {
+    const codeExists = await ProductCategory.exists({
+      categoryCode: payload.categoryCode,
+      publicId: { $ne: publicId },
+    });
+
+    if (codeExists) {
+      throw new ApiError(
+        httpStatus.CONFLICT,
+        PRODUCT_CATEGORY_MESSAGES.CATEGORY_CODE_ALREADY_EXISTS
+      );
+    }
+  }
+
+  // Parent Category Validation & Self-Parent Prevention
+  if (payload.parentCategory) {
+    const parent = await ProductCategory.findById(payload.parentCategory);
+
+    if (!parent) {
+      throw new ApiError(
+        httpStatus.NOT_FOUND,
+        PRODUCT_CATEGORY_MESSAGES.PARENT_CATEGORY_NOT_FOUND
+      );
+    }
+
+    if (parent.publicId === publicId) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        PRODUCT_CATEGORY_MESSAGES.INVALID_PARENT_CATEGORY
+      );
+    }
+
+    // Automatically calculate nesting tier height
+    payload.level = parent.level + 1;
+  } else if (payload.parentCategory === null) {
+    // If explicitly clearing parent category, reset back to root tier
+    payload.level = 0;
+  }
+
+  // Inject audit details
+  payload.updatedBy = reqUser.publicId;
+
+  const updatedCategory = await ProductCategory.findOneAndUpdate(
+    { publicId },
+    payload,
+    {
+      new: true,
+      runValidators: true,
+    }
+  ).populate("parentCategory", "publicId categoryName categoryCode");
+
+  return sanitizeProductCategory(updatedCategory);
+};
+
 export const ProductCategoryService = {
   createProductCategory,
   getProductCategories,
   getProductCategory,
+  updateProductCategory, 
 };

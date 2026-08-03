@@ -4,7 +4,10 @@ import authorize from "../../middlewares/authorize.middleware.js";
 import validateRequest from "../../middlewares/validate.middleware.js";
 // import { ROLES } from "../users/user.constants.js";
 import ROLES from "../../constants/roles.js";
-import { createProductCategorySchema } from "./productCategory.validation.js";
+import { 
+  createProductCategorySchema,
+  updateProductCategorySchema, 
+} from "./productCategory.validation.js";
 import { ProductCategoryController } from "./productCategory.controller.js";
 
 const router = express.Router();
@@ -41,6 +44,14 @@ router.post(
   authorize(ROLES.ADMIN, ROLES.MODERATOR),
   validateRequest(createProductCategorySchema),
   ProductCategoryController.createProductCategory
+);
+
+router.patch(
+  "/:publicId",
+  verifyToken,
+  authorize(ROLES.ADMIN, ROLES.MODERATOR),
+  validateRequest(updateProductCategorySchema),
+  ProductCategoryController.updateProductCategory
 );
 
 export default router;

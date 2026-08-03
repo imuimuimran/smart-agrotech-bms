@@ -2,10 +2,16 @@ import httpStatus from "../../constants/httpStatus.js";
 import catchAsync from "../../shared/catchAsync.js";
 import sendResponse from "../../shared/sendResponse.js";
 import { ProductCategoryService } from "./productCategory.service.js";
+import { ProductCategoryService as ImportedService } from "./productCategory.service.js";
+// import { ProductCategoryService } from "./productCategory.service.js";
 import { PRODUCT_CATEGORY_MESSAGES } from "./productCategory.constants.js";
 
 const createProductCategory = catchAsync(async (req, res) => {
-  const result = await ProductCategoryService.createProductCategory(
+  // const result = await ProductCategoryService.createProductCategory(
+  //   req.body,
+  //   req.user
+  // );
+  const result = await ImportedService.createProductCategory(
     req.body,
     req.user
   );
@@ -20,7 +26,8 @@ const createProductCategory = catchAsync(async (req, res) => {
 });
 
 const getProductCategories = catchAsync(async (req, res) => {
-  const result = await ProductCategoryService.getProductCategories(req.query);
+  // const result = await ProductCategoryService.getProductCategories(req.query);
+  const result = await ImportedService.getProductCategories(req.query);
 
   sendResponse({
     res,
@@ -33,7 +40,10 @@ const getProductCategories = catchAsync(async (req, res) => {
 });
 
 const getProductCategory = catchAsync(async (req, res) => {
-  const result = await ProductCategoryService.getProductCategory(
+  // const result = await ProductCategoryService.getProductCategory(
+  //   req.params.publicId
+  // );
+  const result = await ImportedService.getProductCategory(
     req.params.publicId
   );
 
@@ -46,8 +56,25 @@ const getProductCategory = catchAsync(async (req, res) => {
   });
 });
 
+const updateProductCategory = catchAsync(async (req, res) => {
+  const result = await ImportedService.updateProductCategory(
+    req.params.publicId,
+    req.body,
+    req.user
+  );
+
+  sendResponse({
+    res,
+    statusCode: httpStatus.OK,
+    success: true,
+    message: PRODUCT_CATEGORY_MESSAGES.UPDATED_SUCCESS,
+    data: result,
+  });
+});
+
 export const ProductCategoryController = {
   createProductCategory,
   getProductCategories,
   getProductCategory,
+  updateProductCategory,
 };
