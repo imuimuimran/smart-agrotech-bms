@@ -61,4 +61,11 @@ router.delete(
   ProductCategoryController.deleteProductCategory
 );
 
+router.patch(
+  "/:publicId/restore", 
+  verifyToken, 
+  authorize(ROLES.ADMIN), 
+  ProductCategoryController.restoreProductCategory
+);
+
 export default router;

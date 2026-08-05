@@ -10,6 +10,7 @@ import {
 import {
   generateCategoryPublicId,
   sanitizeProductCategory,
+  isCircularHierarchy,
 } from "./productCategory.utils.js";
 
 const createProductCategory = async (payload, reqUser) => {
@@ -158,6 +159,11 @@ const updateProductCategory = async (publicId, payload, reqUser) => {
       );
     }
 
+    const circular = await isCircularHierarchy(category._id, payload.parentCategory);
+    if (circular) {
+      throw new ApiError(httpStatus.BAD_REQUEST, PRODUCT_CATEGORY_MESSAGES.CIRCULAR_CATEGORY_HIERARCHY);
+    }
+
     // Automatically calculate nesting tier height
     payload.level = parent.level + 1;
   } else if (payload.parentCategory === null) {
@@ -222,10 +228,38 @@ const deleteProductCategory = async (publicId, reqUser) => {
   await category.save();
 };
 
+// Restore Core Business Service Layer Method 
+const restoreProductCategory = async (publicId, reqUser) => {
+  const category = await ProductCategory.findOne({ publicId }).withDeleted();
+
+  if (!category) {
+    throw new ApiError(httpStatus.NOT_FOUND, PRODUCT_CATEGORY_MESSAGES.CATEGORY_NOT_FOUND);
+  }
+  if (!category.isDeleted) {
+    throw new ApiError(httpStatus.BAD_REQUEST, PRODUCT_CATEGORY_MESSAGES.CATEGORY_NOT_DELETED);
+  }
+
+  if (category.parentCategory) {
+    const parent = await ProductCategory.findOne({ _id: category.parentCategory }).withDeleted();
+    if (!parent) throw new ApiError(httpStatus.NOT_FOUND, PRODUCT_CATEGORY_MESSAGES.PARENT_CATEGORY_NOT_FOUND);
+    if (parent.isDeleted) throw new ApiError(httpStatus.BAD_REQUEST, PRODUCT_CATEGORY_MESSAGES.PARENT_CATEGORY_DELETED);
+    if (parent.status !== "active") throw new ApiError(httpStatus.BAD_REQUEST, PRODUCT_CATEGORY_MESSAGES.PARENT_CATEGORY_INACTIVE);
+  }
+
+  category.isDeleted = false;
+  category.deletedAt = null;
+  category.deletedBy = null;
+  category.updatedBy = reqUser.publicId;
+
+  await category.save();
+  return sanitizeProductCategory(category);
+};
+
 export const ProductCategoryService = {
   createProductCategory,
   getProductCategories,
   getProductCategory,
   updateProductCategory,
-  deleteProductCategory, 
+  deleteProductCategory,
+  restoreProductCategory, 
 };

@@ -103,9 +103,17 @@ const productCategorySchema = new Schema(
   }
 );
 
+// Enterprise soft delete query engine modification bypass rule helper
+productCategorySchema.query.withDeleted = function () {
+  return this.setOptions({ withDeleted: true });
+};
+
 // Global Query Middleware for Soft Delete Isolation
 productCategorySchema.pre(/^find/, function () {
-  this.find({ isDeleted: false });
+  // this.find({ isDeleted: false });
+  if (!this.getOptions().withDeleted) {
+    this.where({ isDeleted: false });
+  }
 });
 
 // Text Optimization & Performance Lookup Indexes

@@ -20,6 +20,11 @@ export const PRODUCT_CATEGORY_MESSAGES = Object.freeze({
   INVALID_PARENT_CATEGORY: "A category cannot be its own parent.",
   CATEGORY_HAS_PRODUCTS: "Category contains products and cannot be deleted.",
   CATEGORY_HAS_CHILDREN: "Category contains child categories and cannot be deleted.",
+  RESTORED_SUCCESS: "Product category restored successfully.",
+  CATEGORY_NOT_DELETED: "Product category is not deleted.",
+  PARENT_CATEGORY_INACTIVE: "Parent category is inactive.",
+  PARENT_CATEGORY_DELETED: "Parent category is deleted.",
+  CIRCULAR_CATEGORY_HIERARCHY: "Circular category hierarchy detected.",
 });
 
 export const PRODUCT_CATEGORY_SEARCHABLE_FIELDS = [

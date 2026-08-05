@@ -6,9 +6,13 @@ import ProductCategory from "./productCategory.model.js";
 export const generateCategoryPublicId = async () => {
   // Bypasses global find query middleware by using standard findOne on un-indexed order if needed,
   // but targeting specific sorting tracking latest item regardless of soft delete state.
-  const lastCategory = await ProductCategory.findOne({}, {}, { autocomplete: false })
+  // const lastCategory = await ProductCategory.findOne({}, {}, { autocomplete: false })
+  //   .sort({ createdAt: -1 })
+  //   .select("publicId");
+  const lastCategory = await ProductCategory.findOne({}, {}, { withDeleted: true })
     .sort({ createdAt: -1 })
-    .select("publicId");
+    .select("publicId")
+    .withDeleted(); // Ensure we can find the id sequence even if the latest record is deleted
 
   if (!lastCategory) {
     return "CAT-100001";
@@ -38,4 +42,20 @@ export const sanitizeProductCategory = (category) => {
     createdAt: category.createdAt,
     updatedAt: category.updatedAt,
   };
+};
+
+// Advanced Loop Tree Graph Checker
+export const isCircularHierarchy = async (categoryId, parentId) => {
+  let currentParent = await ProductCategory.findOne({ _id: parentId }).withDeleted();
+
+  while (currentParent) {
+    if (currentParent._id.toString() === categoryId.toString()) {
+      return true;
+    }
+    if (!currentParent.parentCategory) {
+      break;
+    }
+    currentParent = await ProductCategory.findOne({ _id: currentParent.parentCategory }).withDeleted();
+  }
+  return false;
 };

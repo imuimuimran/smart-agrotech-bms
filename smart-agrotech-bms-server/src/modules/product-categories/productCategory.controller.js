@@ -87,10 +87,17 @@ const deleteProductCategory = catchAsync(async (req, res) => {
   });
 });
 
+// Controller Function for Restore Route
+const restoreProductCategory = catchAsync(async (req, res) => {
+  const result = await ImportedService.restoreProductCategory(req.params.publicId, req.user);
+  sendResponse({ res, statusCode: httpStatus.OK, success: true, message: PRODUCT_CATEGORY_MESSAGES.RESTORED_SUCCESS, data: result });
+});
+
 export const ProductCategoryController = {
   createProductCategory,
   getProductCategories,
   getProductCategory,
   updateProductCategory,
   deleteProductCategory,
+  restoreProductCategory,
 };
