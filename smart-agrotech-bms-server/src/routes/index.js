@@ -10,6 +10,8 @@ import { SupplierRoutes } from "../modules/suppliers/supplier.routes.js";
 
 import productCategoryRoutes from "../modules/product-categories/productCategory.routes.js";
 
+import brandRoutes from "../modules/brands/brand.routes.js";
+
 const router = Router();
 
 router.use("/auth", authRoutes);
@@ -21,5 +23,7 @@ router.use("/customers", customerRoutes);
 router.use("/suppliers", SupplierRoutes);
 
 router.use("/product-categories", productCategoryRoutes);
+
+router.use("/brands", brandRoutes);
 
 export default router;
