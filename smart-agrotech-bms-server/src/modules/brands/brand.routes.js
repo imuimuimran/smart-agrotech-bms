@@ -21,6 +21,19 @@ router.get(
   BrandController.getBrands
 );
 
+router.get(
+  "/:publicId",
+  verifyToken,
+  authorize(
+    ROLES.ADMIN,
+    ROLES.MODERATOR,
+    ROLES.MANAGER,
+    ROLES.SALES,
+    ROLES.PURCHASE
+  ),
+  BrandController.getBrand
+);
+
 router.post(
   "/",
   verifyToken,

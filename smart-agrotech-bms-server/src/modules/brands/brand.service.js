@@ -90,8 +90,22 @@ const getBrands = async (query) => {
   };
 };
 
+const getBrand = async (publicId) => {
+  const brand = await Brand.findOne({ publicId });
+
+  if (!brand) {
+    throw new ApiError(
+      httpStatus.NOT_FOUND,
+      BRAND_MESSAGES.BRAND_NOT_FOUND
+    );
+  }
+
+  return sanitizeBrand(brand);
+};
+
 
 export const BrandService = {
   createBrand,
   getBrands,
+  getBrand,
 };
