@@ -50,4 +50,11 @@ router.patch(
   BrandController.updateBrand
 );
 
+router.delete(
+  "/:publicId",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  BrandController.deleteBrand
+);
+
 export default router;

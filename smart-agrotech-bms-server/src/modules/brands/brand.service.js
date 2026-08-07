@@ -189,10 +189,62 @@ const updateBrand = async (publicId, payload, reqUser) => {
   return sanitizeBrand(updatedBrand);
 };
 
+const deleteBrand = async (publicId, reqUser) => {
+  /*
+  -------------------------
+  Find Brand using .withDeleted()
+  -------------------------
+  */
+  const brand = await Brand.findOne({ publicId }).withDeleted();
+
+  if (!brand) {
+    throw new ApiError(
+      httpStatus.NOT_FOUND,
+      BRAND_MESSAGES.BRAND_NOT_FOUND
+    );
+  }
+
+  /*
+  -------------------------
+  Already Deleted?
+  -------------------------
+  */
+  if (brand.isDeleted) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      BRAND_MESSAGES.BRAND_ALREADY_DELETED
+    );
+  }
+
+  /*
+  -------------------------
+  Product Dependency Check
+  -------------------------
+  Future integration hooks (Phase 8):
+  const hasProducts = await Product.exists({ brandId: brand._id, isDeleted: false });
+  if (hasProducts) {
+    throw new ApiError(httpStatus.BAD_REQUEST, BRAND_MESSAGES.BRAND_HAS_PRODUCTS);
+  }
+  */
+
+  /*
+  -------------------------
+  Execute Soft Delete
+  -------------------------
+  */
+  brand.isDeleted = true;
+  brand.deletedAt = new Date();
+  brand.deletedBy = reqUser.publicId;
+  brand.updatedBy = reqUser.publicId;
+
+  await brand.save();
+  return null;
+};
 
 export const BrandService = {
   createBrand,
   getBrands,
   getBrand,
   updateBrand,
+  deleteBrand,
 };
