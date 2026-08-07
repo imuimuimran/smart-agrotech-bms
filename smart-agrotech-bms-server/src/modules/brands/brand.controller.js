@@ -69,10 +69,26 @@ const deleteBrand = catchAsync(async (req, res) => {
   });
 });
 
+const restoreBrand = catchAsync(async (req, res) => {
+  const result = await BrandService.restoreBrand(
+    req.params.publicId,
+    req.user
+  );
+
+  sendResponse({
+    res,
+    statusCode: httpStatus.OK,
+    success: true,
+    message: BRAND_MESSAGES.RESTORED_SUCCESS,
+    data: result,
+  });
+});
+
 export const BrandController = {
   createBrand,
   getBrands,
   getBrand,
   updateBrand,
   deleteBrand,
+  restoreBrand,
 };

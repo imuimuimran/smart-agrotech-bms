@@ -57,4 +57,11 @@ router.delete(
   BrandController.deleteBrand
 );
 
+router.patch(
+  "/:publicId/restore",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  BrandController.restoreBrand
+);
+
 export default router;

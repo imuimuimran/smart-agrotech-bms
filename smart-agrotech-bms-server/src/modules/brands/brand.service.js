@@ -241,10 +241,53 @@ const deleteBrand = async (publicId, reqUser) => {
   return null;
 };
 
+const restoreBrand = async (publicId, reqUser) => {
+  /*
+  -------------------------
+  Find Brand with Deleted Context
+  -------------------------
+  */
+  const brand = await Brand.findOne({ publicId }).withDeleted();
+
+  if (!brand) {
+    throw new ApiError(
+      httpStatus.NOT_FOUND,
+      BRAND_MESSAGES.BRAND_NOT_FOUND
+    );
+  }
+
+  /*
+  -------------------------
+  Already Active Check
+  -------------------------
+  */
+  if (!brand.isDeleted) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      BRAND_MESSAGES.BRAND_NOT_DELETED
+    );
+  }
+
+  /*
+  -------------------------
+  Execute Restoration Rules
+  -------------------------
+  */
+  brand.isDeleted = false;
+  brand.deletedAt = null;
+  brand.deletedBy = null;
+  brand.updatedBy = reqUser.publicId;
+
+  await brand.save();
+
+  return sanitizeBrand(brand);
+};
+
 export const BrandService = {
   createBrand,
   getBrands,
   getBrand,
   updateBrand,
   deleteBrand,
+  restoreBrand,
 };
