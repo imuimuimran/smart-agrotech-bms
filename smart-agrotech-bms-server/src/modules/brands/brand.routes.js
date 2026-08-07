@@ -8,6 +8,19 @@ import { BrandValidation } from "./brand.validation.js";
 
 const router = express.Router();
 
+router.get(
+  "/",
+  verifyToken,
+  authorize(
+    ROLES.ADMIN,
+    ROLES.MODERATOR,
+    ROLES.MANAGER,
+    ROLES.SALES,
+    ROLES.PURCHASE
+  ),
+  BrandController.getBrands
+);
+
 router.post(
   "/",
   verifyToken,

@@ -1,7 +1,12 @@
 import httpStatus from "../../constants/httpStatus.js";
 import Brand from "./brand.model.js";
 import ApiError from "../../shared/ApiError.js";
-import { BRAND_MESSAGES } from "./brand.constants.js";
+import QueryBuilder from "../../builder/QueryBuilder.js";
+import { 
+  BRAND_MESSAGES,
+  BRAND_SEARCHABLE_FIELDS,
+  BRAND_FILTERABLE_FIELDS,
+} from "./brand.constants.js";
 import {
   sanitizeBrand,
   normalizeBrandName,
@@ -68,6 +73,25 @@ const createBrand = async (payload, reqUser) => {
   return sanitizeBrand(brand);
 };
 
+const getBrands = async (query) => {
+  const brandQuery = new QueryBuilder(Brand.find(), query)
+    .search(BRAND_SEARCHABLE_FIELDS)
+    .filter(BRAND_FILTERABLE_FIELDS)
+    .sort()
+    .paginate()
+    .fields();
+
+  const brands = await brandQuery.modelQuery;
+  const meta = await brandQuery.countTotal();
+
+  return {
+    meta,
+    data: brands.map(sanitizeBrand),
+  };
+};
+
+
 export const BrandService = {
   createBrand,
+  getBrands,
 };
