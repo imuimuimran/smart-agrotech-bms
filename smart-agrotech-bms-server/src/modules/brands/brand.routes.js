@@ -42,4 +42,12 @@ router.post(
   BrandController.createBrand
 );
 
+router.patch(
+  "/:publicId",
+  verifyToken,
+  authorize(ROLES.ADMIN, ROLES.MODERATOR),
+  validateRequest(BrandValidation.updateBrandSchema),
+  BrandController.updateBrand
+);
+
 export default router;

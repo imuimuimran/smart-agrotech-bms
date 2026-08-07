@@ -103,9 +103,96 @@ const getBrand = async (publicId) => {
   return sanitizeBrand(brand);
 };
 
+const updateBrand = async (publicId, payload, reqUser) => {
+  /*
+  -------------------------
+  Find Existing Brand
+  -------------------------
+  */
+  const brand = await Brand.findOne({ publicId });
+
+  if (!brand) {
+    throw new ApiError(
+      httpStatus.NOT_FOUND,
+      BRAND_MESSAGES.BRAND_NOT_FOUND
+    );
+  }
+
+  /*
+  -------------------------
+  Normalize Brand Name
+  -------------------------
+  */
+  if (payload.brandName) {
+    payload.brandName = normalizeBrandName(payload.brandName);
+  }
+
+  /*
+  -------------------------
+  Duplicate Brand Name
+  -------------------------
+  */
+  if (payload.brandName) {
+    const existingName = await Brand.findOne({
+      brandName: payload.brandName,
+      publicId: { $ne: publicId },
+    });
+
+    if (existingName) {
+      throw new ApiError(
+        httpStatus.CONFLICT,
+        BRAND_MESSAGES.BRAND_NAME_ALREADY_EXISTS
+      );
+    }
+  }
+
+  /*
+  -------------------------
+  Duplicate Brand Code
+  -------------------------
+  */
+  if (payload.brandCode) {
+    const existingCode = await Brand.findOne({
+      brandCode: payload.brandCode,
+      publicId: { $ne: publicId },
+    });
+
+    if (existingCode) {
+      throw new ApiError(
+        httpStatus.CONFLICT,
+        BRAND_MESSAGES.BRAND_CODE_ALREADY_EXISTS
+      );
+    }
+  }
+
+  /*
+  -------------------------
+  Audit Trace Capture
+  -------------------------
+  */
+  payload.updatedBy = reqUser.publicId;
+
+  /*
+  -------------------------
+  Update Documents Data
+  -------------------------
+  */
+  const updatedBrand = await Brand.findOneAndUpdate(
+    { publicId },
+    payload,
+    {
+      new: true,
+      runValidators: true,
+    }
+  );
+
+  return sanitizeBrand(updatedBrand);
+};
+
 
 export const BrandService = {
   createBrand,
   getBrands,
   getBrand,
+  updateBrand,
 };
