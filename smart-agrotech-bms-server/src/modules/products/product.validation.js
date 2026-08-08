@@ -1,0 +1,253 @@
+import { z } from "zod";
+
+/**
+ * Reusable ObjectId Validation
+ * Verifies hex format integrity before hit queries to MongoDB Atlas
+ */
+const objectIdSchema = z
+  .string()
+  .regex(/^[0-9a-fA-F]{24}$/, "Invalid MongoDB ObjectId.");
+
+/**
+ * Product Image Validation Sub-Schema Shape
+ */
+const productImageSchema = z.object({
+  url: z
+    .string()
+    .trim()
+    .url("Invalid image URL."),
+  alt: z
+    .string()
+    .trim()
+    .max(200, "Image alt text cannot exceed 200 characters.")
+    .optional()
+    .default(""),
+  isPrimary: z
+    .boolean()
+    .optional()
+    .default(false),
+});
+
+/**
+ * Pricing Validation with Cross-Field Refinement
+ * Enforces business rule: sellingPrice >= minimumSellingPrice
+ */
+const pricingSchema = z
+  .object({
+    purchasePrice: z
+      .number()
+      .min(0, "Purchase price cannot be negative."),
+    sellingPrice: z
+      .number()
+      .min(0, "Selling price cannot be negative."),
+    minimumSellingPrice: z
+      .number()
+      .min(0, "Minimum selling price cannot be negative."),
+  })
+  .superRefine((pricing, ctx) => {
+    if (pricing.sellingPrice < pricing.minimumSellingPrice) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["sellingPrice"],
+        message: "Selling price cannot be lower than minimum selling price.",
+      });
+    }
+  });
+
+/**
+ * Tax Validation with Conditional Cross-Field Rules
+ */
+const taxSchema = z
+  .object({
+    taxType: z.enum(["none", "percentage", "fixed"]),
+    taxRate: z.number().min(0, "Tax rate cannot be negative."),
+  })
+  .superRefine((tax, ctx) => {
+    if (tax.taxType === "none" && tax.taxRate !== 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["taxRate"],
+        message: "Tax rate must be 0 when tax type is none.",
+      });
+    }
+    if (tax.taxType === "percentage" && tax.taxRate > 100) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["taxRate"],
+        message: "Percentage tax rate cannot exceed 100.",
+      });
+    }
+  });
+
+/**
+ * Inventory Configuration Validation with Threshold Tier Rules
+ */
+const inventoryConfigSchema = z
+  .object({
+    trackInventory: z.boolean().optional().default(true),
+    minimumStockLevel: z
+      .number()
+      .min(0, "Minimum stock level cannot be negative.")
+      .optional()
+      .default(0),
+    maximumStockLevel: z
+      .number()
+      .min(0, "Maximum stock level cannot be negative.")
+      .optional()
+      .default(0),
+    reorderLevel: z
+      .number()
+      .min(0, "Reorder level cannot be negative.")
+      .optional()
+      .default(0),
+  })
+  .superRefine((inventory, ctx) => {
+    if (
+      inventory.maximumStockLevel > 0 &&
+      inventory.minimumStockLevel > inventory.maximumStockLevel
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["minimumStockLevel"],
+        message: "Minimum stock level cannot exceed maximum stock level.",
+      });
+    }
+    if (inventory.reorderLevel < inventory.minimumStockLevel) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["reorderLevel"],
+        message: "Reorder level should not be below minimum stock level.",
+      });
+    }
+  });
+
+/**
+ * Main Product Creation Schema
+ */
+export const createProductSchema = z.object({
+  body: z.object({
+    productName: z
+      .string()
+      .trim()
+      .min(2, "Product name must contain at least 2 characters.")
+      .max(150, "Product name cannot exceed 150 characters."),
+    productCode: z
+      .string()
+      .trim()
+      .min(2, "Product code is required.")
+      .max(50, "Product code cannot exceed 50 characters.")
+      .regex(
+        /^[A-Za-z0-9_-]+$/,
+        "Product code may contain only letters, numbers, hyphens and underscores."
+      ),
+    sku: z
+      .string()
+      .trim()
+      .min(2, "SKU is required.")
+      .max(80, "SKU cannot exceed 80 characters.")
+      .regex(
+        /^[A-Za-z0-9_-]+$/,
+        "SKU may contain only letters, numbers, hyphens and underscores."
+      ),
+    barcode: z
+      .string()
+      .trim()
+      .min(4, "Barcode is too short.")
+      .max(50, "Barcode cannot exceed 50 characters.")
+      .optional(),
+    categoryId: objectIdSchema,
+    brandId: objectIdSchema,
+    productType: z.enum(["physical", "service", "digital"]).default("physical"),
+    shortDescription: z
+      .string()
+      .trim()
+      .max(500, "Short description cannot exceed 500 characters.")
+      .optional()
+      .default(""),
+    description: z.string().trim().optional().default(""),
+    unit: z
+      .string()
+      .trim()
+      .min(1, "Unit is required.")
+      .max(30, "Unit cannot exceed 30 characters."),
+    unitConversion: z
+      .object({
+        baseUnit: z.string().trim().max(30).optional(),
+        conversionFactor: z
+          .number()
+          .positive("Conversion factor must be greater than 0.")
+          .optional()
+          .default(1),
+      })
+      .optional(),
+    pricing: pricingSchema,
+    tax: taxSchema.default({
+      taxType: "none",
+      taxRate: 0,
+    }),
+    inventoryConfig: inventoryConfigSchema.default({
+      trackInventory: true,
+      minimumStockLevel: 0,
+      maximumStockLevel: 0,
+      reorderLevel: 0,
+    }),
+    images: z
+      .array(productImageSchema)
+      .max(20, "A product cannot have more than 20 images.")
+      .optional()
+      .default([]),
+    status: z.enum(["active", "inactive", "discontinued"]).default("active"),
+  }),
+});
+
+/**
+ * Enterprise Explicit Nested Partial Update Schema
+ */
+const updatePricingSchema = pricingSchema.unwrap().partial();
+const updateTaxSchema = taxSchema.unwrap().partial();
+const updateInventoryConfigSchema = inventoryConfigSchema.unwrap().partial();
+
+const updateUnitConversionSchema = z.object({
+  baseUnit: z.string().trim().max(30).optional(),
+  conversionFactor: z.number().positive().optional(),
+});
+
+export const updateProductSchema = z.object({
+  body: z.object({
+    productName: z.string().trim().min(2).max(150).optional(),
+    productCode: z
+      .string()
+      .trim()
+      .min(2)
+      .max(50)
+      .regex(/^[A-Za-z0-9_-]+$/)
+      .optional(),
+    sku: z
+      .string()
+      .trim()
+      .min(2)
+      .max(80)
+      .regex(/^[A-Za-z0-9_-]+$/)
+      .optional(),
+    barcode: z.string().trim().min(4).max(50).optional(),
+    categoryId: objectIdSchema.optional(),
+    brandId: objectIdSchema.optional(),
+    productType: z.enum(["physical", "service", "digital"]).optional(),
+    shortDescription: z.string().trim().max(500).optional(),
+    description: z.string().trim().optional(),
+    unit: z.string().trim().min(1).max(30).optional(),
+    unitConversion: updateUnitConversionSchema.optional(),
+    pricing: updatePricingSchema.optional(),
+    tax: updateTaxSchema.optional(),
+    inventoryConfig: updateInventoryConfigSchema.optional(),
+    images: z.array(productImageSchema).max(20).optional(),
+    status: z.enum(["active", "inactive", "discontinued"]).optional(),
+  }),
+});
+
+export {
+  productImageSchema,
+  pricingSchema,
+  taxSchema,
+  inventoryConfigSchema,
+};

@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const { Schema, model } = mongoose;
 
 /**
- * 2. Product Image Sub-Schema
+ * Product Image Sub-Schema
  * Embedded array document storage for product assets
  */
 const productImageSchema = new Schema(
@@ -29,12 +29,12 @@ const productImageSchema = new Schema(
 );
 
 /**
- * 3. Main Product Schema
+ * Main Product Schema
  */
 const productSchema = new Schema(
   {
     // -------------------------
-    // 3.1 Product Identity
+    // Product Identity
     // -------------------------
     publicId: {
       type: String,
