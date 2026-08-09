@@ -243,11 +243,10 @@ productSchema.query.withDeleted = function () {
   return this.setOptions({ withDeleted: true });
 };
 
-productSchema.pre(/^find/, function (next) {
+productSchema.pre(/^find/, function () {
   if (!this.getOptions().withDeleted) {
     this.where({ isDeleted: false });
   }
-  next();
 });
 
 // -------------------------
@@ -256,8 +255,8 @@ productSchema.pre(/^find/, function (next) {
 productSchema.index({ productName: 1 });
 productSchema.index({ categoryId: 1, brandId: 1 });
 productSchema.index({ status: 1, isDeleted: 1 });
-productSchema.index({ sku: 1 });
-productSchema.index({ barcode: 1 });
+// productSchema.index({ sku: 1 });
+// productSchema.index({ barcode: 1 });
 
 const Product = model("Product", productSchema);
 

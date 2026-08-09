@@ -12,6 +12,8 @@ import productCategoryRoutes from "../modules/product-categories/productCategory
 
 import brandRoutes from "../modules/brands/brand.routes.js";
 
+import productRoutes from "../modules/products/product.routes.js";
+
 const router = Router();
 
 router.use("/auth", authRoutes);
@@ -25,5 +27,7 @@ router.use("/suppliers", SupplierRoutes);
 router.use("/product-categories", productCategoryRoutes);
 
 router.use("/brands", brandRoutes);
+
+router.use("/products", productRoutes);
 
 export default router;

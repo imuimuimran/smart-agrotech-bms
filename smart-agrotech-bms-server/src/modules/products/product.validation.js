@@ -28,98 +28,96 @@ const productImageSchema = z.object({
     .default(false),
 });
 
-/**
- * Pricing Validation with Cross-Field Refinement
- * Enforces business rule: sellingPrice >= minimumSellingPrice
- */
-const pricingSchema = z
-  .object({
-    purchasePrice: z
-      .number()
-      .min(0, "Purchase price cannot be negative."),
-    sellingPrice: z
-      .number()
-      .min(0, "Selling price cannot be negative."),
-    minimumSellingPrice: z
-      .number()
-      .min(0, "Minimum selling price cannot be negative."),
-  })
-  .superRefine((pricing, ctx) => {
-    if (pricing.sellingPrice < pricing.minimumSellingPrice) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["sellingPrice"],
-        message: "Selling price cannot be lower than minimum selling price.",
-      });
-    }
-  });
+// =========================================================================
+// DEFINE BASE OBJECT SCHEMAS FIRST (Ensures clean access for updates)
+// =========================================================================
 
-/**
- * Tax Validation with Conditional Cross-Field Rules
- */
-const taxSchema = z
-  .object({
-    taxType: z.enum(["none", "percentage", "fixed"]),
-    taxRate: z.number().min(0, "Tax rate cannot be negative."),
-  })
-  .superRefine((tax, ctx) => {
-    if (tax.taxType === "none" && tax.taxRate !== 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["taxRate"],
-        message: "Tax rate must be 0 when tax type is none.",
-      });
-    }
-    if (tax.taxType === "percentage" && tax.taxRate > 100) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["taxRate"],
-        message: "Percentage tax rate cannot exceed 100.",
-      });
-    }
-  });
+const basePricingSchema = z.object({
+  purchasePrice: z
+    .number()
+    .min(0, "Purchase price cannot be negative."),
+  sellingPrice: z
+    .number()
+    .min(0, "Selling price cannot be negative."),
+  minimumSellingPrice: z
+    .number()
+    .min(0, "Minimum selling price cannot be negative."),
+});
 
-/**
- * Inventory Configuration Validation with Threshold Tier Rules
- */
-const inventoryConfigSchema = z
-  .object({
-    trackInventory: z.boolean().optional().default(true),
-    minimumStockLevel: z
-      .number()
-      .min(0, "Minimum stock level cannot be negative.")
-      .optional()
-      .default(0),
-    maximumStockLevel: z
-      .number()
-      .min(0, "Maximum stock level cannot be negative.")
-      .optional()
-      .default(0),
-    reorderLevel: z
-      .number()
-      .min(0, "Reorder level cannot be negative.")
-      .optional()
-      .default(0),
-  })
-  .superRefine((inventory, ctx) => {
-    if (
-      inventory.maximumStockLevel > 0 &&
-      inventory.minimumStockLevel > inventory.maximumStockLevel
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["minimumStockLevel"],
-        message: "Minimum stock level cannot exceed maximum stock level.",
-      });
-    }
-    if (inventory.reorderLevel < inventory.minimumStockLevel) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["reorderLevel"],
-        message: "Reorder level should not be below minimum stock level.",
-      });
-    }
-  });
+const baseTaxSchema = z.object({
+  taxType: z.enum(["none", "percentage", "fixed"]),
+  taxRate: z.number().min(0, "Tax rate cannot be negative."),
+});
+
+const baseInventoryConfigSchema = z.object({
+  trackInventory: z.boolean().optional().default(true),
+  minimumStockLevel: z
+    .number()
+    .min(0, "Minimum stock level cannot be negative.")
+    .optional()
+    .default(0),
+  maximumStockLevel: z
+    .number()
+    .min(0, "Maximum stock level cannot be negative.")
+    .optional()
+    .default(0),
+  reorderLevel: z
+    .number()
+    .min(0, "Reorder level cannot be negative.")
+    .optional()
+    .default(0),
+});
+
+// =========================================================================
+// APPLY SUPER-REFINEMENTS FOR CREATION LAYERS
+// =========================================================================
+
+const pricingSchema = basePricingSchema.superRefine((pricing, ctx) => {
+  if (pricing.sellingPrice < pricing.minimumSellingPrice) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["sellingPrice"],
+      message: "Selling price cannot be lower than minimum selling price.",
+    });
+  }
+});
+
+const taxSchema = baseTaxSchema.superRefine((tax, ctx) => {
+  if (tax.taxType === "none" && tax.taxRate !== 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["taxRate"],
+      message: "Tax rate must be 0 when tax type is none.",
+    });
+  }
+  if (tax.taxType === "percentage" && tax.taxRate > 100) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["taxRate"],
+      message: "Percentage tax rate cannot exceed 100.",
+    });
+  }
+});
+
+const inventoryConfigSchema = baseInventoryConfigSchema.superRefine((inventory, ctx) => {
+  if (
+    inventory.maximumStockLevel > 0 &&
+    inventory.minimumStockLevel > inventory.maximumStockLevel
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["minimumStockLevel"],
+      message: "Minimum stock level cannot exceed maximum stock level.",
+    });
+  }
+  if (inventory.reorderLevel < inventory.minimumStockLevel) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["reorderLevel"],
+      message: "Reorder level should not be below minimum stock level.",
+    });
+  }
+});
 
 /**
  * Main Product Creation Schema
@@ -200,12 +198,12 @@ export const createProductSchema = z.object({
   }),
 });
 
-/**
- * Enterprise Explicit Nested Partial Update Schema
- */
-const updatePricingSchema = pricingSchema.unwrap().partial();
-const updateTaxSchema = taxSchema.unwrap().partial();
-const updateInventoryConfigSchema = inventoryConfigSchema.unwrap().partial();
+// =========================================================================
+// ENTERPRISE EXPLICIT NESTED PARTIAL UPDATE SCHEMA
+// =========================================================================
+const updatePricingSchema = basePricingSchema.partial();
+const updateTaxSchema = baseTaxSchema.partial();
+const updateInventoryConfigSchema = baseInventoryConfigSchema.partial();
 
 const updateUnitConversionSchema = z.object({
   baseUnit: z.string().trim().max(30).optional(),
