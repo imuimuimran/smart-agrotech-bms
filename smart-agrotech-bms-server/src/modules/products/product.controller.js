@@ -16,6 +16,20 @@ const createProduct = catchAsync(async (req, res) => {
   });
 });
 
+const getProducts = catchAsync(async (req, res) => {
+  const result = await ProductService.getProducts(req.query);
+
+  sendResponse({
+    res,
+    statusCode: httpStatus.OK,
+    success: true,
+    message: PRODUCT_MESSAGES.FETCHED,
+    data: result.products,
+    pagination: result.pagination, // Inject pagination meta blocks cleanly
+  });
+});
+
 export const ProductController = {
   createProduct,
+  getProducts,
 };

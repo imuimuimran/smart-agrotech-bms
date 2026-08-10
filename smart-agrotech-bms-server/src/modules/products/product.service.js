@@ -10,6 +10,8 @@ import {
   normalizeProductImages,
   sanitizeProduct,
   formatProductPublicId,
+  buildProductFilter, 
+  buildProductSort
 } from "./product.utils.js";
 
 /**
@@ -88,6 +90,43 @@ const createProduct = async (payload, reqUser) => {
   return sanitizeProduct(product);
 };
 
+/**
+ * Get Products List Pipeline with Concurrent Database Metrics Counting
+ */
+const getProducts = async (query) => {
+  const filter = buildProductFilter(query);
+  const sort = buildProductSort(query.sort);
+
+  const page = query.page || 1;
+  const limit = query.limit || 20;
+  const skip = (page - 1) * limit;
+
+  // Execute concurrently to maximize application throughput
+  const [products, total] = await Promise.all([
+    Product.find(filter)
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .populate("categoryId", "publicId categoryName categoryCode") // Populate relationships cleanly
+      .populate("brandId", "publicId brandName brandCode")
+      .lean(),
+    Product.countDocuments(filter),
+  ]);
+
+  return {
+    products: products.map(sanitizeProduct),
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      hasNextPage: page < Math.ceil(total / limit),
+      hasPreviousPage: page > 1,
+    },
+  };
+};
+
 export const ProductService = {
   createProduct,
+  getProducts,
 };

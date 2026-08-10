@@ -243,6 +243,64 @@ export const updateProductSchema = z.object({
   }),
 });
 
+/**
+ * Product Listing Query Schema
+ * Handles query string verification, auto-coercion, and cross-field price refinement
+ */
+export const productListQuerySchema = z
+  .object({
+    search: z
+      .string()
+      .trim()
+      .max(100, "Search term cannot exceed 100 characters.")
+      .optional(),
+    categoryId: z
+      .string()
+      .regex(/^[0-9a-fA-F]{24}$/, "Invalid Category ID format.")
+      .optional(),
+    brandId: z
+      .string()
+      .regex(/^[0-9a-fA-F]{24}$/, "Invalid Brand ID format.")
+      .optional(),
+    productType: z.enum(["physical", "service", "digital"]).optional(),
+    status: z.enum(["active", "inactive", "discontinued"]).optional(),
+    unit: z.string().trim().max(30).optional(),
+    minPrice: z.coerce
+      .number()
+      .min(0, "Minimum price cannot be negative.")
+      .optional(),
+    maxPrice: z.coerce
+      .number()
+      .min(0, "Maximum price cannot be negative.")
+      .optional(),
+    page: z.coerce
+      .number()
+      .int()
+      .min(1, "Page must be greater than or equal to 1.")
+      .default(1),
+    limit: z.coerce
+      .number()
+      .int()
+      .min(1, "Limit must be at least 1.")
+      .max(100, "Limit cannot exceed 100.")
+      .default(20),
+    sort: z.string().trim().optional(),
+  })
+  .superRefine((query, ctx) => {
+    if (
+      query.minPrice !== undefined &&
+      query.maxPrice !== undefined &&
+      query.minPrice > query.maxPrice
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["minPrice"],
+        message: "Minimum price cannot exceed maximum price.",
+      });
+    }
+  });
+
+
 export {
   productImageSchema,
   pricingSchema,

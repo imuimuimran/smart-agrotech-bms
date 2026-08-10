@@ -1,4 +1,9 @@
-import { PRODUCT_PUBLIC_ID_PREFIX } from "./product.constants.js";
+import { 
+  PRODUCT_PUBLIC_ID_PREFIX,
+  PRODUCT_SEARCHABLE_FIELDS,
+  PRODUCT_SORTABLE_FIELDS,
+  PRODUCT_DEFAULT_SORT, 
+} from "./product.constants.js";
 
 /**
  * Trims and uppercase strings for identifiers like SKUs and Product Codes
@@ -87,4 +92,65 @@ export const sanitizeProduct = (product) => {
   const productObject = product.toObject ? product.toObject() : product;
   const { __v, ...safeProduct } = productObject;
   return safeProduct;
+};
+
+/**
+ * Escape Search Input to Prevent Injection Attacks
+ */
+export const escapeRegex = (value) => {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+};
+
+/**
+ * Build Safe MongoDB Filter Pipeline
+ */
+export const buildProductFilter = (query) => {
+  const filter = { isDeleted: false }; // Base filter locks out soft-deleted records
+
+  if (query.search) {
+    const regex = new RegExp(escapeRegex(query.search), "i");
+    filter.$or = PRODUCT_SEARCHABLE_FIELDS.map((field) => ({
+      [field]: regex,
+    }));
+  }
+
+  if (query.categoryId) filter.categoryId = query.categoryId;
+  if (query.brandId) filter.brandId = query.brandId;
+  if (query.productType) filter.productType = query.productType;
+  if (query.status) filter.status = query.status;
+  if (query.unit) filter.unit = query.unit;
+
+  // Price range snapshot criteria filtering mapping
+  if (query.minPrice !== undefined || query.maxPrice !== undefined) {
+    filter["pricing.sellingPrice"] = {};
+    if (query.minPrice !== undefined) {
+      filter["pricing.sellingPrice"].$gte = query.minPrice;
+    }
+    if (query.maxPrice !== undefined) {
+      filter["pricing.sellingPrice"].$lte = query.maxPrice;
+    }
+  }
+
+  return filter;
+};
+
+/**
+ * Whitelist Wholesome Sort Validation Parser
+ */
+export const buildProductSort = (sort) => {
+  if (!sort) {
+    return PRODUCT_DEFAULT_SORT;
+  }
+
+  const fields = sort.split(",");
+  const validFields = fields.filter((field) => {
+    const fieldName = field.startsWith("-") ? field.slice(1) : field;
+    return PRODUCT_SORTABLE_FIELDS.includes(fieldName);
+  });
+
+  if (validFields.length === 0) {
+    return PRODUCT_DEFAULT_SORT;
+  }
+
+  return validFields.join(" ");
 };
