@@ -301,6 +301,19 @@ export const productListQuerySchema = z
   });
 
 
+/**
+ * Product ID Parameter Validator
+ * Prevents CastErrors from bubbling up by validating format structures beforehand
+ */
+export const productIdParamSchema = z.object({
+  params: z.object({
+    id: z
+      .string()
+      .regex(/^[0-9a-fA-F]{24}$/, "Invalid Product ID format. Must be a 24-character hex string."),
+  }),
+});
+
+
 export {
   productImageSchema,
   pricingSchema,

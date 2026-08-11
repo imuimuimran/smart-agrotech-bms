@@ -7,7 +7,8 @@ import ROLES from "../../constants/roles.js";
 import { ProductController } from "./product.controller.js";
 import { 
   createProductSchema,
-  productListQuerySchema,   
+  productListQuerySchema,
+  productIdParamSchema,   
 } from "./product.validation.js";
 
 const router = express.Router();
@@ -32,6 +33,20 @@ router.get(
   ),
   validateQuery(productListQuerySchema),
   ProductController.getProducts
+);
+
+router.get(
+  "/:id",
+  verifyToken,
+  authorize(
+    ROLES.ADMIN,
+    ROLES.MODERATOR,
+    ROLES.MANAGER,
+    ROLES.SALES,
+    ROLES.PURCHASE
+  ),
+  validateRequest(productIdParamSchema), // Validates format layout properties cleanly
+  ProductController.getProductById
 );
 
 export default router;

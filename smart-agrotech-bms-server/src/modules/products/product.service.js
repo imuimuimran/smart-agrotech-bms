@@ -126,7 +126,30 @@ const getProducts = async (query) => {
   };
 };
 
+/**
+ * Fetch Single Product by MongoDB ID with Core Relationship Population
+ */
+const getProductById = async (productId) => {
+  const product = await Product.findOne({
+    _id: productId,
+    isDeleted: false,
+  })
+    .populate("categoryId", "publicId categoryName categoryCode status") // Clean project projection mapping
+    .populate("brandId", "publicId brandName brandCode status");
+
+  if (!product) {
+    throw new ApiError(
+      httpStatus.NOT_FOUND,
+      PRODUCT_MESSAGES.NOT_FOUND
+    );
+  }
+
+  return sanitizeProduct(product);
+};
+
 export const ProductService = {
   createProduct,
   getProducts,
+  getProductById,
 };
+
