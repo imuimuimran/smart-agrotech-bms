@@ -57,9 +57,22 @@ const updateProduct = catchAsync(async (req, res) => {
   });
 });
 
+// New Controller function to parse parameters and direct removal passes cleanly
+const deleteProduct = catchAsync(async (req, res) => {
+  await ProductService.deleteProduct(req.params.id, req.user);
+
+  sendResponse({
+    res,
+    statusCode: httpStatus.OK,
+    success: true,
+    message: PRODUCT_MESSAGES.DELETED, // Clean return envelope optimization
+  });
+});
+
 export const ProductController = {
   createProduct,
   getProducts,
   getProductById,
   updateProduct,
+  deleteProduct,
 };

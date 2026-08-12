@@ -59,4 +59,12 @@ router.patch(
   ProductController.updateProduct
 );
 
+router.delete(
+  "/:id",
+  verifyToken,
+  authorize(ROLES.ADMIN), // Admin authorization lock enforced for structural safety
+  validateRequest(productIdParamSchema), // Validates format property structures beforehand
+  ProductController.deleteProduct
+);
+
 export default router;

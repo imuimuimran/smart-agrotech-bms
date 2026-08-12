@@ -154,3 +154,18 @@ export const buildProductSort = (sort) => {
 
   return validFields.join(" ");
 };
+
+/**
+ * Product Usage Mock Verification Engine
+ * Establishes historical anchors for upcoming transactional phases cleanly.
+ */
+export const getProductUsage = async (productId) => {
+  // Database references will be integrated here dynamically as each phase rolls out.
+  return {
+    hasPurchases: false,
+    hasSales: false,
+    hasInventoryMovements: false,
+    hasReturns: false,
+    hasExchanges: false,
+  };
+};

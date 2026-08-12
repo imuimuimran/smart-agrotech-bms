@@ -11,7 +11,8 @@ import {
   sanitizeProduct,
   formatProductPublicId,
   buildProductFilter, 
-  buildProductSort
+  buildProductSort,
+  getProductUsage,
 } from "./product.utils.js";
 
 /**
@@ -245,11 +246,50 @@ const updateProduct = async (productId, updateData, reqUser) => {
   return sanitizeProduct(updatedProduct);
 };
 
+/**
+ * Product Delete Service Core
+ * Performs conditional isolation state mapping based on historical ledger status.
+ */
+const deleteProduct = async (productId, reqUser) => {
+  // Target item verification matching active context parameters
+  const product = await Product.findOne({
+    _id: productId,
+    isDeleted: false,
+  });
+
+  if (!product) {
+    throw new ApiError(httpStatus.NOT_FOUND, PRODUCT_MESSAGES.NOT_FOUND);
+  }
+
+  // Fetch structural usage mapping blocks across historical collections (Rule 8.9.6)
+  const usage = await getProductUsage(productId);
+  const hasHistory = Object.values(usage).some(Boolean);
+
+  // Enforce relational blocking integrity protections (Rule 8.9.11)
+  if (hasHistory) {
+    throw new ApiError(
+      httpStatus.CONFLICT, // 409 Conflict represents state clashes appropriately
+      "Product cannot be deleted because it has business history. Discontinue the product instead."
+    );
+  }
+
+  // Update the record state and store tracking metadata (Rule 8.9.28)
+  product.isDeleted = true;
+  product.deletedAt = new Date();
+  product.deletedBy = reqUser.publicId; // Links your user publicId tracker configuration
+  product.updatedBy = reqUser.publicId;
+
+  await product.save();
+  return null;
+};
+
+
 export const ProductService = {
   createProduct,
   getProducts,
   getProductById,
   updateProduct,
+  deleteProduct,
 };
 
 
