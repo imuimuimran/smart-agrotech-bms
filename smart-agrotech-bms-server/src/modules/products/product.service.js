@@ -147,9 +147,109 @@ const getProductById = async (productId) => {
   return sanitizeProduct(product);
 };
 
+/**
+ * Enterprise Core Service for Defensive Product Modifications
+ */
+const updateProduct = async (productId, updateData, reqUser) => {
+  // Fetch current product record state securely
+  const product = await Product.findOne({
+    _id: productId,
+    isDeleted: false,
+  });
+
+  if (!product) {
+    throw new ApiError(httpStatus.NOT_FOUND, PRODUCT_MESSAGES.NOT_FOUND);
+  }
+
+  // Defensive Multi-Field Allowlist Mapping Strategy (Rule 8.8.11)
+  const allowedUpdates = {
+    productName: updateData.productName,
+    productType: updateData.productType,
+    shortDescription: updateData.shortDescription,
+    description: updateData.description,
+    categoryId: updateData.categoryId,
+    brandId: updateData.brandId,
+    unit: updateData.unit,
+    status: updateData.status,
+  };
+
+  // Process Flattened Fields into Document Object
+  Object.entries(allowedUpdates).forEach(([key, value]) => {
+    if (value !== undefined) {
+      product[key] = value;
+    }
+  });
+
+  // Handle Complex Nested Pricing Objects with State Awareness (Rule 8.8.14)
+  if (updateData.pricing) {
+    const nextSellingPrice =
+      updateData.pricing.sellingPrice !== undefined
+        ? updateData.pricing.sellingPrice
+        : product.pricing.sellingPrice;
+
+    const nextMinimumSellingPrice =
+      updateData.pricing.minimumSellingPrice !== undefined
+        ? updateData.pricing.minimumSellingPrice
+        : product.pricing.minimumSellingPrice;
+
+    if (nextSellingPrice < nextMinimumSellingPrice) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        "Selling price cannot be lower than minimum selling price."
+      );
+    }
+
+    // Safely transfer pricing modifications down to model subpaths
+    Object.entries(updateData.pricing).forEach(([key, value]) => {
+      if (value !== undefined) {
+        product.pricing[key] = value;
+      }
+    });
+  }
+
+  // Handle Nested Tax Updates
+  if (updateData.tax) {
+    Object.entries(updateData.tax).forEach(([key, value]) => {
+      if (value !== undefined) {
+        product.tax[key] = value;
+      }
+    });
+  }
+
+  // Handle Nested Inventory Config Updates
+  if (updateData.inventoryConfig) {
+    Object.entries(updateData.inventoryConfig).forEach(([key, value]) => {
+      if (value !== undefined) {
+        product.inventoryConfig[key] = value;
+      }
+    });
+  }
+
+  // Handle Image Collection Replacements
+  if (updateData.images) {
+    product.images = updateData.images;
+  }
+
+  // Assign Trace Audit Signature Information (Rule 8.8.26)
+  product.updatedBy = reqUser.publicId;
+
+  // Persist into MongoDB Atlas Layer
+  await product.save();
+
+  // Fetch clean populated document graph for application response lookups
+  const updatedProduct = await Product.findById(product._id)
+    .populate("categoryId", "publicId categoryName categoryCode")
+    .populate("brandId", "publicId brandName brandCode")
+    .lean();
+
+  return sanitizeProduct(updatedProduct);
+};
+
 export const ProductService = {
   createProduct,
   getProducts,
   getProductById,
+  updateProduct,
 };
+
 

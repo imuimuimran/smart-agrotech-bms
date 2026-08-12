@@ -8,7 +8,8 @@ import { ProductController } from "./product.controller.js";
 import { 
   createProductSchema,
   productListQuerySchema,
-  productIdParamSchema,   
+  productIdParamSchema,
+  updateProductSchema,   
 } from "./product.validation.js";
 
 const router = express.Router();
@@ -47,6 +48,15 @@ router.get(
   ),
   validateRequest(productIdParamSchema), // Validates format layout properties cleanly
   ProductController.getProductById
+);
+
+router.patch(
+  "/:id",
+  verifyToken,
+  authorize(ROLES.ADMIN, ROLES.MANAGER), // Restricted to Admin/Manager per spec doc
+  validateRequest(productIdParamSchema),  // Validate ID format structure first
+  validateRequest(updateProductSchema),  // Validate Body criteria boundaries next
+  ProductController.updateProduct
 );
 
 export default router;

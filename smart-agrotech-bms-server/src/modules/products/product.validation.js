@@ -240,7 +240,11 @@ export const updateProductSchema = z.object({
     inventoryConfig: updateInventoryConfigSchema.optional(),
     images: z.array(productImageSchema).max(20).optional(),
     status: z.enum(["active", "inactive", "discontinued"]).optional(),
-  }),
+  })
+  .refine(
+    (body) => Object.keys(body).length > 0,
+    { message: "No fields provided for update. At least one field is required." }
+  ),
 });
 
 /**
