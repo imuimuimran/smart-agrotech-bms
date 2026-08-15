@@ -3,17 +3,34 @@
  * Source of truth for system lifecycles, states, and document constraints.
  */
 
+export const PO_STATUS = {
+  DRAFT: 'DRAFT',
+  SUBMITTED: 'SUBMITTED',
+  APPROVED: 'APPROVED',
+  SENT: 'SENT',
+  PARTIALLY_RECEIVED: 'PARTIALLY_RECEIVED',
+  FULLY_RECEIVED: 'FULLY_RECEIVED',
+  CANCELLED: 'CANCELLED',
+  CLOSED: 'CLOSED'
+};
+
 // Purchase Lifecycle Statuses (Independent of Payment)
 export const PURCHASE_STATUS = {
   DRAFT: 'DRAFT',                       // Being prepared, freely editable
   SUBMITTED: 'SUBMITTED',               // Sent for approval/review
   APPROVED: 'APPROVED',                 // Approved, authorized to receive
+  CONFIRMED: 'CONFIRMED',
   PARTIALLY_RECEIVED: 'PARTIALLY_RECEIVED', // Some items received at warehouse
   RECEIVED: 'RECEIVED',                 // All ordered items successfully arrived
   COMPLETED: 'COMPLETED',               // Financial and receiving flows finalized
   CANCELLED: 'CANCELLED',               // Voided transaction (Allowed for DRAFT/APPROVED)
 };
 
+export const GRN_STATUS = {
+  DRAFT: 'DRAFT',
+  POSTED: 'POSTED',
+  CANCELLED: 'CANCELLED'
+};
 // Array of statuses for mongoose enum validation
 export const PURCHASE_STATUS_LIST = Object.values(PURCHASE_STATUS);
 
@@ -22,8 +39,10 @@ export const PAYMENT_STATUS = {
   UNPAID: 'UNPAID',                     // No money has been sent yet
   PARTIALLY_PAID: 'PARTIALLY_PAID',     // Part of the Grand Total has been paid
   PAID: 'PAID',                         // Fully settled with supplier
+  CANCELLED: 'CANCELLED'
 };
 
+export const PAYMENT_METHODS = ['CASH', 'BANK_TRANSFER', 'MOBILE_BANKING', 'CREDIT_CARD', 'CHEQUE'];
 export const PAYMENT_STATUS_LIST = Object.values(PAYMENT_STATUS);
 
 // Document Identifier Prefixes for Auto-Generation
