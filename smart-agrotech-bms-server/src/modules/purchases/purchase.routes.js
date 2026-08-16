@@ -1,6 +1,8 @@
 import express from 'express';
 import * as poController from './purchase.controller.js';
 // import { protectRoute, restrictTo } from '../../middlewares/auth.middleware.js'; 
+// Replace with your project's active security middleware modules
+// import { authenticateToken, checkRBAC } from '../../middlewares/auth.middleware.js';
 
 const router = express.Router();
 

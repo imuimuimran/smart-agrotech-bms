@@ -1,78 +1,105 @@
+// src/modules/purchases/purchase.service.js
 import { PurchaseOrder } from './purchase.model.js';
 import { PO_STATUS } from './purchase.constants.js';
 import mongoose from 'mongoose';
+import Counter from "../../shared/schemas/counter.model.js";
+import { calculatePOTotals } from './purchase.utils.js';
+import { Product } from '../products/product.model.js';
+import { Supplier } from '../suppliers/supplier.model.js';
 
-// Note: Ensure your core Product and Supplier models are imported to handle step validation
-// import { Product } from '../products/product.model.js';
-// import { Supplier } from '../suppliers/supplier.model.js';
+export const createPurchaseOrder = async (poInput, userId) => {
+  const session = await mongoose.startSession(); // Phase 9.4.32 Transaction Control
+  session.startTransaction();
 
-export const createPurchaseOrder = async (poData, userId) => {
-  // 1. Verify Supplier existence and clearance
-  // const supplier = await Supplier.findById(poData.supplierId);
-  // if (!supplier) throw new Error('Target procurement Supplier not found');
+  try {
+    // 1. Supplier Eligibility Verification (Active Master Data Validation)
+    const supplier = await Supplier.findById(poInput.supplierId).session(session);
+    if (!supplier) {
+      throw new Error('Target procurement Supplier not found');
+    }
+    if (supplier.status !== 'ACTIVE') {
+      throw new Error('Target supplier is currently marked INACTIVE and cannot be used for procurement');
+    }
 
-  let computedSubtotal = 0;
-  const processedItems = [];
+    // 2. Scan and Detect Line Item Product Duplicates
+    const productIds = poInput.items.map(i => i.productId);
+    const uniqueIds = new Set(productIds);
+    if (uniqueIds.size !== productIds.length) {
+      throw new Error('Duplicate product items identified. Please combine item quantities into one line');
+    }
 
-  // 2. Process each item, resolve snapshots, and calculate costs
-  for (const item of poData.items) {
-    // Structural Rule: Fetch product directly from master reference to capture fresh snapshot
-    // const product = await Product.findById(item.productId);
-    // if (!product) throw new Error(`Product reference ${item.productId} does not exist`);
-    
-    // Fallback mocks if fields aren't completely populated yet
-    const productNameSnapshot = "Product Name Snapshot Mocked"; 
-    const skuSnapshot = "SKU-SNAP-MOCK";
+    // 3. Optimize Lookups using a Single Query to Avoid N+1 Problems
+    const products = await Product.find({ _id: { $in: productIds } }).session(session);
+    if (products.length !== uniqueIds.size) {
+      throw new Error('One or more selected products do not exist in master records');
+    }
 
-    const qty = Number(item.orderedQuantity);
-    const unitCost = Number(item.expectedUnitCost);
-    const disc = Number(item.discount || 0);
-    const taxRate = Number(item.tax || 0);
+    // Map database results into an accessible lookup dictionary
+    const productLookupMap = products.reduce((map, prod) => {
+      map[prod._id.toString()] = prod;
+      return map;
+    }, {});
 
-    // Calculate structural line items accurately
-    const rawLineTotal = qty * unitCost;
-    const netAfterDiscount = rawLineTotal - disc;
-    const taxAmount = netAfterDiscount * (taxRate / 100);
-    const lineTotal = netAfterDiscount + taxAmount;
+    // 4. Evaluate Product Eligibility and Enforce Lifecycle System Blocks
+    for (const id of productIds) {
+      const prod = productLookupMap[id];
+      if (prod.status === 'ARCHIVED' || prod.status === 'DISCONTINUED') {
+        throw new Error(`Product "${prod.name}" is archived or discontinued and cannot be purchased`);
+      }
+    }
 
-    computedSubtotal += rawLineTotal;
+    // 5. Centralized Financial Formulations via Utilities
+    const financialReport = calculatePOTotals(poInput.items, poInput.shippingCost, poInput.otherCharges);
 
-    processedItems.push({
-      productId: item.productId,
-      productNameSnapshot, // Safeguards history from master database drifts
-      skuSnapshot,         // Safeguards history from master database drifts
-      orderedQuantity: qty,
-      expectedUnitCost: unitCost,
-      discount: disc,
-      tax: taxRate,
-      lineTotal: lineTotal.toFixed(2)
+    // Inject Point-in-Time Master Data Snapshots into the final item tracking array
+    const finalItems = financialReport.processedItems.map(item => {
+      const dbProduct = productLookupMap[item.productId];
+      return {
+        ...item,
+        productNameSnapshot: dbProduct.name, // Safeguards history from future master database drifts
+        skuSnapshot: dbProduct.sku          // Safeguards history from future master database drifts
+      };
     });
+
+    // 6. Concurrency-Safe Generation of Sequenced Reference Identification
+    const currentYear = new Date(poInput.orderDate).getFullYear();
+    const counterKey = `purchase-order-${currentYear}`;
+    
+    const counterDoc = await Counter.findOneAndUpdate(
+      { key: counterKey },
+      { $inc: { sequence: 1 } },
+      { new: true, upsert: true, session }
+    );
+
+    const poNumber = `PO-${currentYear}-${String(counterDoc.sequence).padStart(6, '0')}`;
+
+    // 7. Initialize Document Payload strictly as DRAFT
+    const newPurchaseOrder = new PurchaseOrder({
+      poNumber,
+      supplierId: poInput.supplierId,
+      orderDate: poInput.orderDate,
+      expectedDeliveryDate: poInput.expectedDeliveryDate,
+      items: finalItems,
+      subtotal: financialReport.subtotal,
+      shippingCost: financialReport.shippingCost,
+      otherCharges: financialReport.otherCharges,
+      grandTotal: financialReport.grandTotal,
+      status: PO_STATUS.DRAFT, // Hardcoded protection against client-side parameter manipulation
+      notes: poInput.notes,
+      createdBy: userId // Derived from active authorization credentials
+    });
+
+    const savedPO = await newPurchaseOrder.save({ session });
+    
+    await session.commitTransaction();
+    session.endSession();
+    return savedPO;
+
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
   }
-
-  // 3. Document Grand Total Formulations
-  const shipping = Number(poData.shippingCost || 0);
-  const other = Number(poData.otherCharges || 0);
-  const grandTotal = computedSubtotal + shipping + other;
-
-  // 4. Server-Side Secure Sequential Reference Number Generation
-  const totalCount = await PurchaseOrder.countDocuments();
-  const currentYear = new Date().getFullYear();
-  const poNumber = `PO-${currentYear}-${String(totalCount + 1).padStart(6, '0')}`;
-
-  const newPO = new PurchaseOrder({
-    poNumber,
-    supplierId: poData.supplierId,
-    expectedDeliveryDate: poData.expectedDeliveryDate,
-    items: processedItems,
-    subtotal: computedSubtotal.toFixed(2),
-    shippingCost: shipping.toFixed(2),
-    otherCharges: other.toFixed(2),
-    grandTotal: grandTotal.toFixed(2),
-    status: PO_STATUS.DRAFT,
-    createdBy: userId
-  });
-
-  return await newPO.save();
 };
 
 export const submitPurchaseOrder = async (poId, userId) => {
