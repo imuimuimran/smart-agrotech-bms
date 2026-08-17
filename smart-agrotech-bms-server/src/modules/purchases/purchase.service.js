@@ -3,9 +3,12 @@ import { PurchaseOrder } from './purchase.model.js';
 import { 
   PO_STATUS, 
   APPROVAL_THRESHOLDS, 
-  CONFIG_ALLOW_SELF_APPROVAL, 
+  CONFIG_ALLOW_SELF_APPROVAL,
+  COMM_STATUS, 
 } from './purchase.constants.js';
 import { PurchaseOrderApproval } from './purchaseApproval.model.js';
+import { PurchaseOrderCommunication } from './purchaseCommunication.model.js';
+import { transformToSupplierViewDTO } from './purchase.utils.js';
 import Counter from "../../shared/schemas/counter.model.js";
 import { calculatePOTotals } from './purchase.utils.js';
 import { Product } from '../products/product.model.js';
@@ -334,14 +337,96 @@ export const approvePurchaseOrder = async (poId, userId) => {
   return await po.save();
 };
 
-export const sendPurchaseOrderToSupplier = async (poId) => {
+/**
+ * Complete Procurement Dispatch Workflow
+ */
+export const sendPurchaseOrderToSupplier = async (poId, userId) => {
+  // 1. Fetch Purchase Order document
   const po = await PurchaseOrder.findById(poId);
-  if (!po) throw new Error('Purchase Order not found');
-  if (po.status !== PO_STATUS.APPROVED) throw new Error('PO must be APPROVED before being sent to the supplier');
+  if (!po) throw new Error('Target Purchase Order record not found.');
 
-  po.status = PO_STATUS.SENT; // Matches SENT_TO_SUPPLIER structural state
-  return await po.save();
+  // 2. Strict State Constraint Verification
+  if (po.status !== PO_STATUS.APPROVED && po.status !== PO_STATUS.SENT_TO_SUPPLIER) {
+    throw new Error(`State Violation: Purchase Order cannot be transmitted while flagged as ${po.status}.`);
+  }
+
+  // 3. Active Idempotency Guardrail
+  const activeJob = await PurchaseOrderCommunication.findOne({
+    purchaseOrderId: poId,
+    status: COMM_STATUS.SENDING
+  });
+  if (activeJob) throw new Error('Duplicate Send Blocked: A dispatch operation is currently actively processing.');
+
+  // 4. Resolve Master Supplier Destination Parameters
+  const supplier = await Supplier.findById(po.supplierId);
+  if (!supplier) throw new Error('Primary reference Supplier not found.');
+
+  // 5. Core Procurement Communication Data Guards
+  const targetEmail = supplier.email; // Map clear, explicit channel references here
+  if (!targetEmail || !/^\S+@\S+\.\S+$/.test(targetEmail)) {
+    throw new Error('Contact Mapping Error: Selected supplier lacks a valid procurement destination email.');
+  }
+
+  // 6. Generate Security Isolated Supplier Data View Payload
+  const supplierFacingDocumentData = transformToSupplierViewDTO(po, supplier);
+
+  // 7. Calculate running execution document version
+  const previousDispatchesCount = await PurchaseOrderCommunication.countDocuments({ purchaseOrderId: poId });
+  const docVersion = previousDispatchesCount + 1; // 9.6.13 Multi-version increment tracker
+
+  // 8. Log initial Pending tracking entry
+  const commRecord = new PurchaseOrderCommunication({
+    purchaseOrderId: po._id,
+    documentVersion: docVersion,
+    channel: 'EMAIL',
+    recipient: targetEmail,
+    subject: `Purchase Order ${po.poNumber} — Procurement Order Shipment Documentation`,
+    status: COMM_STATUS.SENDING,
+    initiatedBy: userId
+  });
+  await commRecord.save();
+
+  try {
+    /**
+     * Document Presentation and Delivery Phase
+     * Mock integration placeholder for your SMTP / SendGrid / NodeMailer adapter pipeline.
+     * In an enterprise setup, push this payload to a Redis background Queue Worker.
+     */
+    const transmissionMockSuccess = true; // Simulating email provider payload handoff
+    const mockProviderMessageId = `msg_smtp_${Math.random().toString(36).substring(7)}`;
+
+    if (!transmissionMockSuccess) throw new Error('Third-party provider dropped connection socket.');
+
+    // Successful Dispatch Pipeline Processing Routine
+    commRecord.status = COMM_STATUS.SENT;
+    commRecord.providerMessageId = mockProviderMessageId;
+    commRecord.sentAt = new Date();
+    await commRecord.save();
+
+    // Secure state transition rule mapping: Advance parent reference code safely
+    po.status = PO_STATUS.SENT_TO_SUPPLIER;
+    await po.save();
+
+    return { success: true, commRecord, currentPOStatus: po.status };
+
+  } catch (deliveryError) {
+    // Fallback isolated recovery procedures
+    commRecord.status = COMM_STATUS.FAILED;
+    commRecord.failureReason = deliveryError.message || 'Unknown network gateway connection drop.';
+    commRecord.failedAt = new Date();
+    await commRecord.save();
+
+    // Note: Parent document purposefully stays locked at APPROVED status so users can retry manually
+    return { success: false, commRecord, currentPOStatus: po.status, error: deliveryError.message };
+  }
 };
+
+export const getPOCommunicationHistory = async (poId) => {
+  return await PurchaseOrderCommunication.find({ purchaseOrderId: poId })
+    .populate('initiatedBy', 'name email role')
+    .sort({ createdAt: -1 }); // Display newest transaction attempts first
+};
+
 
 export const cancelPurchaseOrder = async (poId) => {
   const po = await PurchaseOrder.findById(poId);
@@ -367,3 +452,5 @@ export const getPurchaseOrders = async (filters = {}) => {
     .populate('createdBy', 'name')
     .sort({ createdAt: -1 });
 };
+
+

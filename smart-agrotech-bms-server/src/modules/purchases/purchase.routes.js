@@ -1,6 +1,7 @@
 import express from 'express';
 import * as poController from './purchase.controller.js';
 import * as approvalController from './purchase.controller.js';
+import * as commController from './purchase.controller.js';
 // import { protectRoute, restrictTo } from '../../middlewares/auth.middleware.js'; 
 // Replace with your project's active security middleware modules
 // import { authenticateToken, checkRBAC } from '../../middlewares/auth.middleware.js';
@@ -24,6 +25,21 @@ router.post('/:id/start-review', approvalController.handleStartPOReview);
 router.post('/:id/approve', approvalController.handleApprovePO);
 router.post('/:id/reject', approvalController.handleRejectPO);
 router.post('/:id/revise', approvalController.handleReviseRejectedPO);
+
+// Dedicated Command Endpoint Structure
+router.post(
+  '/:id/send', 
+  // protectRoute, 
+  // restrictTo(['staff', 'manager', 'admin']), // RBAC enforcement bounds
+  commController.handleSendPOToSupplier
+);
+
+// History Audit Log Fetching Path
+router.get(
+  '/:id/communications', 
+  // protectRoute,
+  commController.handleGetPOCommunications
+);
 
 // Audit History Fetch Endpoint
 router.get('/:id/approval-history', approvalController.handleGetPOHistory);

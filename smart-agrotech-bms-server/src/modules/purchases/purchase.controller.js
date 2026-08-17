@@ -1,5 +1,6 @@
 import * as poService from './purchase.service.js';
 import * as approvalService from './purchase.service.js';
+import * as communicationService from './purchase.service.js';
 import { 
   createPOSchema, 
   poApprovalDecisionSchema, 
@@ -121,5 +122,45 @@ export const handleCancelPO = async (req, res) => {
     return res.status(200).json({ success: true, data: updatedPO });
   } catch (err) {
     return res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+export const handleSendPOToSupplier = async (req, res, next) => {
+  try {
+    const userId = req.user?._id; // Extracted safely from active authentication token contexts
+    if (!userId) return res.status(401).json({ success: false, message: 'Authentication required' });
+
+    const result = await communicationService.sendPurchaseOrderToSupplier(req.params.id, userId);
+
+    if (!result.success) {
+      return res.status(502).json({
+        success: false,
+        message: 'Internal authorization valid, but outward supplier delivery transmission failed.',
+        details: result.commRecord.failureReason,
+        data: { currentPOStatus: result.currentPOStatus }
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Purchase order document successfully finalized and sent to supplier channel.',
+      data: {
+        poStatus: result.currentPOStatus,
+        communicationId: result.commRecord._id,
+        versionSent: result.commRecord.documentVersion,
+        messageTracker: result.commRecord.providerMessageId
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const handleGetPOCommunications = async (req, res, next) => {
+  try {
+    const records = await communicationService.getPOCommunicationHistory(req.params.id);
+    return res.status(200).json({ success: true, data: records });
+  } catch (err) {
+    next(err);
   }
 };

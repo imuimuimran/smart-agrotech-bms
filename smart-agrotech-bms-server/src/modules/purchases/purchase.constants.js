@@ -48,6 +48,17 @@ export const PAYMENT_STATUS = {
 export const PAYMENT_METHODS = ['CASH', 'BANK_TRANSFER', 'MOBILE_BANKING', 'CREDIT_CARD', 'CHEQUE'];
 export const PAYMENT_STATUS_LIST = Object.values(PAYMENT_STATUS);
 
+// Independent Communication Lifecycle Statuses
+export const COMM_STATUS = {
+  PENDING: 'PENDING',
+  SENDING: 'SENDING',
+  SENT: 'SENT',
+  FAILED: 'FAILED',
+  CANCELLED: 'CANCELLED'
+};
+
+export const COMM_CHANNELS = ['EMAIL', 'PORTAL', 'API', 'MANUAL']; 
+
 // Document Identifier Prefixes for Auto-Generation
 export const DOCUMENT_PREFIXES = {
   PURCHASE_ORDER: 'PO-',                // Request/Intention to buy

@@ -40,3 +40,42 @@ export const calculatePOTotals = (items, shippingCost = 0, otherCharges = 0) => 
     grandTotal: grandTotal.toFixed(2)
   };
 };
+
+/**
+ * Supplier Procurement DTO View Model
+ * Isolates sensitive database attributes from external document presentations.
+ */
+export const transformToSupplierViewDTO = (purchaseOrder, supplier) => {
+  if (!purchaseOrder || !supplier) {
+    throw new Error('Data mapping dependencies missing initialization configurations.');
+  }
+
+  return {
+    poNumber: purchaseOrder.poNumber,
+    date: purchaseOrder.createdAt,
+    expectedDelivery: purchaseOrder.expectedDeliveryDate,
+    supplier: {
+      name: supplier.name,
+      address: supplier.address || 'N/A',
+      email: supplier.email
+    },
+    items: purchaseOrder.items.map(item => ({
+      productName: item.productNameSnapshot, // Point-in-time immutable record
+      sku: item.skuSnapshot,                 // Point-in-time immutable record
+      quantity: item.orderedQuantity,
+      unitCost: item.expectedUnitCost.toString(),
+      discount: item.discount.toString(),
+      tax: item.tax.toString(),
+      lineTotal: item.lineTotal.toString()
+    })),
+    financialSummary: {
+      subtotal: purchaseOrder.subtotal.toString(),
+      tax: purchaseOrder.tax ? purchaseOrder.tax.toString() : '0.00',
+      shippingCost: purchaseOrder.shippingCost.toString(),
+      otherCharges: purchaseOrder.otherCharges.toString(),
+      grandTotal: purchaseOrder.grandTotal.toString()
+    },
+    notes: purchaseOrder.notes || ''
+  };
+};
+
