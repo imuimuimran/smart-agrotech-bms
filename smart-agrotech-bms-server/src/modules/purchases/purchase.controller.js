@@ -1,20 +1,10 @@
 import * as poService from './purchase.service.js';
-import { createPOSchema } from './purchase.validation.js';
-
-// export const handleCreatePO = async (req, res) => {
-//   try {
-//     const { error, value } = createPOSchema.validate(req.body);
-//     if (error) return res.status(400).json({ success: false, message: error.details[0].message });
-
-//     // Note: Assuming your global authentication middleware binds the active profile to req.user
-//     const userId = req.user?._id || req.body.mockUserId; 
-//     const purchaseOrder = await poService.createPurchaseOrder(value, userId);
-
-//     return res.status(201).json({ success: true, data: purchaseOrder });
-//   } catch (err) {
-//     return res.status(500).json({ success: false, message: err.message });
-//   }
-// };
+import * as approvalService from './purchase.service.js';
+import { 
+  createPOSchema, 
+  poApprovalDecisionSchema, 
+  poRejectionDecisionSchema 
+} from './purchase.validation.js';
 
 export const handleCreatePO = async (req, res, next) => {
   try {
@@ -60,24 +50,60 @@ export const handleGetPOs = async (req, res) => {
   }
 };
 
-export const handleSubmitPO = async (req, res) => {
+
+export const handleSubmitPO = async (req, res, next) => {
   try {
-    const userId = req.user?._id || req.body.mockUserId;
-    const updatedPO = await poService.submitPurchaseOrder(req.params.id, userId);
-    return res.status(200).json({ success: true, data: updatedPO });
-  } catch (err) {
-    return res.status(400).json({ success: false, message: err.message });
-  }
+    const userId = req.user?._id; // Bound securely by your authentication middleware layer
+    const updatedPO = await approvalService.submitPurchaseOrder(req.params.id, userId);
+    return res.status(200).json({ success: true, message: 'PO submitted for review.', data: updatedPO });
+  } catch (err) { next(err); }
 };
 
-export const handleApprovePO = async (req, res) => {
+export const handleStartPOReview = async (req, res, next) => {
   try {
-    const userId = req.user?._id || req.body.mockUserId;
-    const updatedPO = await poService.approvePurchaseOrder(req.params.id, userId);
-    return res.status(200).json({ success: true, data: updatedPO });
-  } catch (err) {
-    return res.status(400).json({ success: false, message: err.message });
-  }
+    const userId = req.user?._id;
+    const updatedPO = await approvalService.startPOServiceReview(req.params.id, userId);
+    return res.status(200).json({ success: true, message: 'PO lifecycle shifted to review status.', data: updatedPO });
+  } catch (err) { next(err); }
+};
+
+export const handleApprovePO = async (req, res, next) => {
+  try {
+    const parsed = poApprovalDecisionSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ success: false, errors: parsed.error.format() });
+
+    const userId = req.user?._id;
+    const userRole = req.user?.role; // e.g., 'purchasing_manager' derived from secure access token
+    
+    const updatedPO = await approvalService.approvePurchaseOrder(req.params.id, userId, userRole, parsed.data.comment);
+    return res.status(200).json({ success: true, message: 'PO authorized and approved.', data: updatedPO });
+  } catch (err) { next(err); }
+};
+
+export const handleRejectPO = async (req, res, next) => {
+  try {
+    const parsed = poRejectionDecisionSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ success: false, errors: parsed.error.format() });
+
+    const userId = req.user?._id;
+    const updatedPO = await approvalService.rejectPurchaseOrder(req.params.id, userId, parsed.data.comment);
+    return res.status(200).json({ success: true, message: 'PO procurement commitment rejected.', data: updatedPO });
+  } catch (err) { next(err); }
+};
+
+export const handleReviseRejectedPO = async (req, res, next) => {
+  try {
+    const userId = req.user?._id;
+    const updatedPO = await approvalService.reviseRejectedPOToDraft(req.params.id, userId);
+    return res.status(200).json({ success: true, message: 'PO unlocked and reverted to DRAFT.', data: updatedPO });
+  } catch (err) { next(err); }
+};
+
+export const handleGetPOHistory = async (req, res, next) => {
+  try {
+    const records = await approvalService.getPOApprovalHistory(req.params.id);
+    return res.status(200).json({ success: true, data: records });
+  } catch (err) { next(err); }
 };
 
 export const handleSendPO = async (req, res) => {

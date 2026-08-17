@@ -1,7 +1,11 @@
-// src/modules/purchases/purchase.service.js
-import { PurchaseOrder } from './purchase.model.js';
-import { PO_STATUS } from './purchase.constants.js';
 import mongoose from 'mongoose';
+import { PurchaseOrder } from './purchase.model.js';
+import { 
+  PO_STATUS, 
+  APPROVAL_THRESHOLDS, 
+  CONFIG_ALLOW_SELF_APPROVAL, 
+} from './purchase.constants.js';
+import { PurchaseOrderApproval } from './purchaseApproval.model.js';
 import Counter from "../../shared/schemas/counter.model.js";
 import { calculatePOTotals } from './purchase.utils.js';
 import { Product } from '../products/product.model.js';
@@ -102,15 +106,221 @@ export const createPurchaseOrder = async (poInput, userId) => {
   }
 };
 
-export const submitPurchaseOrder = async (poId, userId) => {
-  const po = await PurchaseOrder.findById(poId);
-  if (!po) throw new Error('Purchase Order not found');
-  if (po.status !== PO_STATUS.DRAFT) throw new Error('Only DRAFT purchase orders can be submitted');
+/**
+ * Dynamic Threshold Evaluator
+ * Derives authority rules directly from current financial total values.
+ */
+const evaluateRequiredRole = (grandTotal) => {
+  const amount = Number(grandTotal.toString());
+  const rule = APPROVAL_THRESHOLDS.find(tier => amount <= tier.maxAmount);
+  return rule ? rule.requiredRole : 'admin';
+};
 
-  po.status = PO_STATUS.SUBMITTED;
-  po.submittedBy = userId;
-  po.submittedAt = new Date();
-  return await po.save();
+/**
+ * Mid-flight Master Reference Verification Guardrail
+ * Ensures suppliers or products didn't shift states during draft/review delays.
+ */
+const runMidFlightSanityRecheck = async (po, session) => {
+  const supplier = await Supplier.findById(po.supplierId).session(session);
+  if (!supplier || supplier.status !== 'ACTIVE') {
+    throw new Error('Procurement Blocked: The designated Supplier is no longer active.');
+  }
+
+  const productIds = po.items.map(item => item.productId);
+  const products = await Product.find({ _id: { $in: productIds } }).session(session);
+  
+  if (products.length !== productIds.length) {
+    throw new Error('Procurement Blocked: One or more products inside this PO have been deleted.');
+  }
+
+  for (const prod of products) {
+    if (prod.status === 'ARCHIVED' || prod.status === 'DISCONTINUED') {
+      throw new Error(`Procurement Blocked: Product "${prod.name}" is discontinued or archived.`);
+    }
+  }
+};
+
+// =========================================================================
+// STATE TRANSACTION METHODS
+// =========================================================================
+
+export const submitPurchaseOrder = async (poId, userId) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const po = await PurchaseOrder.findById(poId).session(session);
+    if (!po) throw new Error('Target Purchase Order record not found.');
+    if (po.status !== PO_STATUS.DRAFT) throw new Error('State Violation: Only DRAFT POs can be submitted.');
+
+    // 9.5.5 Execute complete validation stack again prior to leaving DRAFT phase
+    await runMidFlightSanityRecheck(po, session);
+
+    const oldStatus = po.status;
+    po.status = PO_STATUS.SUBMITTED;
+    await po.save({ session });
+
+    await PurchaseOrderApproval.create([{
+      purchaseOrderId: po._id,
+      action: 'SUBMIT',
+      performedBy: userId,
+      previousStatus: oldStatus,
+      newStatus: PO_STATUS.SUBMITTED,
+      comment: 'Submitted for managerial review.'
+    }], { session });
+
+    await session.commitTransaction();
+    return po;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
+export const startPOServiceReview = async (poId, userId) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const po = await PurchaseOrder.findById(poId).session(session);
+    if (!po) throw new Error('Target Purchase Order record not found.');
+    if (po.status !== PO_STATUS.SUBMITTED) throw new Error('State Violation: Review requires a SUBMITTED state.');
+
+    const oldStatus = po.status;
+    po.status = PO_STATUS.UNDER_REVIEW;
+    await po.save({ session });
+
+    await PurchaseOrderApproval.create([{
+      purchaseOrderId: po._id,
+      action: 'START_REVIEW',
+      performedBy: userId,
+      previousStatus: oldStatus,
+      newStatus: PO_STATUS.UNDER_REVIEW,
+      comment: 'Review session initiated.'
+    }], { session });
+
+    await session.commitTransaction();
+    return po;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
+export const approvePurchaseOrder = async (poId, userId, userRole, comment) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const po = await PurchaseOrder.findById(poId).session(session);
+    if (!po) throw new Error('Target Purchase Order record not found.');
+    if (po.status !== PO_STATUS.UNDER_REVIEW) throw new Error('State Violation: PO must be UNDER_REVIEW.');
+
+    // Enforce separation of duties configuration checks
+    if (!CONFIG_ALLOW_SELF_APPROVAL && po.createdBy.toString() === userId.toString()) {
+      throw new Error('Compliance Violation: System configuration blocks self-approval policies.');
+    }
+
+    // Dynamically compute requirement rules from current amount criteria
+    const requiredRole = evaluateRequiredRole(po.grandTotal);
+    if (userRole !== 'admin' && userRole !== requiredRole) {
+      throw new Error(`Authority Error: Insufficient tier rank. This requires a ${requiredRole} role assignment.`);
+    }
+
+    // Final sanity check step right before committing status update
+    await runMidFlightSanityRecheck(po, session);
+
+    const oldStatus = po.status;
+    po.status = PO_STATUS.APPROVED;
+    await po.save({ session });
+
+    await PurchaseOrderApproval.create([{
+      purchaseOrderId: po._id,
+      action: 'APPROVE',
+      performedBy: userId,
+      previousStatus: oldStatus,
+      newStatus: PO_STATUS.APPROVED,
+      approvalLevel: requiredRole.toUpperCase(),
+      comment: comment || 'Approved for procurement dispatch.'
+    }], { session });
+
+    await session.commitTransaction();
+    return po;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
+export const rejectPurchaseOrder = async (poId, userId, comment) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const po = await PurchaseOrder.findById(poId).session(session);
+    if (!po) throw new Error('Target Purchase Order record not found.');
+    if (po.status !== PO_STATUS.UNDER_REVIEW) throw new Error('State Violation: Only POs UNDER_REVIEW can be rejected.');
+
+    const oldStatus = po.status;
+    po.status = PO_STATUS.REJECTED;
+    await po.save({ session });
+
+    await PurchaseOrderApproval.create([{
+      purchaseOrderId: po._id,
+      action: 'REJECT',
+      performedBy: userId,
+      previousStatus: oldStatus,
+      newStatus: PO_STATUS.REJECTED,
+      comment: comment // Assured present by earlier Zod validation steps
+    }], { session });
+
+    await session.commitTransaction();
+    return po;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
+export const reviseRejectedPOToDraft = async (poId, userId) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const po = await PurchaseOrder.findById(poId).session(session);
+    if (!po) throw new Error('Target Purchase Order record not found.');
+    if (po.status !== PO_STATUS.REJECTED) throw new Error('State Violation: Only REJECTED POs can be reset.');
+
+    const oldStatus = po.status;
+    po.status = PO_STATUS.DRAFT;
+    await po.save({ session });
+
+    await PurchaseOrderApproval.create([{
+      purchaseOrderId: po._id,
+      action: 'REVISE',
+      performedBy: userId,
+      previousStatus: oldStatus,
+      newStatus: PO_STATUS.DRAFT,
+      comment: 'Returned to draft state for adjustment.'
+    }], { session });
+
+    await session.commitTransaction();
+    return po;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
+export const getPOApprovalHistory = async (poId) => {
+  return await PurchaseOrderApproval.find({ purchaseOrderId: poId })
+    .populate('performedBy', 'name email role')
+    .sort({ performedAt: 1 });
 };
 
 export const approvePurchaseOrder = async (poId, userId) => {

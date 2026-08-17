@@ -68,3 +68,19 @@ export const updatePODraftSchema = z.object({
   otherCharges: z.number().min(0, "Other charges cannot be negative.").optional(),
   notes: z.string().trim().optional(),
 });
+
+export const poReviewStartSchema = z.object({
+  comment: z.string().trim().optional()
+});
+
+export const poApprovalDecisionSchema = z.object({
+  comment: z.string().trim().max(500, "Comment cannot exceed 500 characters.").optional()
+});
+
+export const poRejectionDecisionSchema = z.object({
+  comment: z
+    .string()
+    .trim()
+    .min(10, "A detailed rejection comment (minimum 10 characters) must be supplied.") // 9.5.19 Rule
+    .max(500, "Comment cannot exceed 500 characters.")
+});

@@ -6,8 +6,11 @@
 export const PO_STATUS = {
   DRAFT: 'DRAFT',
   SUBMITTED: 'SUBMITTED',
+  UNDER_REVIEW: 'UNDER_REVIEW',
   APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
   SENT: 'SENT',
+  SENT_TO_SUPPLIER: 'SENT_TO_SUPPLIER',
   PARTIALLY_RECEIVED: 'PARTIALLY_RECEIVED',
   FULLY_RECEIVED: 'FULLY_RECEIVED',
   CANCELLED: 'CANCELLED',
@@ -73,3 +76,14 @@ export const IMMUTABLE_PURCHASE_STATUSES = [
   PURCHASE_STATUS.COMPLETED,
   PURCHASE_STATUS.CANCELLED
 ];
+
+// Configurable Threshold Matrix Rules (Avoids Application Code Re-writes)
+export const APPROVAL_THRESHOLDS = [
+  { maxAmount: 100000, requiredRole: 'purchasing_manager', label: 'Purchasing Manager Approval' },
+  { maxAmount: 1000000, requiredRole: 'department_manager', label: 'Department Manager Approval' },
+  { maxAmount: 5000000, requiredRole: 'senior_manager', label: 'Senior Manager Approval' },
+  { maxAmount: Infinity, requiredRole: 'admin', label: 'Executive/Admin Approval' }
+];
+
+// Configurable Separation of Duties Flag
+export const CONFIG_ALLOW_SELF_APPROVAL = false;
