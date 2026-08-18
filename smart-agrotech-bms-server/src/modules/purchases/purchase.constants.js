@@ -13,6 +13,7 @@ export const PO_STATUS = {
   SENT_TO_SUPPLIER: 'SENT_TO_SUPPLIER',
   PARTIALLY_RECEIVED: 'PARTIALLY_RECEIVED',
   FULLY_RECEIVED: 'FULLY_RECEIVED',
+  READY_FOR_FULFILLMENT: 'READY_FOR_FULFILLMENT',
   CANCELLED: 'CANCELLED',
   CLOSED: 'CLOSED'
 };
@@ -98,3 +99,22 @@ export const APPROVAL_THRESHOLDS = [
 
 // Configurable Separation of Duties Flag
 export const CONFIG_ALLOW_SELF_APPROVAL = false;
+
+// Vector A: What exactly did the supplier declare?
+export const SUPPLIER_RESPONSE_TYPES = {
+  ACCEPTED: 'ACCEPTED',
+  PARTIALLY_ACCEPTED: 'PARTIALLY_ACCEPTED',
+  REJECTED: 'REJECTED',
+  AMENDMENT_REQUESTED: 'AMENDMENT_REQUESTED'
+};
+
+// ector B: Where does our internal processing of that declaration stand?
+export const SUPPLIER_RESPONSE_STATUS = {
+  RECEIVED: 'RECEIVED',
+  UNDER_REVIEW: 'UNDER_REVIEW',
+  ACCEPTED: 'ACCEPTED',
+  DECLINED: 'DECLINED',
+  RESOLVED: 'RESOLVED'
+};
+
+export const RESPONSE_CHANNELS = ['EMAIL', 'PORTAL', 'API', 'MANUAL']; // Tracking bounds

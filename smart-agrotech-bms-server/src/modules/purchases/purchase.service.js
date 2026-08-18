@@ -4,7 +4,8 @@ import {
   PO_STATUS, 
   APPROVAL_THRESHOLDS, 
   CONFIG_ALLOW_SELF_APPROVAL,
-  COMM_STATUS, 
+  COMM_STATUS,
+  SUPPLIER_RESPONSE_TYPES, 
 } from './purchase.constants.js';
 import { PurchaseOrderApproval } from './purchaseApproval.model.js';
 import { PurchaseOrderCommunication } from './purchaseCommunication.model.js';
@@ -12,6 +13,7 @@ import { transformToSupplierViewDTO } from './purchase.utils.js';
 import Counter from "../../shared/schemas/counter.model.js";
 import { calculatePOTotals } from './purchase.utils.js';
 import { Product } from '../products/product.model.js';
+import { SupplierResponse } from './supplierResponse.model.js';
 import { Supplier } from '../suppliers/supplier.model.js';
 
 export const createPurchaseOrder = async (poInput, userId) => {
@@ -451,6 +453,113 @@ export const getPurchaseOrders = async (filters = {}) => {
     .populate('supplierId', 'name email')
     .populate('createdBy', 'name')
     .sort({ createdAt: -1 });
+};
+
+export const processSupplierResponse = async (poId, inputData, executionUserId) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // 1. Fetch current target Purchase Order tracking head
+    const po = await PurchaseOrder.findById(poId).session(session);
+    if (!po) throw new Error('Target Purchase Order record not found.');
+
+    // Cross-Supplier Fraud Contamination Guardrail
+    if (po.supplierId.toString() !== inputData.supplierId.toString()) {
+      throw new Error('Security Violation: Access Denied. Authenticated supplier context mismatch.');
+    }
+
+    // Strict Idempotency Check Layer
+    if (inputData.idempotencyKey) {
+      const duplicateCheck = await SupplierResponse.findOne({ 
+        idempotencyKey: inputData.idempotencyKey 
+      }).session(session);
+      if (duplicateCheck) return duplicateCheck; // Gracefully bypass re-processing
+    }
+
+    // 4. Build detached transaction ledger document instance
+    const newResponse = new SupplierResponse({
+      purchaseOrderId: po._id,
+      purchaseOrderVersion: po.version, // Capture active version pointer snapshot
+      supplierId: po.supplierId,
+      responseType: inputData.responseType,
+      supplierReference: inputData.supplierReference,
+      responseChannel: inputData.responseChannel,
+      message: inputData.message,
+      items: inputData.items || [],
+      requestedChanges: inputData.requestedChanges || [],
+      idempotencyKey: inputData.idempotencyKey,
+      receivedAt: inputData.receivedAt,
+      recordedBy: executionUserId
+    });
+    await newResponse.save({ session });
+
+    // Core Operational State Rules Engine Matrix
+    po.supplierResponseStatus = inputData.responseType; // Update dimension reference index
+
+    if (inputData.responseType === SUPPLIER_RESPONSE_TYPES.ACCEPTED) {
+      // Direct pass allowed safely toward receiving workflows
+      po.status = PO_STATUS.READY_FOR_FULFILLMENT; // No stocks are changed yet
+    } else {
+      // Blocks modifications from directly altering core parameters
+      // Retain baseline parameters. Force human decision review gates.
+      po.status = PO_STATUS.UNDER_REVIEW; 
+    }
+
+    await po.save({ session });
+    await session.commitTransaction();
+    return newResponse;
+
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
+/**
+ * Controlled Amendment Version Revision Branching Execution
+ * Generates an isolated next-generation DRAFT copy of a PO if changes are approved internally.
+ */
+export const executePOAmendmentBranching = async (poId, adjustedItems, adjustedTotals, executionUserId) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const parentPO = await PurchaseOrder.findById(poId).session(session);
+    if (!parentPO) throw new Error('Base document reference target vanished.');
+
+    // Freeze original transaction details into an immutable configuration state
+    const nextVersionNumber = parentPO.version + 1;
+
+    // Build independent child document clone tracking node
+    const baseClonePayload = parentPO.toObject();
+    delete baseClonePayload._id;
+    delete baseClonePayload.createdAt;
+    delete baseClonePayload.updatedAt;
+
+    const amendedPO = new PurchaseOrder({
+      ...baseClonePayload,
+      poNumber: parentPO.poNumber, // Inherit continuous business track identity
+      version: nextVersionNumber,  // Increment numerical version pointer branch
+      items: adjustedItems,        // Inject company-reviewed pricing/quantity elements
+      ...adjustedTotals,           // Re-calculate financial thresholds server-side
+      status: PO_STATUS.DRAFT,     // Forces reapproval from scratch
+      supplierResponseStatus: undefined,
+      createdBy: executionUserId
+    });
+
+    await amendedPO.save({ session });
+    await session.commitTransaction();
+    return amendedPO;
+
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
 };
 
 

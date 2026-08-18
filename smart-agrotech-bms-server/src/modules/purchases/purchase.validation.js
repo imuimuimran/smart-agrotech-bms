@@ -18,10 +18,10 @@ const purchaseItemSchema = z.object({
   orderedQuantity: z
     .number()
     .int("Quantity must be a whole integer.")
-    .min(1, "Quantity must be greater than zero."), // Phase 9.4.14 Rule
+    .min(1, "Quantity must be greater than zero."), // Rule
   expectedUnitCost: z
     .number()
-    .min(0, "Expected unit cost cannot be negative."), // Phase 9.4.15 Rule
+    .min(0, "Expected unit cost cannot be negative."), // Rule
   discount: z
     .number()
     .min(0, "Discount cannot be negative.")
@@ -52,7 +52,7 @@ export const createPOSchema = z
     notes: z.string().trim().catch("").optional().default(""),
   })
   .refine((data) => data.expectedDeliveryDate > data.orderDate, {
-    message: "Expected delivery date must be subsequent to order date.", // Phase 9.4.7 Verification Rule
+    message: "Expected delivery date must be subsequent to order date.", // Verification Rule
     path: ["expectedDeliveryDate"],
   });
 
@@ -81,6 +81,37 @@ export const poRejectionDecisionSchema = z.object({
   comment: z
     .string()
     .trim()
-    .min(10, "A detailed rejection comment (minimum 10 characters) must be supplied.") // 9.5.19 Rule
+    .min(10, "A detailed rejection comment (minimum 10 characters) must be supplied.") // Rule
     .max(500, "Comment cannot exceed 500 characters.")
 });
+
+export const supplierResponseSubmissionSchema = z.object({
+  responseType: z.nativeEnum(SUPPLIER_RESPONSE_TYPES),
+  supplierReference: z.string().trim().max(100).optional(),
+  message: z.string().trim().max(1000).optional(),
+  responseChannel: z.nativeEnum(RESPONSE_CHANNELS).default('MANUAL'),
+  receivedAt: z.preprocess((val) => (val ? new Date(val) : new Date()), z.date()),
+  idempotencyKey: z.string().optional(),
+  
+  // Conditionally required if responseType === PARTIALLY_ACCEPTED
+  items: z.array(z.object({
+    productId: objectIdSchema,
+    orderedQuantity: z.number().int().min(1),
+    acceptedQuantity: z.number().int().min(0)
+  })).optional(),
+
+  // Conditionally required if responseType === AMENDMENT_REQUESTED
+  requestedChanges: z.array(z.object({
+    field: z.string().min(1),
+    currentValue: z.string().min(1),
+    requestedValue: z.string().min(1),
+    reason: z.string().trim().max(500).optional()
+  })).optional()
+}).superRefine((data, ctx) => {
+  if (data.responseType === 'PARTIALLY_ACCEPTED' && (!data.items || data.items.length === 0)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Line item breakdowns are mandatory for partial acceptances.", path: ["items"] });
+  }
+  if (data.responseType === 'AMENDMENT_REQUESTED' && (!data.requestedChanges || data.requestedChanges.length === 0)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Requested changes array details are required for amendments.", path: ["requestedChanges"] });
+  }
+}); 

@@ -56,7 +56,13 @@ const PurchaseOrderSchema = new Schema({
   notes: { type: String },
   createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   approvedBy: { type: Schema.Types.ObjectId, ref: 'User' },
-  approvedAt: { type: Date }
+  approvedAt: { type: Date },
+  version: { type: Number, default: 1, required: true }, // Vital history branch tracking
+  supplierResponseStatus: { 
+    type: String, 
+    enum: Object.values(SUPPLIER_RESPONSE_TYPES), 
+    index: true 
+  } // Secondary tracking dimensions matrix pointer
 }, { timestamps: true });
 
 // --- PURCHASE TRANSACTION SCHEMA ---

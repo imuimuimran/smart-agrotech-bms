@@ -2,6 +2,7 @@ import express from 'express';
 import * as poController from './purchase.controller.js';
 import * as approvalController from './purchase.controller.js';
 import * as commController from './purchase.controller.js';
+import * as controller from './purchase.controller.js'; 
 // import { protectRoute, restrictTo } from '../../middlewares/auth.middleware.js'; 
 // Replace with your project's active security middleware modules
 // import { authenticateToken, checkRBAC } from '../../middlewares/auth.middleware.js';
@@ -32,6 +33,13 @@ router.post(
   // protectRoute, 
   // restrictTo(['staff', 'manager', 'admin']), // RBAC enforcement bounds
   commController.handleSendPOToSupplier
+);
+
+// Inward Action-Oriented Supplier Event Boundary Capture Entry point
+router.post(
+  '/:id/supplier-response',
+  // protectRoute, // Injects user session verification layers
+  controller.handleSupplierResponseSubmission
 );
 
 // History Audit Log Fetching Path

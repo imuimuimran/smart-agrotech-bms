@@ -1,6 +1,8 @@
 import * as poService from './purchase.service.js';
 import * as approvalService from './purchase.service.js';
 import * as communicationService from './purchase.service.js';
+import * as validation from './purchase.validation.js';
+import * as service from './purchase.service.js';
 import { 
   createPOSchema, 
   poApprovalDecisionSchema, 
@@ -160,6 +162,38 @@ export const handleGetPOCommunications = async (req, res, next) => {
   try {
     const records = await communicationService.getPOCommunicationHistory(req.params.id);
     return res.status(200).json({ success: true, data: records });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const handleSupplierResponseSubmission = async (req, res, next) => {
+  try {
+    const parsedPayload = validation.supplierResponseSubmissionSchema.safeParse(req.body);
+    if (!parsedPayload.success) {
+      return res.status(400).json({ success: false, errors: parsedPayload.error.format() });
+    }
+
+    const executionUserId = req.user?._id;
+    
+    // Safety Layer: Extract supplier tracking metadata context from authenticated session profile
+    // If incoming route is an automated external webhook API, bind req.supplier._id here
+    const supplierId = req.supplier?._id || req.body.supplierId; 
+    if (!supplierId) return res.status(400).json({ success: false, message: "Missing tracking supplier identification context profile." });
+
+    const finalInputData = { ...parsedPayload.data, supplierId };
+
+    const responseRecord = await service.processSupplierResponse(
+      req.params.id, 
+      finalInputData, 
+      executionUserId
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: 'Supplier transaction logging entry recorded successfully.',
+      data: responseRecord
+    });
   } catch (err) {
     next(err);
   }
