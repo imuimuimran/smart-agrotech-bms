@@ -5,7 +5,10 @@ import {
   APPROVAL_THRESHOLDS, 
   CONFIG_ALLOW_SELF_APPROVAL,
   COMM_STATUS,
-  SUPPLIER_RESPONSE_TYPES, 
+  SUPPLIER_RESPONSE_TYPES,
+  GRN_LIFECYCLE, 
+  GRN_INSPECTION, 
+  GRN_POSTING 
 } from './purchase.constants.js';
 import { PurchaseOrderApproval } from './purchaseApproval.model.js';
 import { PurchaseOrderCommunication } from './purchaseCommunication.model.js';
@@ -13,6 +16,8 @@ import { transformToSupplierViewDTO } from './purchase.utils.js';
 import Counter from "../../shared/schemas/counter.model.js";
 import { calculatePOTotals } from './purchase.utils.js';
 import { Product } from '../products/product.model.js';
+import { GoodsReceipt } from './goodsReceipt.model.js';
+import { InventoryTransaction } from './inventoryTransaction.model.js';
 import { SupplierResponse } from './supplierResponse.model.js';
 import { Supplier } from '../suppliers/supplier.model.js';
 
@@ -553,6 +558,216 @@ export const executePOAmendmentBranching = async (poId, adjustedItems, adjustedT
     await amendedPO.save({ session });
     await session.commitTransaction();
     return amendedPO;
+
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
+/**
+ * Initialize a Goods Receipt Note record (As DRAFT)
+ */
+export const initializeGoodsReceipt = async (receiptInput, executionUserId) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const po = await PurchaseOrder.findById(receiptInput.purchaseOrderId).session(session);
+    if (!po) throw new Error('Target validation baseline Purchase Order not found.');
+    
+    // Enforce business workflow bounds: Check if PO is commercialized and cleared
+    if (po.status !== 'READY_FOR_FULFILLMENT' && po.status !== 'SENT_TO_SUPPLIER') {
+      throw new Error(`Workflow Error: PO must be accepted by supplier before receiving items.`);
+    }
+
+    // Map item cost arrays dynamically from PO point-in-time snapshots (9.8.42)
+    const poItemMap = po.items.reduce((map, item) => {
+      map[item.productId.toString()] = item;
+      return map;
+    }, {});
+
+    const hydratedItems = receiptInput.items.map(incomingItem => {
+      const poMatch = poItemMap[incomingItem.productId.toString()];
+      if (!poMatch) throw new Error(`Product match ${incomingItem.productId} does not belong to this PO context.`);
+
+      return {
+        productId: incomingItem.productId,
+        orderedQuantity: poMatch.orderedQuantity,
+        receivedQuantity: incomingItem.receivedQuantity,
+        unitCost: poMatch.expectedUnitCost, // Lock pricing matrix safely
+        acceptedQuantity: 0,
+        rejectedQuantity: 0
+      };
+    });
+
+    // Generate safe human-readable continuous numbering identification code
+    const currentYear = new Date().getFullYear();
+    const counterDoc = await Counter.findOneAndUpdate(
+      { key: `goods-receipt-${currentYear}` },
+      { $inc: { sequence: 1 } },
+      { new: true, upsert: true, session }
+    );
+    const receiptNumber = `GR-${currentYear}-${String(counterDoc.sequence).padStart(6, '0')}`;
+
+    const newReceipt = new GoodsReceipt({
+      receiptNumber,
+      purchaseOrderId: po._id,
+      purchaseOrderVersion: po.version,
+      supplierId: po.supplierId,
+      warehouseId: receiptInput.warehouseId,
+      supplierDeliveryReference: receiptInput.supplierDeliveryReference,
+      items: hydratedItems,
+      status: GRN_LIFECYCLE.DRAFT,
+      inspectionStatus: GRN_INSPECTION.PENDING,
+      postingStatus: GRN_POSTING.NOT_POSTED,
+      notes: receiptInput.notes,
+      receivedBy: executionUserId
+    });
+
+    await newReceipt.save({ session });
+    await session.commitTransaction();
+    return newReceipt;
+
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
+/**
+ * Capture Quality Inspection Decisions & Complete Final Posting
+ */
+export const postInspectionAndFinalizeReceipt = async (receiptId, inspectionInput, executionUserId) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // 1. Fetch current transaction record with pessimistic concurrency lock execution protection
+    const grn = await GoodsReceipt.findById(receiptId).session(session);
+    if (!grn) throw new Error('Target Goods Receipt record not found.');
+
+    // Strict Single-Execution Idempotency Guardrail Check
+    if (grn.status === GRN_LIFECYCLE.FINALIZED || grn.postingStatus === GRN_POSTING.POSTED) {
+      return grn; // Gracefully bypass re-processing instead of executing double entries
+    }
+
+    const po = await PurchaseOrder.findById(grn.purchaseOrderId).session(session);
+    if (!po) throw new Error('Associated base Purchase Order reference record missing.');
+
+    // 2. Fetch all historical finalized arrivals against this PO to parse true balance layers 
+    const pastReceipts = await GoodsReceipt.find({
+      purchaseOrderId: grn.purchaseOrderId,
+      status: GRN_LIFECYCLE.FINALIZED,
+      _id: { $ne: grn._id }
+    }).session(session);
+
+    // Compute cumulative previously received totals mapped by product ID boundaries
+    const historicReceivedMap = {};
+    pastReceipts.forEach(r => {
+      r.items.forEach(item => {
+        const pId = item.productId.toString();
+        historicReceivedMap[pId] = (historicReceivedMap[pId] || 0) + item.acceptedQuantity;
+      });
+    });
+
+    // 3. Process inspection arrays, execute structural sanity checks, and inject snapshots
+    const inspectionItemMap = inspectionInput.items.reduce((map, item) => {
+      map[item.productId.toString()] = item;
+      return map;
+    }, {});
+
+    const TOLERANCE_COEFFICIENT = 1.05; // Hardcoded 5% business rule evaluation tier
+
+    for (const grnItem of grn.items) {
+      const pId = grnItem.productId.toString();
+      const inspectionMatch = inspectionItemMap[pId];
+      if (!inspectionMatch) throw new Error(`Inspection detail validation missing for item ${pId}`);
+
+      // Total physical validation boundary constraint logic
+      if (inspectionMatch.acceptedQuantity + inspectionMatch.rejectedQuantity !== grnItem.receivedQuantity) {
+        throw new Error(`Arithmetic Drift: Accepted count + Rejected count must match physical arrival quantity.`);
+      }
+
+      // Independent backend recalculation validation layer
+      const previouslyReceived = historicReceivedMap[pId] || 0;
+      const allowedMaxStockVolume = grnItem.orderedQuantity * TOLERANCE_COEFFICIENT;
+
+      if (previouslyReceived + inspectionMatch.acceptedQuantity > allowedMaxStockVolume) {
+        throw new Error(`Over-Receiving Error: Quantity exceeds allowed 5% system tolerance framework threshold.`);
+      }
+
+      // Bind inspection results securely back onto the parent transaction array item record block
+      grnItem.acceptedQuantity = inspectionMatch.acceptedQuantity;
+      grnItem.rejectedQuantity = inspectionMatch.rejectedQuantity;
+      grnItem.condition = inspectionMatch.condition;
+      if (inspectionMatch.batchNumber) grnItem.batchNumber = inspectionMatch.batchNumber;
+      if (inspectionMatch.serialNumbers) grnItem.serialNumbers = inspectionMatch.serialNumbers;
+    }
+
+    // 4. Update core multiversion transaction status matrices
+    grn.status = GRN_LIFECYCLE.FINALIZED;
+    grn.inspectionStatus = inspectionInput.result;
+    grn.postingStatus = GRN_POSTING.POSTED;
+    grn.inspection = {
+      inspectedBy: executionUserId,
+      inspectedAt: new Date(),
+      result: inspectionInput.result,
+      checklist: inspectionInput.checklist,
+      notes: inspectionInput.notes
+    };
+    grn.postedAt = new Date();
+    await grn.save({ session });
+
+    // Orchestrate Isolated Downstream Inventory Ledger Allocations
+    for (const finishedItem of grn.items) {
+      if (finishedItem.acceptedQuantity > 0) {
+        // Execute clean structural insertion without touching core metrics calculation variables directly
+        const transactionLedgerRecord = new InventoryTransaction({
+          productId: finishedItem.productId,
+          warehouseId: grn.warehouseId,
+          quantity: finishedItem.acceptedQuantity, // Only clear quality-passed volume entries 
+          transactionType: 'PURCHASE_RECEIPT',
+          referenceType: 'GOODS_RECEIPT',
+          referenceId: grn._id,
+          unitCost: finishedItem.unitCost,
+          batchNumber: finishedItem.batchNumber,
+          serialNumbers: finishedItem.serialNumbers,
+          postedBy: executionUserId
+        });
+        await transactionLedgerRecord.save({ session });
+
+        /**
+         * NOTE: Connect your core Stock / ProductWarehouse collection updates here:
+         * await ProductWarehouseStock.updateOne(
+         *   { productId: finishedItem.productId, warehouseId: grn.warehouseId },
+         *   { $inc: { physicalOnHand: finishedItem.acceptedQuantity } },
+         *   { session, upsert: true }
+         * );
+         */
+      }
+    }
+
+    // Dynamically summarize receiving activities back on the origin PO tracking dashboard
+    let allProductsFullyReceived = true;
+    for (const poItem of po.items) {
+      const currentAcceptedVolume = (historicReceivedMap[poItem.productId.toString()] || 0) + 
+                                    (inspectionItemMap[poItem.productId.toString()]?.acceptedQuantity || 0);
+      
+      if (currentAcceptedVolume < poItem.orderedQuantity) {
+        allProductsFullyReceived = false;
+      }
+    }
+
+    po.receivingStatus = allProductsFullyReceived ? 'FULLY_RECEIVED' : 'PARTIALLY_RECEIVED'; 
+    await po.save({ session });
+
+    await session.commitTransaction();
+    return grn;
 
   } catch (error) {
     await session.abortTransaction();

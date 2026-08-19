@@ -3,6 +3,7 @@ import * as poController from './purchase.controller.js';
 import * as approvalController from './purchase.controller.js';
 import * as commController from './purchase.controller.js';
 import * as controller from './purchase.controller.js'; 
+import * as receiptController from './purchase.controller.js';
 // import { protectRoute, restrictTo } from '../../middlewares/auth.middleware.js'; 
 // Replace with your project's active security middleware modules
 // import { authenticateToken, checkRBAC } from '../../middlewares/auth.middleware.js';
@@ -41,6 +42,9 @@ router.post(
   // protectRoute, // Injects user session verification layers
   controller.handleSupplierResponseSubmission
 );
+
+router.post('/goods-receipts', receiptController.handleInitializeReceipt);
+router.post('/goods-receipts/:id/inspection', receiptController.handleFinalizeReceiptInspection); // Finalize action mapping
 
 // History Audit Log Fetching Path
 router.get(

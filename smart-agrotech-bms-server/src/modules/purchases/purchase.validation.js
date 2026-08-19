@@ -115,3 +115,48 @@ export const supplierResponseSubmissionSchema = z.object({
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Requested changes array details are required for amendments.", path: ["requestedChanges"] });
   }
 }); 
+
+export const createGoodsReceiptSchema = z.object({
+  purchaseOrderId: objectIdSchema,
+  warehouseId: objectIdSchema,
+  supplierDeliveryReference: z.string().trim().min(1, "Supplier delivery reference note is required."),
+  notes: z.string().trim().optional(),
+  items: z.array(z.object({
+    productId: objectIdSchema,
+    receivedQuantity: z.number().int().min(0, "Received quantity cannot be negative.") 
+  })).min(1, "Cannot create an empty goods receipt transaction.")
+});
+
+export const submitInspectionSchema = z.object({
+  result: z.nativeEnum({
+    PASSED: 'PASSED',
+    PARTIALLY_PASSED: 'PARTIALLY_PASSED',
+    FAILED: 'FAILED'
+  }),
+  checklist: z.array(z.object({
+    criterion: z.string().min(1),
+    passed: z.boolean()
+  })),
+  notes: z.string().trim().max(1000).optional(),
+  items: z.array(z.object({
+    productId: objectIdSchema,
+    acceptedQuantity: z.number().int().min(0),
+    rejectedQuantity: z.number().int().min(0),
+    condition: z.enum(['NEW', 'DAMAGED', 'DEFECTIVE', 'INCORRECT']).default('NEW'),
+    batchNumber: z.string().trim().optional(),
+    serialNumbers: z.array(z.string().trim()).optional()
+  })).min(1)
+}).superRefine((data, ctx) => {
+  // 9.8.25 Serial Number count enforcement validation rule
+  data.items.forEach((item, idx) => {
+    if (item.serialNumbers && item.serialNumbers.length > 0) {
+      if (item.serialNumbers.length !== item.acceptedQuantity) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Serial number count (${item.serialNumbers.length}) must exactly equal accepted quantity (${item.acceptedQuantity}).`,
+          path: ["items", idx, "serialNumbers"]
+        });
+      }
+    }
+  });
+});

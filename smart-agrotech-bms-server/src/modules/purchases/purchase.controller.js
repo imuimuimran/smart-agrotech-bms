@@ -198,3 +198,43 @@ export const handleSupplierResponseSubmission = async (req, res, next) => {
     next(err);
   }
 };
+
+export const handleInitializeReceipt = async (req, res, next) => {
+  try {
+    const parsedPayload = validation.createGoodsReceiptSchema.safeParse(req.body);
+    if (!parsedPayload.success) {
+      return res.status(400).json({ success: false, errors: parsedPayload.error.format() });
+    }
+
+    const executionUserId = req.user?._id;
+    const trackingReceiptRecord = await service.initializeGoodsReceipt(parsedPayload.data, executionUserId);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Goods receipt tracking draft initial record captured successfully.',
+      data: trackingReceiptRecord
+    });
+  } catch (err) { next(err); }
+};
+
+export const handleFinalizeReceiptInspection = async (req, res, next) => {
+  try {
+    const parsedPayload = validation.submitInspectionSchema.safeParse(req.body);
+    if (!parsedPayload.success) {
+      return res.status(400).json({ success: false, errors: parsedPayload.error.format() });
+    }
+
+    const executionUserId = req.user?._id;
+    const lockedFinalizedReceipt = await service.postInspectionAndFinalizeReceipt(
+      req.params.id,
+      parsedPayload.data,
+      executionUserId
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Quality inspections documented. Transaction ledger updates posted successfully.',
+      data: lockedFinalizedReceipt
+    });
+  } catch (err) { next(err); }
+};

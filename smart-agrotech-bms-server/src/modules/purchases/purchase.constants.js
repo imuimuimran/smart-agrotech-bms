@@ -118,3 +118,38 @@ export const SUPPLIER_RESPONSE_STATUS = {
 };
 
 export const RESPONSE_CHANNELS = ['EMAIL', 'PORTAL', 'API', 'MANUAL']; // Tracking bounds
+
+// Extended Purchase Order receiving indicators
+export const PO_RECEIVING_STATUS = {
+  NOT_RECEIVED: 'NOT_RECEIVED',
+  PARTIALLY_RECEIVED: 'PARTIALLY_RECEIVED',
+  FULLY_RECEIVED: 'FULLY_RECEIVED',
+  OVER_RECEIVED: 'OVER_RECEIVED',
+  CLOSED: 'CLOSED'
+};
+
+// Vector A: Primary Document Lifecycle Status
+export const GRN_LIFECYCLE = {
+  DRAFT: 'DRAFT',              // Count being entered by warehouse employee 
+  FINALIZED: 'FINALIZED',      // Completed, locked, and non-editable 
+  CANCELLED: 'CANCELLED'       // Voided with compensating transactions 
+};
+
+// Vector B: Quality Inspection Status
+export const GRN_INSPECTION = {
+  NOT_REQUIRED: 'NOT_REQUIRED',
+  PENDING: 'PENDING',
+  PASSED: 'PASSED',
+  PARTIALLY_PASSED: 'PARTIALLY_PASSED',
+  FAILED: 'FAILED'
+};
+
+// Vector C: Financial Ledger/Inventory Allocation Status
+export const GRN_POSTING = {
+  NOT_POSTED: 'NOT_POSTED',
+  POSTED: 'POSTED',
+  REVERSED: 'REVERSED'
+};
+
+export const PRODUCT_CONDITIONS = ['NEW', 'DAMAGED', 'DEFECTIVE', 'INCORRECT']; 
+export const DISCREPANCY_CLASSES = ['SHORT', 'OVER', 'DAMAGED', 'WRONG_PRODUCT', 'OTHER'];
