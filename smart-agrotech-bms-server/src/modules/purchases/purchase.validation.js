@@ -160,3 +160,28 @@ export const submitInspectionSchema = z.object({
     }
   });
 });
+
+export const createDiscrepancySchema = z.object({
+  type: z.nativeEnum(DISCREPANCY_TYPES),
+  severity: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).default('MEDIUM'),
+  description: z.string().trim().min(5, "A descriptive error log is required."),
+  evidence: z.array(z.string().url("Evidence attachments must be valid access links.")).optional().default([]),
+  dueDate: z.preprocess((val) => (val ? new Date(val) : undefined), z.date().optional()),
+  items: z.array(z.object({
+    productId: objectIdSchema,
+    expectedQuantity: z.number().int().min(0),
+    receivedQuantity: z.number().int().min(0),
+    affectedQuantity: z.number().int().min(1, "Affected target count must be greater than zero."),
+    batchNumber: z.string().trim().optional(),
+    serialNumbers: z.array(z.string().trim()).optional(),
+    reason: z.string().trim().optional()
+  })).min(1, "An operational discrepancy entry must contain at least one line product.")
+});
+
+export const proposeResolutionSchema = z.object({
+  type: z.nativeEnum(RESOLUTION_TYPES),
+  quantity: z.number().int().min(1, "Resolution target quantity must be greater than zero."),
+  productId: objectIdSchema,
+  value: z.number().min(0).optional().default(0),
+  notes: z.string().trim().min(5, "Resolution justification text required.")
+});

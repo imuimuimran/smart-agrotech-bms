@@ -8,7 +8,8 @@ import {
   SUPPLIER_RESPONSE_TYPES,
   GRN_LIFECYCLE, 
   GRN_INSPECTION, 
-  GRN_POSTING 
+  GRN_POSTING,
+  DISCREPANCY_STATUS, 
 } from './purchase.constants.js';
 import { PurchaseOrderApproval } from './purchaseApproval.model.js';
 import { PurchaseOrderCommunication } from './purchaseCommunication.model.js';
@@ -17,8 +18,10 @@ import Counter from "../../shared/schemas/counter.model.js";
 import { calculatePOTotals } from './purchase.utils.js';
 import { Product } from '../products/product.model.js';
 import { GoodsReceipt } from './goodsReceipt.model.js';
-import { InventoryTransaction } from './inventoryTransaction.model.js';
 import { SupplierResponse } from './supplierResponse.model.js';
+import { InventoryTransaction } from './inventoryTransaction.model.js';
+import { PurchaseReceivingDiscrepancy } from './purchaseDiscrepancy.model.js';
+import { DiscrepancyResolution } from './discrepancyResolution.model.js';
 import { Supplier } from '../suppliers/supplier.model.js';
 
 export const createPurchaseOrder = async (poInput, userId) => {
@@ -768,6 +771,130 @@ export const postInspectionAndFinalizeReceipt = async (receiptId, inspectionInpu
 
     await session.commitTransaction();
     return grn;
+
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
+/**
+ * Core Secure Discrepancy Triage Initialization Logic
+ */
+export const captureReceivingDiscrepancy = async (receiptId, payloadInput, executionUserId) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // 1. Core Reference Validation Checks 
+    const grn = await GoodsReceipt.findById(receiptId).session(session);
+    if (!grn) throw new Error('Target verification baseline Goods Receipt records vanished.');
+    if (grn.status !== 'FINALIZED') throw new Error('Security Exception: Discrepancies can only be raised on posted arrivals.');
+
+    const po = await PurchaseOrder.findById(grn.purchaseOrderId).session(session);
+    if (!po) throw new Error('Associated baseline commercial commitment data missing.');
+
+    // 2. Validate Product Membership Bounds & Map Financial Values 
+    const grnItemMap = grn.items.reduce((map, item) => {
+      map[item.productId.toString()] = item;
+      return map;
+    }, {});
+
+    let calculatedTotalValueImpact = 0;
+    let computedQuantityImpact = 0;
+
+    const validatedItems = payloadInput.items.map(incItem => {
+      const targetMatch = grnItemMap[incItem.productId.toString()];
+      if (!targetMatch) throw new Error(`Fraud Guardrail: Product ${incItem.productId} does not exist on this receipt.`);
+
+      // Multi-layer validation recalculation checks against client tampering
+      if (incItem.affectedQuantity > targetMatch.receivedQuantity && payloadInput.type !== 'OVER_SHIPMENT') {
+        throw new Error('Arithmetic Mismatch: Affected exception volume cannot exceed physical arrived count.');
+      }
+
+      // Safely multiply point-in-time cost matrix from original frozen PO snapshots
+      const itemCost = Number(targetMatch.unitCost.toString());
+      calculatedTotalValueImpact += (incItem.affectedQuantity * itemCost);
+      computedQuantityImpact += incItem.affectedQuantity;
+
+      return { ...incItem };
+    });
+
+    // 3. Human Readable Number Sequencing Auto-Generation 
+    const currentYear = new Date().getFullYear();
+    const counterDoc = await Counter.findOneAndUpdate(
+      { key: `discrepancy-${currentYear}` },
+      { $inc: { sequence: 1 } },
+      { new: true, upsert: true, session }
+    );
+    const discrepancyNumber = `DIS-${currentYear}-${String(counterDoc.sequence).padStart(6, '0')}`;
+
+    const newException = new PurchaseReceivingDiscrepancy({
+      discrepancyNumber,
+      purchaseOrderId: po._id,
+      purchaseOrderVersion: grn.purchaseOrderVersion, // Retain original version trace alignment 
+      goodsReceiptId: grn._id,
+      supplierId: grn.supplierId,
+      warehouseId: grn.warehouseId,
+      type: payloadInput.type,
+      severity: payloadInput.severity,
+      status: DISCREPANCY_STATUS.OPEN,
+      responsibility: 'UNKNOWN', // Default per business guideline 
+      items: validatedItems,
+      description: payloadInput.description,
+      evidence: payloadInput.evidence,
+      quantityImpact: computedQuantityImpact,
+      estimatedValueImpact: calculatedTotalValueImpact.toFixed(2),
+      detectedBy: executionUserId,
+      dueDate: payloadInput.dueDate
+    });
+
+    await newException.save({ session });
+    await session.commitTransaction();
+    return newException;
+
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
+/**
+ * Propose Multi-Resolution Ledger Target Actions
+ */
+export const proposeCaseResolution = async (discrepancyId, resolutionInput, executionUserId) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const caseHead = await PurchaseReceivingDiscrepancy.findById(discrepancyId).session(session);
+    if (!caseHead) throw new Error('Target Discrepancy Case folder reference not found.');
+
+    // Enforce state transition consistency
+    if (caseHead.status === DISCREPANCY_STATUS.CLOSED || caseHead.status === DISCREPANCY_STATUS.CANCELLED) {
+      throw new Error('Workflow Locked: Cannot append resolutions onto a finalized tracking ledger branch.');
+    }
+
+    const newResolution = new DiscrepancyResolution({
+      discrepancyId: caseHead._id,
+      type: resolutionInput.type,
+      quantity: resolutionInput.quantity,
+      productId: resolutionInput.productId,
+      value: resolutionInput.value.toFixed(2),
+      status: 'PROPOSED'
+    });
+    await newResolution.save({ session });
+
+    // Transition tracking head vector state naturally
+    caseHead.status = DISCREPANCY_STATUS.RESOLUTION_PENDING;
+    await caseHead.save({ session });
+
+    await session.commitTransaction();
+    return newResolution;
 
   } catch (error) {
     await session.abortTransaction();

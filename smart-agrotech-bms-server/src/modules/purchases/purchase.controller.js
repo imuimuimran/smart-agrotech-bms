@@ -238,3 +238,47 @@ export const handleFinalizeReceiptInspection = async (req, res, next) => {
     });
   } catch (err) { next(err); }
 };
+
+export const handleRaiseDiscrepancy = async (req, res, next) => {
+  try {
+    const parsedPayload = validation.createDiscrepancySchema.safeParse(req.body);
+    if (!parsedPayload.success) {
+      return res.status(400).json({ success: false, errors: parsedPayload.error.format() });
+    }
+
+    const executionUserId = req.user?._id;
+    const exceptionRecord = await service.captureReceivingDiscrepancy(
+      req.params.receiptId, 
+      parsedPayload.data, 
+      executionUserId
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: 'Receiving exception folder created and logged for audit tracking.',
+      data: exceptionRecord
+    });
+  } catch (err) { next(err); }
+};
+
+export const handleProposeResolution = async (req, res, next) => {
+  try {
+    const parsedPayload = validation.proposeResolutionSchema.safeParse(req.body);
+    if (!parsedPayload.success) {
+      return res.status(400).json({ success: false, errors: parsedPayload.error.format() });
+    }
+
+    const executionUserId = req.user?._id;
+    const resolutionRecord = await service.proposeCaseResolution(
+      req.params.id,
+      parsedPayload.data,
+      executionUserId
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: 'Resolution item proposal appended onto exception tracking history.',
+      data: resolutionRecord
+    });
+  } catch (err) { next(err); }
+};

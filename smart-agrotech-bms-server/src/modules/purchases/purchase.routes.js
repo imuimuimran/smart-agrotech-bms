@@ -4,6 +4,7 @@ import * as approvalController from './purchase.controller.js';
 import * as commController from './purchase.controller.js';
 import * as controller from './purchase.controller.js'; 
 import * as receiptController from './purchase.controller.js';
+import * as discrepancyController from './purchase.controller.js';
 // import { protectRoute, restrictTo } from '../../middlewares/auth.middleware.js'; 
 // Replace with your project's active security middleware modules
 // import { authenticateToken, checkRBAC } from '../../middlewares/auth.middleware.js';
@@ -45,6 +46,10 @@ router.post(
 
 router.post('/goods-receipts', receiptController.handleInitializeReceipt);
 router.post('/goods-receipts/:id/inspection', receiptController.handleFinalizeReceiptInspection); // Finalize action mapping
+
+// Action-Oriented Exception Boundary Endpoints
+router.post('/goods-receipts/:receiptId/discrepancies', discrepancyController.handleRaiseDiscrepancy);
+router.post('/receiving-discrepancies/:id/resolve', discrepancyController.handleProposeResolution);
 
 // History Audit Log Fetching Path
 router.get(
