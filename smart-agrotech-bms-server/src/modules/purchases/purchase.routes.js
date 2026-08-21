@@ -51,6 +51,9 @@ router.post('/goods-receipts/:id/inspection', receiptController.handleFinalizeRe
 router.post('/goods-receipts/:receiptId/discrepancies', discrepancyController.handleRaiseDiscrepancy);
 router.post('/receiving-discrepancies/:id/resolve', discrepancyController.handleProposeResolution);
 
+// Dedicated Entry Point Structure for Invoicing Boundaries
+router.post('/purchase-invoices', controller.handleRegisterInvoice);
+
 // History Audit Log Fetching Path
 router.get(
   '/:id/communications', 

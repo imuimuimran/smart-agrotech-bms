@@ -185,3 +185,21 @@ export const proposeResolutionSchema = z.object({
   value: z.number().min(0).optional().default(0),
   notes: z.string().trim().min(5, "Resolution justification text required.")
 });
+
+export const createPurchaseInvoiceSchema = z.object({
+  supplierInvoiceNumber: z.string().trim().min(1, "Supplier-provided invoice reference number is required."),
+  purchaseOrderId: objectIdSchema,
+  goodsReceiptIds: z.array(objectIdSchema).min(1, "An invoice must reference at least one Goods Receipt voucher."),
+  invoiceDate: z.preprocess((val) => new Date(val), z.date()),
+  dueDate: z.preprocess((val) => new Date(val), z.date()),
+  notes: z.string().trim().optional(),
+  attachments: z.array(z.string().url()).optional().default([]),
+  
+  items: z.array(z.object({
+    productId: objectIdSchema,
+    invoicedQuantity: z.number().int().min(1, "Invoiced item count must be positive."),
+    unitPrice: z.number().min(0, "Unit price cannot be negative."),
+    discountAmount: z.number().min(0).optional().default(0),
+    taxAmount: z.number().min(0).optional().default(0)
+  })).min(1, "An invoice structure must contain line items.")
+});

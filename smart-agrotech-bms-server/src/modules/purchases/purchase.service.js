@@ -9,7 +9,10 @@ import {
   GRN_LIFECYCLE, 
   GRN_INSPECTION, 
   GRN_POSTING,
-  DISCREPANCY_STATUS, 
+  DISCREPANCY_STATUS,
+  MATCH_RESULT_TYPES, 
+  MATCHING_STATUS, 
+  INVOICE_STATUS,
 } from './purchase.constants.js';
 import { PurchaseOrderApproval } from './purchaseApproval.model.js';
 import { PurchaseOrderCommunication } from './purchaseCommunication.model.js';
@@ -22,6 +25,8 @@ import { SupplierResponse } from './supplierResponse.model.js';
 import { InventoryTransaction } from './inventoryTransaction.model.js';
 import { PurchaseReceivingDiscrepancy } from './purchaseDiscrepancy.model.js';
 import { DiscrepancyResolution } from './discrepancyResolution.model.js';
+import { PurchaseInvoice } from './purchaseInvoice.model.js';
+import { InvoiceMatchResult } from './invoiceMatchResult.model.js';
 import { Supplier } from '../suppliers/supplier.model.js';
 
 export const createPurchaseOrder = async (poInput, userId) => {
@@ -336,16 +341,16 @@ export const getPOApprovalHistory = async (poId) => {
     .sort({ performedAt: 1 });
 };
 
-export const approvePurchaseOrder = async (poId, userId) => {
-  const po = await PurchaseOrder.findById(poId);
-  if (!po) throw new Error('Purchase Order not found');
-  if (po.status !== PO_STATUS.SUBMITTED) throw new Error('Only SUBMITTED purchase orders can be approved');
+// export const approvePurchaseOrder = async (poId, userId) => {
+//   const po = await PurchaseOrder.findById(poId);
+//   if (!po) throw new Error('Purchase Order not found');
+//   if (po.status !== PO_STATUS.SUBMITTED) throw new Error('Only SUBMITTED purchase orders can be approved');
 
-  po.status = PO_STATUS.APPROVED;
-  po.approvedBy = userId;
-  po.approvedAt = new Date();
-  return await po.save();
-};
+//   po.status = PO_STATUS.APPROVED;
+//   po.approvedBy = userId;
+//   po.approvedAt = new Date();
+//   return await po.save();
+// };
 
 /**
  * Complete Procurement Dispatch Workflow
@@ -900,6 +905,187 @@ export const proposeCaseResolution = async (discrepancyId, resolutionInput, exec
     await session.abortTransaction();
     throw error;
   } finally {
+    session.endSession();
+  }
+};
+
+/**
+ * Enterprise Automated Three-Way Matching Core Logic Engine
+ */
+const runAutomatedThreeWayMatch = async (invoiceDoc, session, executionUserId) => {
+  const po = await PurchaseOrder.findById(invoiceDoc.purchaseOrderId).session(session);
+  const receipts = await GoodsReceipt.find({ _id: { $in: invoiceDoc.goodsReceiptIds } }).session(session);
+  
+  // Cross-reference Exception records to check for un-resolved disputes 
+  const unresolvedDiscrepancies = await PurchaseReceivingDiscrepancy.find({
+    goodsReceiptId: { $in: invoiceDoc.goodsReceiptIds },
+    status: { $notin: ['RESOLVED', 'CLOSED'] }
+  }).session(session);
+
+  let quantityMatch = true;
+  let priceMatch = true;
+  let taxMatch = true;
+  let discrepancyCheck = unresolvedDiscrepancies.length === 0; 
+
+  const varianceItems = [];
+
+  // Index PO line elements for baseline comparison lookups
+  const poItemMap = po.items.reduce((map, item) => { map[item.productId.toString()] = item; return map; }, {});
+
+  // Summarize quantities arrived physically across matching warehouse entries
+  const actualReceivedMap = {};
+  receipts.forEach(r => {
+    r.items.forEach(item => {
+      const pId = item.productId.toString();
+      actualReceivedMap[pId] = (actualReceivedMap[pId] || 0) + item.acceptedQuantity;
+    });
+  });
+
+  // Compare line elements side-by-side
+  invoiceDoc.items.forEach(invItem => {
+    const pId = invItem.productId.toString();
+    const poMatch = poItemMap[pId];
+    const physicalArrivedQty = actualReceivedMap[pId] || 0;
+
+    const targetPOQty = poMatch ? poMatch.orderedQuantity : 0;
+    const targetCost = poMatch ? Number(poMatch.expectedUnitCost.toString()) : 0;
+
+    // Vector A: Quantity Checks (PO vs GRN vs Invoice)
+    if (invItem.invoicedQuantity !== targetPOQty || invItem.invoicedQuantity !== physicalArrivedQty) {
+      quantityMatch = false;
+      varianceItems.push({
+        productId: invItem.productId,
+        varianceType: 'QUANTITY',
+        poValue: String(targetPOQty),
+        receiptValue: String(physicalArrivedQty),
+        invoiceValue: String(invItem.invoicedQuantity)
+      });
+    }
+
+    // Vector B: Price Matrix Drift Checks
+    const currentPrice = Number(invItem.unitPrice.toString());
+    if (currentPrice !== targetCost) {
+      priceMatch = false;
+      varianceItems.push({
+        productId: invItem.productId,
+        varianceType: 'PRICE',
+        poValue: String(targetCost),
+        invoiceValue: String(currentPrice)
+      });
+    }
+  });
+
+  // Evaluate final result classification tags
+  let outcomeResult = MATCH_RESULT_TYPES.FULL_MATCH;
+  if (!discrepancyCheck) outcomeResult = MATCH_RESULT_TYPES.DISCREPANCY_PENDING;
+  else if (!priceMatch) outcomeResult = MATCH_RESULT_TYPES.PRICE_VARIANCE;
+  else if (!quantityMatch) outcomeResult = MATCH_RESULT_TYPES.QUANTITY_VARIANCE;
+
+  // Log matching trail history entry
+  const matchLog = new InvoiceMatchResult({
+    invoiceId: invoiceDoc._id,
+    purchaseOrderId: po._id,
+    goodsReceiptIds: invoiceDoc.goodsReceiptIds,
+    quantityMatch,
+    priceMatch,
+    taxMatch,
+    discrepancyCheck,
+    varianceItems,
+    result: outcomeResult,
+    matchedBy: executionUserId
+  });
+  await matchLog.save({ session });
+
+  // System Approval Flow Mapping
+  invoiceDoc.matchingStatus = outcomeResult === MATCH_RESULT_TYPES.FULL_MATCH ? MATCHING_STATUS.MATCHED : MATCHING_STATUS.VARIANCE;
+  invoiceDoc.matchingResult = matchLog._id;
+  
+  if (outcomeResult === MATCH_RESULT_TYPES.FULL_MATCH) {
+    invoiceDoc.approvalStatus = INVOICE_STATUS.APPROVED; // Straight Auto Approval Pass
+  } else {
+    invoiceDoc.approvalStatus = INVOICE_STATUS.UNDER_REVIEW; // Retain case for manual inspection gates
+  }
+  
+  await invoiceDoc.save({ session });
+  return matchLog;
+};
+
+/**
+ * Process and register a Supplier Invoice document 
+ */
+export const registerPurchaseInvoice = async (payloadData, executionUserId) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const po = await PurchaseOrder.findById(payloadData.purchaseOrderId).session(session);
+    if (!po) throw new Error('Target tracking base Purchase Order not found.');
+
+    // Index PO items to resolve snapshot parameters cleanly
+    const poItemMap = po.items.reduce((map, item) => { map[item.productId.toString()] = item; return map; }, {});
+
+    let computedSubtotal = 0;
+    let computedTax = 0;
+    let computedDiscount = 0;
+
+    const processedItems = payloadData.items.map(item => {
+      const poMatch = poItemMap[item.productId.toString()];
+      if (!poMatch) throw new Error(`Data Constraint: Product row ${item.productId} doesn't exist on PO baseline.`);
+
+      const qty = item.invoicedQuantity;
+      const price = item.unitPrice;
+      const lineSubtotal = qty * price;
+      const lineTotal = lineSubtotal - item.discountAmount + item.taxAmount;
+
+      computedSubtotal += lineSubtotal;
+      computedDiscount += item.discountAmount;
+      computedTax += item.taxAmount;
+
+      return {
+        ...item,
+        productNameSnapshot: poMatch.productNameSnapshot,
+        skuSnapshot: poMatch.skuSnapshot,
+        lineSubtotal: lineSubtotal.toFixed(2),
+        lineTotal: lineTotal.toFixed(2)
+      };
+    });
+
+    // Formulas and Tax Validations
+    const grandTotal = computedSubtotal - computedDiscount + computedTax;
+
+    // Generate consecutive sequential internal billing number strings
+    const currentYear = new Date().getFullYear();
+    const counterDoc = await Counter.findOneAndUpdate(
+      { key: `purchase-invoice-${currentYear}` },
+      { $inc: { sequence: 1 } },
+      { new: true, upsert: true, session }
+    );
+    const invoiceNumber = `PINV-${currentYear}-${String(counterDoc.sequence).padStart(6, '0')}`;
+
+    const newInvoice = new PurchaseInvoice({
+      ...payloadData,
+      invoiceNumber,
+      items: processedItems,
+      subtotal: computedSubtotal.toFixed(2),
+      discountAmount: computedDiscount.toFixed(2),
+      taxAmount: computedTax.toFixed(2),
+      grandTotal: grandTotal.toFixed(2),
+      matchingStatus: MATCHING_STATUS.IN_PROGRESS,
+      approvalStatus: INVOICE_STATUS.UNDER_MATCHING,
+      createdBy: executionUserId
+    });
+    await newInvoice.save({ session });
+
+    // Execute Three-Way automated matching cycles mid-flight 
+    await runAutomatedThreeWayMatch(newInvoice, session, executionUserId);
+
+    await session.commitTransaction();
+    return newInvoice;
+
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } {
     session.endSession();
   }
 };

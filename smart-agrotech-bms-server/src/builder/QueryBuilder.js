@@ -53,24 +53,6 @@ class QueryBuilder {
         return this;
     }
 
-    //   sort() {
-    //     const sortBy =
-    //       this.query.sortBy ||
-    //       PAGINATION.DEFAULT_SORT_BY;
-
-    //     const sortOrder =
-    //       this.query.sortOrder === "asc"
-    //         ? ""
-    //         : "-";
-
-    //     this.modelQuery =
-    //       this.modelQuery.sort(
-    //         `${sortOrder}${sortBy}`
-    //       );
-
-    //     return this;
-    //   }
-
     sort(allowedFields = []) {
         let sortBy =
             this.query.sortBy ||

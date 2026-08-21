@@ -282,3 +282,21 @@ export const handleProposeResolution = async (req, res, next) => {
     });
   } catch (err) { next(err); }
 };
+
+export const handleRegisterInvoice = async (req, res, next) => {
+  try {
+    const parsedPayload = validation.createPurchaseInvoiceSchema.safeParse(req.body);
+    if (!parsedPayload.success) {
+      return res.status(400).json({ success: false, errors: parsedPayload.error.format() });
+    }
+
+    const executionUserId = req.user?._id;
+    const recordedInvoice = await service.registerPurchaseInvoice(parsedPayload.data, executionUserId);
+
+    return res.status(210).json({
+      success: true,
+      message: 'Supplier bill invoice filed. Three-Way matching audit completed.',
+      data: recordedInvoice
+    });
+  } catch (err) { next(err); }
+};
