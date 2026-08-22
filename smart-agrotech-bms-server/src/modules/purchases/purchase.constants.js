@@ -247,3 +247,21 @@ export const MATCH_RESULT_TYPES = {
   MANUAL_REVIEW: 'MANUAL_REVIEW',
   BLOCKED: 'BLOCKED'
 };
+
+// 3-Way Matching Workflow States (Page 7-8)
+export const INVOICE_MATCHING_STATUS = {
+  NOT_STARTED: 'NOT_STARTED',
+  IN_PROGRESS: 'IN_PROGRESS',
+  MATCHED: 'MATCHED',
+  PARTIAL_MATCH: 'PARTIAL_MATCH',
+  VARIANCE: 'VARIANCE',
+  BLOCKED: 'BLOCKED'
+};
+
+// Initial Conceptual Payment Statuses (Page 9)
+export const INVOICE_PAYMENT_STATUS = {
+  UNPAID: 'UNPAID',
+  PARTIALLY_PAID: 'PARTIALLY_PAID',
+  PAID: 'PAID'
+};
+
