@@ -8,6 +8,98 @@ import {
 const Schema = mongoose.Schema;
 
 // =========================================================================
+// 1. PURCHASE INVOICE ITEM SUB-SCHEMA
+// =========================================================================
+/**
+ * Embedded transaction item sub-schema.
+ * Isolates line data snapshots to protect historical audit tracks from master data drift.
+ */
+const PurchaseInvoiceItemSchema = new Schema({
+  productId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Product',
+    required: true
+  },
+  purchaseOrderItemId: {
+    type: Schema.Types.ObjectId
+  },
+  goodsReceiptItemId: {
+    type: Schema.Types.ObjectId
+  },
+  productNameSnapshot: {
+    type: String,
+    required: true
+  },
+  skuSnapshot: {
+    type: String,
+    required: true
+  },
+  invoicedQuantity: {
+    type: Number,
+    required: true,
+    min: [0, 'Invoiced quantity cannot be negative']
+  },
+  unitPrice: {
+    type: Schema.Types.Decimal128,
+    required: true
+  },
+  discountAmount: {
+    type: Schema.Types.Decimal128,
+    default: 0
+  },
+  taxAmount: {
+    type: Schema.Types.Decimal128,
+    default: 0
+  },
+  lineSubtotal: {
+    type: Schema.Types.Decimal128,
+    required: true
+  },
+  lineTotal: {
+    type: Schema.Types.Decimal128,
+    required: true
+  },
+  batchNumbers: [{
+    type: String
+  }],
+  serialNumbers: [{
+    type: String
+  }],
+  notes: {
+    type: String
+  }
+}, { _id: false });
+
+// =========================================================================
+// 2. PURCHASE INVOICE APPROVAL HISTORY SUB-SCHEMA
+// =========================================================================
+/**
+ * Embedded history log to track sequential operations securely.
+ * Preserves a complete point-in-time chronological audit trail.
+ */
+const PurchaseInvoiceApprovalSchema = new Schema({
+  action: {
+    type: String,
+    required: true
+  },
+  performedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  performedAt: {
+    type: Date,
+    default: Date.now
+  },
+  comments: {
+    type: String
+  }
+}, { _id: false }); // Enforces clean structural embedding
+
+
+
+
+// =========================================================================
 // 1. NESTED SUB-SCHEMAS (Ensures structural consistency & clean validation)
 // =========================================================================
 
@@ -38,76 +130,217 @@ const InvoiceApprovalHistorySchema = new Schema({
 // 2. PRIMARY SYSTEM ENTITY MAIN SCHEMA
 // =========================================================================
 
+// =========================================================================
+// 3. PRIMARY PURCHASE INVOICE MAIN SCHEMA
+// =========================================================================
 const PurchaseInvoiceSchema = new Schema({
-  // Unique Business Tracking Identifiers
-  invoiceNumber: { type: String, required: true, unique: true, index: true }, // Internal System Generated Sequence Code
-  supplierInvoiceNumber: { type: String, required: true, index: true },      // External Supplier Document Key
-
-  // Core Relationship Multi-Module Link Matrix
-  supplierId: { type: Schema.Types.ObjectId, ref: 'Supplier', required: true, index: true },
-  purchaseOrderId: { type: Schema.Types.ObjectId, ref: 'PurchaseOrder', required: true, index: true },
-  purchaseOrderVersion: { type: Number, required: true, default: 1 }, // Retains original frozen PO branch version
-  goodsReceiptIds: [{ type: Schema.Types.ObjectId, ref: 'GoodsReceipt', required: true, index: true }], // Supporting multi-GRN tracking arrays
-  discrepancyIds: [{ type: Schema.Types.ObjectId, ref: 'PurchaseReceivingDiscrepancy', index: true }], // Traceability into Phase 9.9
-
-  // Time & Location Dates
-  invoiceDate: { type: Date, required: true }, // The calendar issue date printed on the physical vendor invoice
-  dueDate: { type: Date, required: true },     // The contract payment milestone deadline date
-
-  // Multi-Currency Framework Properties
-  currency: { type: String, required: true, default: 'BDT', uppercase: true, trim: true },
-  exchangeRate: { type: Schema.Types.Decimal128, required: true, default: 1.0 },
-
-  // Embedded Line Collection
-  items: [InvoiceItemSchema],
-
-  // Financial Summary Headers
-  subtotal: { type: Schema.Types.Decimal128, required: true },
-  discountAmount: { type: Schema.Types.Decimal128, required: true, default: 0 },
-  taxAmount: { type: Schema.Types.Decimal128, required: true, default: 0 },
-  shippingCost: { type: Schema.Types.Decimal128, required: true, default: 0 },
-  additionalCharges: { type: Schema.Types.Decimal128, required: true, default: 0 },
-  grandTotal: { type: Schema.Types.Decimal128, required: true }, // Formula Verified: Subtotal - Discount + Tax + Shipping + Charges
-
-  // Three-Way Matching Audit Separation Dimensions
-  matchingStatus: { 
-    type: String, 
-    enum: Object.values(INVOICE_MATCHING_STATUS), 
-    default: INVOICE_MATCHING_STATUS.NOT_STARTED, 
-    index: true 
+  // Unique Business Tracking References
+  invoiceNumber: {
+    type: String,
+    required: true,
+    unique: true,
+    index: true
   },
-  matchingResult: { type: Schema.Types.ObjectId, ref: 'InvoiceMatchResult' }, // Separate evaluation collection anchor
-
-  // Authorization Tracking Status Vectors
-  approvalStatus: { 
-    type: String, 
-    enum: Object.values(INVOICE_APPROVAL_STATUS), 
-    default: INVOICE_APPROVAL_STATUS.DRAFT, 
-    index: true 
-  },
-  approvalHistory: [InvoiceApprovalHistorySchema],
-
-  // Downstream Accounts Payable Hand-off Anchors (Intentionally unpopulated at this phase)
-  accountsPayableId: { type: Schema.Types.ObjectId, default: null }, // Future expansion link node
-  paymentStatus: { 
-    type: String, 
-    enum: Object.values(INVOICE_PAYMENT_STATUS), 
-    default: INVOICE_PAYMENT_STATUS.UNPAID, 
-    index: true 
+  supplierInvoiceNumber: {
+    type: String,
+    required: true,
+    index: true
   },
 
-  // Auditable Data Notes & Document Assets
-  notes: { type: String, trim: true },
-  attachments: [{ type: String, trim: true }], // Cloud URLs pointing to uploaded image/PDF assets
+  // Multi-Module Relationship Matrix Mapping Links
+  supplierId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Supplier',
+    required: true,
+    index: true
+  },
+  purchaseOrderId: {
+    type: Schema.Types.ObjectId,
+    ref: 'PurchaseOrder',
+    required: true,
+    index: true
+  },
+  purchaseOrderVersion: {
+    type: Number,
+    required: true,
+    default: 1
+  },
+  goodsReceiptIds: [{
+    type: Schema.Types.ObjectId,
+    ref: 'GoodsReceipt',
+    index: true
+  }],
+  discrepancyIds: [{
+    type: Schema.Types.ObjectId,
+    ref: 'PurchaseReceivingDiscrepancy',
+    index: true
+  }],
 
-  // User Space Integrity Control Fields
-  createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-  updatedBy: { type: Schema.Types.ObjectId, ref: 'User' }
-}, { 
-  timestamps: true // Automatically fields database insertion logs: `createdAt` and `updatedAt`
+  // Core Calendar Timestamps
+  invoiceDate: {
+    type: Date,
+    required: true,
+    index: true
+  },
+  dueDate: {
+    type: Date,
+    required: true,
+    index: true
+  },
+
+  // Multi-Currency Framework Architecture
+  currency: {
+    type: String,
+    required: true
+  },
+  exchangeRate: {
+    type: Schema.Types.Decimal128,
+    default: 1
+  },
+
+  // Line Item Grid
+  items: [PurchaseInvoiceItemSchema],
+
+  // Financial Header Summaries
+  subtotal: {
+    type: Schema.Types.Decimal128,
+    required: true
+  },
+  discountAmount: {
+    type: Schema.Types.Decimal128,
+    default: 0
+  },
+  taxAmount: {
+    type: Schema.Types.Decimal128,
+    default: 0
+  },
+  shippingCost: {
+    type: Schema.Types.Decimal128,
+    default: 0
+  },
+  additionalCharges: {
+    type: Schema.Types.Decimal128,
+    default: 0
+  },
+  grandTotal: {
+    type: Schema.Types.Decimal128,
+    required: true
+  },
+
+  // 3-Way Match Validation States
+  matchingStatus: {
+    type: String,
+    enum: [
+      'NOT_STARTED',
+      'IN_PROGRESS',
+      'MATCHED',
+      'PARTIAL_MATCH',
+      'VARIANCE',
+      'BLOCKED'
+    ],
+    default: 'NOT_STARTED',
+    index: true
+  },
+  matchingResult: {
+    type: String,
+    enum: [
+      'FULL_MATCH',
+      'PARTIAL_MATCH',
+      'PRICE_VARIANCE',
+      'QUANTITY_VARIANCE',
+      'TAX_VARIANCE',
+      'DISCREPANCY_PENDING',
+      'MANUAL_REVIEW',
+      'BLOCKED'
+    ]
+  },
+
+  // Internal Management Status Vectors
+  approvalStatus: {
+    type: String,
+    enum: [
+      'PENDING',
+      'APPROVED',
+      'REJECTED'
+    ],
+    default: 'PENDING',
+    index: true
+  },
+  approvalHistory: [PurchaseInvoiceApprovalSchema],
+
+  // Downstream Ledger Foundations (Intentionally Reference-Only at this Stage)
+  accountsPayableId: {
+    type: Schema.Types.ObjectId,
+    ref: 'AccountsPayable',
+    index: true
+  },
+  paymentStatus: {
+    type: String,
+    enum: [
+      'UNPAID',
+      'PARTIALLY_PAID',
+      'PAID'
+    ],
+    default: 'UNPAID',
+    index: true
+  },
+
+  // Context & Metadata Assets
+  notes: {
+    type: String
+  },
+  attachments: [{
+    type: String
+  }],
+
+  // Audit Context Constraints
+  createdBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  updatedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  }
+}, {
+  timestamps: true // Captures system database operational times: createdAt & updatedAt
 });
 
-// Enforce safe compound boundary index to guarantee a supplier cannot file duplicate invoice reference keys
-PurchaseInvoiceSchema.index({ supplierId: 1, supplierInvoiceNumber: 1 }, { unique: true });
+// =========================================================================
+// 4. DATABASE COUPLING OPERATIONAL PERFORMANCE INDEXES
+// =========================================================================
+
+// Enforces business unique integrity rules strictly bounded inside each individual supplier context
+PurchaseInvoiceSchema.index({
+  supplierId: 1,
+  supplierInvoiceNumber: 1
+}, {
+  unique: true
+});
+
+// Supports high-performance historical analysis and aggregate reports by date sequences
+PurchaseInvoiceSchema.index({
+  purchaseOrderId: 1,
+  invoiceDate: -1
+});
+
+// Accelerates internal vendor age summaries and current balance lookups
+PurchaseInvoiceSchema.index({
+  supplierId: 1,
+  paymentStatus: 1
+});
+
+// Facilitates high-volume operational dispatch matching processing pipelines
+PurchaseInvoiceSchema.index({
+  matchingStatus: 1,
+  approvalStatus: 1
+});
+
+// Optimizes real-time automated ledger overdue alert triggers
+PurchaseInvoiceSchema.index({
+  dueDate: 1,
+  paymentStatus: 1
+});
 
 export const PurchaseInvoice = mongoose.model('PurchaseInvoice', PurchaseInvoiceSchema);
