@@ -79,3 +79,109 @@ export const transformToSupplierViewDTO = (purchaseOrder, supplier) => {
   };
 };
 
+/**
+ * Anti-Drift Money Formulation Engine (Page 6)
+ * Avoids native JS binary floats to guarantee cents-level precision.
+ * Expects numbers or string digits, output values format back into high-precision strings.
+ */
+export const calculatePurchaseInvoiceTotals = ({
+  items,
+  discountAmount = 0,
+  taxAmount = 0,
+  shippingCost = 0,
+  additionalCharges = 0
+}) => {
+  // Helper to safely convert incoming parameters to an integer (Cents scaling)
+  const toCents = (val) => Math.round((Number(val || 0) + Number.EPSILON) * 100);
+  const fromCents = (cents) => (cents / 100).toFixed(2);
+
+  let calculatedSubtotalCents = 0;
+
+  // Process item line segments row-by-row
+  const calculatedItems = items.map(item => {
+    const qty = Number(item.invoicedQuantity || 0);
+    const unitPriceCents = toCents(item.unitPrice);
+    const itemDiscountCents = toCents(item.discountAmount);
+    const itemTaxCents = toCents(item.taxAmount);
+
+    const lineSubtotalCents = qty * unitPriceCents;
+    const lineTotalCents = lineSubtotalCents - itemDiscountCents + itemTaxCents;
+
+    calculatedSubtotalCents += lineSubtotalCents;
+
+    return {
+      productId: item.productId,
+      purchaseOrderItemId: item.purchaseOrderItemId,
+      goodsReceiptItemId: item.goodsReceiptItemId,
+      invoicedQuantity: qty,
+      unitPrice: fromCents(unitPriceCents),
+      discountAmount: fromCents(itemDiscountCents),
+      taxAmount: fromCents(itemTaxCents),
+      lineSubtotal: fromCents(lineSubtotalCents),
+      lineTotal: fromCents(lineTotalCents)
+    };
+  });
+
+  // Scale operational header elements into absolute cents integers
+  const globalDiscountCents = toCents(discountAmount);
+  const globalTaxCents = toCents(taxAmount);
+  const globalShippingCents = toCents(shippingCost);
+  const globalChargesCents = toCents(additionalCharges);
+
+  // Financial Grand Total Equation (Page 6)
+  const grandTotalCents = 
+    calculatedSubtotalCents - 
+    globalDiscountCents + 
+    globalTaxCents + 
+    globalShippingCents + 
+    globalChargesCents;
+
+  return {
+    items: calculatedItems,
+    subtotal: fromCents(calculatedSubtotalCents),
+    discountAmount: fromCents(globalDiscountCents),
+    taxAmount: fromCents(globalTaxCents),
+    shippingCost: fromCents(globalShippingCents),
+    additionalCharges: fromCents(globalChargesCents),
+    grandTotal: fromCents(grandTotalCents)
+  };
+};
+
+/**
+ * 3-Way Blueprint Evaluation Evaluator Outline (Page 7-8)
+ * Checks parameters without running destructive mutative changes.
+ */
+export const previewThreeWayMatchMatrix = ({
+  orderedQty,
+  receivedQty,
+  invoicedQty,
+  orderedPrice,
+  invoicedPrice,
+  hasOpenDiscrepancies = false
+}) => {
+  const qtyMatched = (orderedQty === receivedQty) && (receivedQty === invoicedQty);
+  const priceMatched = Number(orderedPrice) === Number(invoicedPrice);
+  const clearOfDiscrepancies = !hasOpenDiscrepancies; // Page 8 Rule
+
+  let status = 'MATCHED';
+  let result = 'FULL_MATCH';
+  const variances = [];
+
+  if (hasOpenDiscrepancies) {
+    status = 'BLOCKED';
+    result = 'DISCREPANCY_PENDING';
+    variances.push('DISCREPANCY');
+  } else if (!priceMatched) {
+    status = 'VARIANCE';
+    result = 'PRICE_VARIANCE';
+    variances.push('PRICE');
+  } else if (!qtyMatched) {
+    status = 'VARIANCE';
+    result = 'QUANTITY_VARIANCE';
+    variances.push('QUANTITY');
+  }
+
+  return { status, result, variances };
+};
+
+
