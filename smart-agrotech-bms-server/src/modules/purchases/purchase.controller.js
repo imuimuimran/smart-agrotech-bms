@@ -300,3 +300,30 @@ export const handleRegisterInvoice = async (req, res, next) => {
     });
   } catch (err) { next(err); }
 };
+
+export const handleCreatePurchaseInvoice = async (req, res, next) => {
+  try {
+    // 1. Safe Parse structural payload constraints
+    const parsedPayload = validation.createPurchaseInvoiceSchema.safeParse(req.body);
+    
+    if (!parsedPayload.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: parsedPayload.error.format() // Formats Zod errors clearly for React Hook Form
+      });
+    }
+
+    const executionUserId = req.user?._id || req.body.mockUserId;
+    
+    // 2. Delegate clean, structurally valid data down to the Service Layer
+    const invoice = await invoiceService.createPurchaseInvoice(
+      parsedPayload.data,
+      executionUserId
+    );
+
+    return res.status(201).json({ success: true, data: invoice });
+  } catch (err) {
+    next(err);
+  }
+};

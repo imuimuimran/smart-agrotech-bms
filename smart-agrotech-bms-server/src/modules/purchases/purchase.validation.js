@@ -186,20 +186,181 @@ export const proposeResolutionSchema = z.object({
   notes: z.string().trim().min(5, "Resolution justification text required.")
 });
 
+/**
+ * Reusable Purchase Invoice Line-Item Schema
+ * Client submits structural quantities and rates. 
+ * Snapshots and line totals are calculated server-side for security.
+ */
+const purchaseInvoiceItemSchema = z.object({
+  productId: objectIdSchema,
+  purchaseOrderItemId: objectIdSchema.optional(),
+  goodsReceiptItemId: objectIdSchema.optional(),
+  invoicedQuantity: z
+    .number()
+    .int("Invoiced quantity must be a whole integer.")
+    .min(0, "Invoiced quantity cannot be negative."),
+  unitPrice: z
+    .number()
+    .min(0, "Invoice unit price cannot be negative."),
+  discountAmount: z
+    .number()
+    .min(0, "Discount amount cannot be negative.")
+    .optional()
+    .default(0),
+  taxAmount: z
+    .number()
+    .min(0, "Tax amount cannot be negative.")
+    .optional()
+    .default(0),
+  batchNumbers: z
+    .array(z.string().trim().min(1, "Batch number string cannot be empty."))
+    .optional()
+    .default([]),
+  serialNumbers: z
+    .array(z.string().trim().min(1, "Serial number string cannot be empty."))
+    .optional()
+    .default([]),
+  notes: z
+    .string()
+    .trim()
+    .max(1000, "Notes cannot exceed 1000 characters.")
+    .optional()
+});
+
+/**
+ * Primary Purchase Invoice Creation Schema
+ * Enforces cross-field calendar boundaries and blocks line duplicate tampering.
+ */
 export const createPurchaseInvoiceSchema = z.object({
-  supplierInvoiceNumber: z.string().trim().min(1, "Supplier-provided invoice reference number is required."),
+  supplierInvoiceNumber: z
+    .string()
+    .trim()
+    .min(1, "Supplier invoice number is required.")
+    .max(100, "Supplier invoice number cannot exceed 100 characters."),
+  supplierId: objectIdSchema,
   purchaseOrderId: objectIdSchema,
-  goodsReceiptIds: z.array(objectIdSchema).min(1, "An invoice must reference at least one Goods Receipt voucher."),
-  invoiceDate: z.preprocess((val) => new Date(val), z.date()),
-  dueDate: z.preprocess((val) => new Date(val), z.date()),
-  notes: z.string().trim().optional(),
-  attachments: z.array(z.string().url()).optional().default([]),
-  
-  items: z.array(z.object({
-    productId: objectIdSchema,
-    invoicedQuantity: z.number().int().min(1, "Invoiced item count must be positive."),
-    unitPrice: z.number().min(0, "Unit price cannot be negative."),
-    discountAmount: z.number().min(0).optional().default(0),
-    taxAmount: z.number().min(0).optional().default(0)
-  })).min(1, "An invoice structure must contain line items.")
+  purchaseOrderVersion: z
+    .number()
+    .int()
+    .min(1)
+    .optional()
+    .default(1),
+  goodsReceiptIds: z
+    .array(objectIdSchema)
+    .min(1, "At least one Goods Receipt is required."),
+  discrepancyIds: z
+    .array(objectIdSchema)
+    .optional()
+    .default([]),
+  invoiceDate: z.preprocess(
+    (value) => (value ? new Date(value) : new Date()),
+    z.date({ required_error: "Invoice date is required." })
+  ),
+  dueDate: z.preprocess(
+    (value) => (value ? new Date(value) : new Date()),
+    z.date({ required_error: "Due date is required." })
+  ),
+  currency: z
+    .string()
+    .trim()
+    .min(3, "Currency code is required.")
+    .max(10, "Currency code is invalid.")
+    .transform((value) => value.toUpperCase()),
+  exchangeRate: z
+    .number()
+    .positive("Exchange rate must be greater than zero.")
+    .optional()
+    .default(1),
+  items: z
+    .array(purchaseInvoiceItemSchema)
+    .min(1, "A purchase invoice must contain at least one item."),
+  discountAmount: z
+    .number()
+    .min(0, "Discount amount cannot be negative.")
+    .optional()
+    .default(0),
+  taxAmount: z
+    .number()
+    .min(0, "Tax amount cannot be negative.")
+    .optional()
+    .default(0),
+  shippingCost: z
+    .number()
+    .min(0, "Shipping cost cannot be negative.")
+    .optional()
+    .default(0),
+  additionalCharges: z
+    .number()
+    .min(0, "Additional charges cannot be negative.")
+    .optional()
+    .default(0),
+  notes: z
+    .string()
+    .trim()
+    .max(2000, "Notes cannot exceed 2000 characters.")
+    .optional(),
+  attachments: z
+    .array(z.string().trim().url("Attachments must be valid URLs."))
+    .optional()
+    .default([])
+})
+.superRefine((data, ctx) => {
+  // Cross-Field Boundary Rule: Verify calendar alignment
+  if (data.dueDate < data.invoiceDate) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Due date cannot be earlier than invoice date.",
+      path: ["dueDate"]
+    });
+  }
+
+  // Anti-Tamper Product Rule: Enforce flat line combining
+  const productIds = data.items.map(item => item.productId.toString());
+  const uniqueProductIds = new Set(productIds);
+  if (uniqueProductIds.size !== productIds.length) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Duplicate product items are not allowed. Combine quantities into one line.",
+      path: ["items"]
+    });
+  }
+});
+
+/**
+ * Draft/Update Procurement Invoicing Schema
+ * Safe editing bounds used exclusively while the record remains a DRAFT.
+ */
+export const updatePurchaseInvoiceDraftSchema = z.object({
+  dueDate: z.preprocess(
+    (value) => (value ? new Date(value) : undefined),
+    z.date().optional()
+  ),
+  items: z
+    .array(purchaseInvoiceItemSchema)
+    .min(1, "Items array cannot be empty.")
+    .optional(),
+  discountAmount: z
+    .number()
+    .min(0, "Discount amount cannot be negative.")
+    .optional(),
+  taxAmount: z
+    .number()
+    .min(0, "Tax amount cannot be negative.")
+    .optional(),
+  shippingCost: z
+    .number()
+    .min(0, "Shipping cost cannot be negative.")
+    .optional(),
+  additionalCharges: z
+    .number()
+    .min(0, "Additional charges cannot be negative.")
+    .optional(),
+  notes: z
+    .string()
+    .trim()
+    .max(2000, "Notes cannot exceed 2000 characters.")
+    .optional(),
+  attachments: z
+    .array(z.string().trim().url("Attachments must be valid URLs."))
+    .optional()
 });
