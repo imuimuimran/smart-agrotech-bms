@@ -1090,4 +1090,195 @@ export const registerPurchaseInvoice = async (payloadData, executionUserId) => {
   }
 };
 
+/*
+ * Phase 9.10.25 — Create Purchase Invoice Draft (Page 1)
+ * Executes an atomic database transaction to validate relationships and compute totals.
+ * @param {Object} invoiceInput - Structural payload parsed by Zod validation gates
+ * @param {String} executionUserId - Requesting authenticated user identifier
+ */
+export const createPurchaseInvoice = async (invoiceInput, executionUserId) => {
+  const session = await mongoose.startSession(); // 9.10.25.3 Transaction Control (Page 3)
+  session.startTransaction();
+
+  try {
+    // 1. Supplier Eligibility Verification (Page 3)
+    const supplier = await Supplier.findById(invoiceInput.supplierId).session(session);
+    if (!supplier) {
+      throw new Error('Target procurement Supplier not found.');
+    }
+    if (supplier.status !== 'ACTIVE') {
+      throw new Error('Target supplier is currently INACTIVE and cannot be used for procurement.');
+    }
+
+    // 2. Purchase Order Integrity Validation (Page 3-4)
+    const po = await PurchaseOrder.findById(invoiceInput.purchaseOrderId).session(session);
+    if (!po) {
+      throw new Error('Target Purchase Order record not found.');
+    }
+    // Cross-Module Fraud Contamination Guardrail (Page 4)
+    if (po.supplierId.toString() !== supplier._id.toString()) {
+      throw new Error('Purchase Order does not belong to the specified supplier.');
+    }
+
+    // 3. PO Version Protection Check (Page 4)
+    if (invoiceInput.purchaseOrderVersion && invoiceInput.purchaseOrderVersion !== po.version) {
+      throw new Error('Purchase Order version mismatch. The invoice must reference the current PO version.');
+    }
+    const purchaseOrderVersion = po.version;
+
+    // 4. Goods Receipt System Verification Stack (Page 4-5)
+    const goodsReceipts = await GoodsReceipt.find({
+      _id: { $in: invoiceInput.goodsReceiptIds }
+    }).session(session);
+
+    if (goodsReceipts.length !== invoiceInput.goodsReceiptIds.length) {
+      throw new Error('One or more referenced Goods Receipts could not be found.');
+    }
+
+    for (const receipt of goodsReceipts) {
+      // Enforce absolute relationship boundary vectors (Page 5)
+      if (receipt.purchaseOrderId.toString() !== po._id.toString()) {
+        throw new Error(`Goods Receipt ${receipt.receiptNumber} does not belong to the specified Purchase Order.`);
+      }
+      if (receipt.supplierId.toString() !== supplier._id.toString()) {
+        throw new Error(`Goods Receipt ${receipt.receiptNumber} does not belong to the specified supplier.`);
+      }
+      // 9.10.25.8 Receipt Finalization Guardrail: Block invoicing against un-posted drafts (Page 5-6)
+      if (receipt.status !== GRN_LIFECYCLE.FINALIZED || receipt.postingStatus !== GRN_POSTING.POSTED) {
+        throw new Error(`Goods Receipt ${receipt.receiptNumber} is not finalized and posted for invoicing.`);
+      }
+    }
+
+    // 5. Duplicate External Supplier Invoice Reference Protection (Page 6)
+    const existingInvoice = await PurchaseInvoice.findOne({
+      supplierId: supplier._id,
+      supplierInvoiceNumber: invoiceInput.supplierInvoiceNumber
+    }).session(session);
+
+    if (existingInvoice) {
+      throw new Error('A Purchase Invoice with this supplier invoice number already exists for this supplier.');
+    }
+
+    // 6. Build PO Item Dictionary for internal indexing (Page 6)
+    const poItemMap = po.items.reduce((map, item) => {
+      map[item.productId.toString()] = item;
+      return map;
+    }, {});
+
+    // 7. Hydrate Invoice Items & Resolve Historical Snapshots (Page 7-8)
+    const hydratedItems = [];
+    for (const incomingItem of invoiceInput.items) {
+      const productIdStr = incomingItem.productId.toString();
+      const poItem = poItemMap[productIdStr];
+
+      if (!poItem) {
+        throw new Error(`Product ${incomingItem.productId} does not belong to the specified Purchase Order.`);
+      }
+
+      // Fetch fresh master product record inside session context to capture point-in-time name/SKU parameters
+      const product = await Product.findById(incomingItem.productId).session(session);
+      if (!product) {
+        throw new Error(`Product ${incomingItem.productId} not found.`);
+      }
+
+      // Handle precision scaling for numbers via pure arithmetic metrics utility format strings (Page 10)
+      const toDecimal128 = (val) => mongoose.Types.Decimal128.fromString(Number(val || 0).toFixed(2));
+
+      const qty = Number(incomingItem.invoicedQuantity);
+      const unitPriceNum = Number(incomingItem.unitPrice);
+      const discountNum = Number(incomingItem.discountAmount || 0);
+      const taxNum = Number(incomingItem.taxAmount || 0);
+
+      const lineSubtotalNum = qty * unitPriceNum;
+      const lineTotalNum = lineSubtotalNum - discountNum + taxNum;
+
+      hydratedItems.push({
+        productId: product._id,
+        purchaseOrderItemId: incomingItem.purchaseOrderItemId || poItem._id || null,
+        goodsReceiptItemId: incomingItem.goodsReceiptItemId || null,
+        productNameSnapshot: product.name, // Protects transaction history from future product drifts (Page 9)
+        skuSnapshot: product.sku,         // Protects transaction history from future product drifts (Page 9)
+        invoicedQuantity: qty,
+        unitPrice: toDecimal128(unitPriceNum),
+        discountAmount: toDecimal128(discountNum),
+        taxAmount: toDecimal128(taxNum),
+        lineSubtotal: toDecimal128(lineSubtotalNum),
+        lineTotal: toDecimal128(lineTotalNum),
+        batchNumbers: incomingItem.batchNumbers || [],
+        serialNumbers: incomingItem.serialNumbers || [],
+        notes: incomingItem.notes || ''
+      });
+    }
+
+    // 8. Server-Side Secure Financial Recalculations (Page 9-10)
+    const totalSubtotalNum = hydratedItems.reduce((sum, item) => sum + Number(item.lineSubtotal.toString()), 0);
+    const totalDiscountNum = Number(invoiceInput.discountAmount || 0);
+    const totalTaxNum = Number(invoiceInput.taxAmount || 0);
+    const totalShippingNum = Number(invoiceInput.shippingCost || 0);
+    const totalChargesNum = Number(invoiceInput.additionalCharges || 0);
+
+    // Global Financial Summary Formulation (Page 10)
+    const globalGrandTotalNum = 
+      totalSubtotalNum - 
+      totalDiscountNum + 
+      totalTaxNum + 
+      totalShippingNum + 
+      totalChargesNum;
+
+    const finalizeDecimal = (num) => mongoose.Types.Decimal128.fromString(num.toFixed(2));
+
+    // 9. Concurrency-Safe Internal Sequential Serial Generation (Page 10-11)
+    const currentYear = new Date().getFullYear();
+    const counterDoc = await Counter.findOneAndUpdate(
+      { key: `purchase-invoice-${currentYear}` },
+      { $inc: { sequence: 1 } },
+      { new: true, upsert: true, session }
+    );
+    const invoiceNumber = `PINV-${currentYear}-${String(counterDoc.sequence).padStart(6, '0')}`;
+
+    // 10. Document Generation Configuration Forced strictly as DRAFT (Page 11-12)
+    const newInvoice = new PurchaseInvoice({
+      invoiceNumber,
+      supplierInvoiceNumber: invoiceInput.supplierInvoiceNumber,
+      supplierId: supplier._id,
+      purchaseOrderId: po._id,
+      purchaseOrderVersion,
+      goodsReceiptIds: goodsReceipts.map(receipt => receipt._id),
+      discrepancyIds: invoiceInput.discrepancyIds || [],
+      invoiceDate: invoiceInput.invoiceDate,
+      dueDate: invoiceInput.dueDate,
+      currency: invoiceInput.currency,
+      exchangeRate: mongoose.Types.Decimal128.fromString(Number(invoiceInput.exchangeRate || 1).toFixed(4)),
+      items: hydratedItems,
+      subtotal: finalizeDecimal(totalSubtotalNum),
+      discountAmount: finalizeDecimal(totalDiscountNum),
+      taxAmount: finalizeDecimal(totalTaxNum),
+      shippingCost: finalizeDecimal(totalShippingNum),
+      additionalCharges: finalizeDecimal(totalChargesNum),
+      grandTotal: finalizeDecimal(globalGrandTotalNum),
+      status: PURCHASE_INVOICE_STATUS.DRAFT, // Forced server-side workflow constraint state (Page 12)
+      matchingStatus: 'NOT_STARTED',          // Omitted from setup side effects; run explicitly next (Page 2)
+      approvalStatus: 'PENDING',
+      paymentStatus: PAYMENT_STATUS.UNPAID,
+      notes: invoiceInput.notes,
+      attachments: invoiceInput.attachments || [],
+      createdBy: executionUserId
+    });
+
+    // 11. Save and Atomically Commit Transaction (Page 12)
+    await newInvoice.save({ session });
+    await session.commitTransaction();
+    
+    return newInvoice;
+
+  } catch (error) {
+    // Abort active execution path state modifications cleanly (Page 12)
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
+
 
