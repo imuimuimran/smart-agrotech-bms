@@ -5,6 +5,8 @@ import * as commController from './purchase.controller.js';
 import * as controller from './purchase.controller.js'; 
 import * as receiptController from './purchase.controller.js';
 import * as discrepancyController from './purchase.controller.js';
+import * as purchaseController from './purchase.controller.js';
+// Replace with the project's exact current authentication modules:
 // import { protectRoute, restrictTo } from '../../middlewares/auth.middleware.js'; 
 // Replace with your project's active security middleware modules
 // import { authenticateToken, checkRBAC } from '../../middlewares/auth.middleware.js';
@@ -52,7 +54,14 @@ router.post('/goods-receipts/:receiptId/discrepancies', discrepancyController.ha
 router.post('/receiving-discrepancies/:id/resolve', discrepancyController.handleProposeResolution);
 
 // Dedicated Entry Point Structure for Invoicing Boundaries
-router.post('/purchase-invoices', controller.handleRegisterInvoice);
+// router.post('/purchase-invoices', controller.handleRegisterInvoice);
+
+router.post(
+  '/purchase-invoices',
+  // protectRoute,                                  // Injects token authentication safety layers
+  // restrictTo('purchasing_manager', 'finance'),    // Enforces permission-based RBAC constraints (Page 4)
+  purchaseController.handleCreatePurchaseInvoice
+);
 
 // History Audit Log Fetching Path
 router.get(
