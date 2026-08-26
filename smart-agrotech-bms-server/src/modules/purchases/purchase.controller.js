@@ -302,25 +302,84 @@ export const handleRegisterInvoice = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-/*
- * Create Purchase Invoice Endpoint Handler (Page 2)
- * Acts as the entry layer for parsing and structural validation routing.
- * @param {Object} req - Incoming Express Request context
- * @param {Object} res - Outgoing Express Response context
+// /*
+//  * Create Purchase Invoice Endpoint Handler (Page 2)
+//  * Acts as the entry layer for parsing and structural validation routing.
+//  * @param {Object} req - Incoming Express Request context
+//  * @param {Object} res - Outgoing Express Response context
+//  */
+// export const handleCreatePurchaseInvoice = async (req, res) => {
+//   try {
+//     // 1. Initial Request Structural DTO Validation Check (Page 2)
+//     const parsedPayload = validation.createPurchaseInvoiceSchema.safeParse(req.body);
+//     if (!parsedPayload.success) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Purchase Invoice validation failed.',
+//         errors: parsedPayload.error.format() // Formats error structures clearly for frontend consumption
+//       });
+//     }
+
+//     // 2. Extract and Verify Authenticated User Context Identity (Page 2-3)
+//     const executionUserId = req.user?._id || req.user?.id;
+//     if (!executionUserId) {
+//       return res.status(401).json({
+//         success: false,
+//         message: 'Authenticated user context is required.'
+//       });
+//     }
+
+//     // 3. Delegate Clean Input Parameters Downward to Service Layer (Page 2, 9)
+//     const invoice = await purchaseInvoiceService.createPurchaseInvoice(
+//       parsedPayload.data,
+//       executionUserId
+//     );
+
+//     // 4. Return Explicit 201 Document Persistent Success Response (Page 2-3)
+//     return res.status(201).json({
+//       success: true,
+//       message: 'Purchase Invoice created successfully.',
+//       data: {
+//         _id: invoice._id,
+//         invoiceNumber: invoice.invoiceNumber,
+//         supplierInvoiceNumber: invoice.supplierInvoiceNumber,
+//         matchingStatus: invoice.matchingStatus,   // Kept separate as 'NOT_STARTED' at setup (Page 8)
+//         approvalStatus: invoice.approvalStatus,   // Initializing state vector mapping (Page 8)
+//         paymentStatus: invoice.paymentStatus       // Initializing financial vector mapping (Page 8)
+//       }
+//     });
+
+//   } catch (error) {
+//     console.error('Create Purchase Invoice Error:', error);
+
+//     // 5. Explicit Domain Error Mapping Gate (Page 6)
+//     // Prevents masking specific functional failures under a blanket 500 code
+//     const msg = error.message;
+//     if (msg.includes('not found') || msg.includes('missing')) {
+//       return res.status(404).json({ success: false, message: msg });
+//     }
+//     if (msg.includes('mismatch') || msg.includes('already exists') || msg.includes('duplicate')) {
+//       return res.status(409).json({ success: false, message: msg });
+//     }
+//     if (msg.includes('INACTIVE') || msg.includes('not finalized')) {
+//       return res.status(422).json({ success: false, message: msg });
+//     }
+
+//     // Fallback unexpected infrastructure catch-all (Page 6)
+//     return res.status(500).json({
+//       success: false,
+//       message: msg || 'Failed to create Purchase Invoice.'
+//     });
+//   }
+// };
+
+/**
+ * Phase 9.10.27 — Protected Purchase Invoice Creation Handler (Page 5)
+ * Consumes pre-validated data to remove duplicate client body parsing.
  */
 export const handleCreatePurchaseInvoice = async (req, res) => {
   try {
-    // 1. Initial Request Structural DTO Validation Check (Page 2)
-    const parsedPayload = validation.createPurchaseInvoiceSchema.safeParse(req.body);
-    if (!parsedPayload.success) {
-      return res.status(400).json({
-        success: false,
-        message: 'Purchase Invoice validation failed.',
-        errors: parsedPayload.error.format() // Formats error structures clearly for frontend consumption
-      });
-    }
-
-    // 2. Extract and Verify Authenticated User Context Identity (Page 2-3)
+    // 1. Resolve User identity directly from the authenticated session token (Page 3)
     const executionUserId = req.user?._id || req.user?.id;
     if (!executionUserId) {
       return res.status(401).json({
@@ -329,13 +388,14 @@ export const handleCreatePurchaseInvoice = async (req, res) => {
       });
     }
 
-    // 3. Delegate Clean Input Parameters Downward to Service Layer (Page 2, 9)
+    // 2. Delegate pre-parsed req.body directly down to the Service Layer (Page 5)
+    // The validateRequest middleware ensures this payload matches createPurchaseInvoiceSchema
     const invoice = await purchaseInvoiceService.createPurchaseInvoice(
-      parsedPayload.data,
+      req.body,
       executionUserId
     );
 
-    // 4. Return Explicit 201 Document Persistent Success Response (Page 2-3)
+    // 3. Return a clean 201 Created status code for the newly tracked document (Page 3, 7)
     return res.status(201).json({
       success: true,
       message: 'Purchase Invoice created successfully.',
@@ -343,29 +403,28 @@ export const handleCreatePurchaseInvoice = async (req, res) => {
         _id: invoice._id,
         invoiceNumber: invoice.invoiceNumber,
         supplierInvoiceNumber: invoice.supplierInvoiceNumber,
-        matchingStatus: invoice.matchingStatus,   // Kept separate as 'NOT_STARTED' at setup (Page 8)
-        approvalStatus: invoice.approvalStatus,   // Initializing state vector mapping (Page 8)
-        paymentStatus: invoice.paymentStatus       // Initializing financial vector mapping (Page 8)
+        status: invoice.status,           // Hardcoded server-side to 'DRAFT' (Page 7)
+        matchingStatus: invoice.matchingStatus,   // Default: 'NOT_STARTED' (Page 7)
+        approvalStatus: invoice.approvalStatus,   // Default: 'PENDING' (Page 7)
+        paymentStatus: invoice.paymentStatus       // Default: 'UNPAID' (Page 7)
       }
     });
 
   } catch (error) {
     console.error('Create Purchase Invoice Error:', error);
 
-    // 5. Explicit Domain Error Mapping Gate (Page 6)
-    // Prevents masking specific functional failures under a blanket 500 code
+    // 4. Map typed domain errors into matching client HTTP status codes (Page 6 of 9.10.26)
     const msg = error.message;
     if (msg.includes('not found') || msg.includes('missing')) {
       return res.status(404).json({ success: false, message: msg });
     }
-    if (msg.includes('mismatch') || msg.includes('already exists') || msg.includes('duplicate')) {
+    if (msg.includes('mismatch') || msg.includes('already exists')) {
       return res.status(409).json({ success: false, message: msg });
     }
     if (msg.includes('INACTIVE') || msg.includes('not finalized')) {
       return res.status(422).json({ success: false, message: msg });
     }
 
-    // Fallback unexpected infrastructure catch-all (Page 6)
     return res.status(500).json({
       success: false,
       message: msg || 'Failed to create Purchase Invoice.'
