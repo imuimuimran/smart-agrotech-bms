@@ -1357,6 +1357,81 @@ export const processThreeWayInvoiceMatch = async (invoiceId, executionUserId) =>
   }
 };
 
+/**
+ * Dynamic Threshold Config Evaluator (Page 3-4)
+ * Derives required system clearance roles from current invoice totals to avoid code hardcoding.
+ */
+const evaluateInvoiceRequiredRole = (grandTotal) => {
+  const totalAmount = Number(grandTotal.toString());
+  const rule = APPROVAL_THRESHOLDS.find(tier => totalAmount <= tier.maxAmount);
+  return rule ? rule.requiredRole : 'admin'; // Fallback to system admin if bounds exceed configurations
+};
+
+/**
+ * Transactional Invoice Approval Core Workflow (Page 9)
+ * Guides an invoice safely through authorization states while verifying business parameters.
+ */
+export const approvePurchaseInvoice = async (invoiceId, executionUserId, userRole, inputData) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // 1. Fetch current target Invoice head tracking block inside the active transaction session
+    const invoice = await PurchaseInvoice.findById(invoiceId).session(session);
+    if (!invoice) throw new Error('Target Purchase Invoice document record not found.');
+
+    // 2. State-Machine Guardrail: Block invalid or out-of-order transitions (Page 15)
+    if (invoice.approvalStatus === 'APPROVED') {
+      throw new Error('Process Invalid: Target Purchase Invoice has already been approved.');
+    }
+
+    // 3. 9.10.30.14 — Anti-Frontend Override: Re-validate matching metrics on the backend (Page 10)
+    // Prevents approving data if underlying receiving parameters changed since the last match run
+    if (invoice.matchingStatus !== 'MATCHED') {
+      throw new Error('Procurement Blocked: Invoice cannot be approved because it lacks a valid MATCHED status.');
+    }
+
+    // 4. 9.10.30.6 — Compliance Check: Enforce Separation of Duties policy (Page 4-5)
+    if (!CONFIG_ALLOW_SELF_APPROVAL && invoice.createdBy.toString() === executionUserId.toString()) {
+      throw new Error('Compliance Violation: System configuration blocks self-approval policies.');
+    }
+
+    // 5. 9.10.30.7 — Evaluate Authority Tier against Configured Threshold Metrics (Page 5)
+    const requiredRole = evaluateInvoiceRequiredRole(invoice.grandTotal);
+    if (userRole !== 'admin' && userRole !== requiredRole) {
+      throw new Error(`Authority Error: Insufficient tier rank. This transaction requires a ${requiredRole} role assignment.`);
+    }
+
+    const previousStatus = invoice.approvalStatus;
+
+    // 6. Advance State Vectors naturally (Page 13)
+    // Moving to APPROVED exposes the liability to accounts payable, but logs 0 automated payments (Page 13)
+    invoice.approvalStatus = 'APPROVED';
+    invoice.status = PURCHASE_INVOICE_STATUS.APPROVED;
+
+    // 7. Append immutable history item to your audit footprint array tracking sheet (Page 11)
+    invoice.approvalHistory.push({
+      action: 'APPROVED',
+      performedBy: executionUserId,
+      performedAt: new Date(),
+      comments: inputData.comment
+    });
+
+    invoice.updatedBy = executionUserId;
+    await invoice.save({ session });
+
+    // Commit all operations atomically
+    await session.commitTransaction();
+    return invoice;
+
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
 
 
 

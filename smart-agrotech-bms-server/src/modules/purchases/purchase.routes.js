@@ -94,6 +94,15 @@ router.post(
   purchaseController.handleMatchPurchaseInvoice           // 3. Invokes non-CRUD execution handler (Page 4)
 );
 
+// Expose command-isolated pathway following your established module actions (Page 12)
+router.post(
+  '/purchase-invoices/:id/approve',
+  verifyToken, // Decodes user session identity contexts
+  // RBAC checks are verified dynamically inside the service layer based on price threshold configs (Page 5)
+  purchaseController.handleApprovePurchaseInvoice
+);
+
+
 // History Audit Log Fetching Path
 router.get(
   '/:id/communications', 

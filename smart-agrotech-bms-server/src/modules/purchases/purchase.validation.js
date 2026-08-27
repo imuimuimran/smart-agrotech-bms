@@ -364,3 +364,24 @@ export const updatePurchaseInvoiceDraftSchema = z.object({
     .array(z.string().trim().url("Attachments must be valid URLs."))
     .optional()
 });
+
+// =========================================================================
+// PURCHASE INVOICE APPROVAL VALIDATION SCHEMAS (PHASE 9.10.30)
+// =========================================================================
+
+export const purchaseInvoiceApprovalDecisionSchema = z.object({
+  comment: z
+    .string()
+    .trim()
+    .max(500, "Approval comments cannot exceed 500 characters.")
+    .optional()
+    .default("Invoice verified against accepted goods receipt metrics.")
+});
+
+export const purchaseInvoiceRejectionDecisionSchema = z.object({
+  comment: z
+    .string()
+    .trim()
+    .min(10, "A meaningful rejection explanation (minimum 10 characters) must be supplied.") // Enforces audit visibility
+    .max(500, "Rejection explanation cannot exceed 500 characters.")
+});

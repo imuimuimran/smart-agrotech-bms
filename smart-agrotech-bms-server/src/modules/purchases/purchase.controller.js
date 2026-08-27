@@ -533,3 +533,54 @@ export const handleMatchPurchaseInvoice = async (req, res) => {
   }
 };
 
+/**
+ * Purchase Invoice Approval Command Controller Trigger (Page 12)
+ * Maps input paths and security metadata directly down into your service execution layers.
+ */
+export const handleApprovePurchaseInvoice = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Validate structural incoming payload comment parameters
+    const parsedPayload = validation.purchaseInvoiceApprovalDecisionSchema.safeParse(req.body);
+    if (!parsedPayload.success) {
+      return res.status(400).json({ success: false, errors: parsedPayload.error.format() });
+    }
+
+    // Resolve context identities directly from backend token decoding layers
+    const executionUserId = req.user?._id || req.user?.id;
+    const userRole = req.user?.role; // e.g., 'purchasing_manager', 'department_manager'
+
+    if (!executionUserId || !userRole) {
+      return res.status(401).json({ success: false, message: 'Authenticated user role and context are required.' });
+    }
+
+    const updatedInvoice = await purchaseInvoiceService.approvePurchaseInvoice(
+      id,
+      executionUserId,
+      userRole,
+      parsedPayload.data
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Purchase Invoice financially authorized and approved successfully.',
+      data: {
+        invoiceNumber: updatedInvoice.invoiceNumber,
+        status: updatedInvoice.status,
+        approvalStatus: updatedInvoice.approvalStatus, // Transitioned cleanly to APPROVED (Page 13)
+        paymentStatus: updatedInvoice.paymentStatus     // Remains frozen at UNPAID (Page 13)
+      }
+    });
+
+  } catch (error) {
+    const msg = error.message;
+    if (msg.includes('Compliance Violation') || msg.includes('Authority Error')) {
+      return res.status(403).json({ success: false, message: msg }); // Enforce strict RBAC blocking
+    }
+    if (msg.includes('Procurement Blocked') || msg.includes('Process Invalid')) {
+      return res.status(422).json({ success: false, message: msg });
+    }
+    next(error);
+  }
+};
