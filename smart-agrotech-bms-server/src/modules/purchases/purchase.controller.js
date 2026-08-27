@@ -431,3 +431,36 @@ export const handleCreatePurchaseInvoice = async (req, res) => {
     });
   }
 };
+
+/**
+ * Three-Way Match Command Controller Trigger (Page 19)
+ * Maps input path route elements and passes execution tracking IDs downstream.
+ */
+export const handleExecuteInvoiceMatching = async (req, res, next) => {
+  try {
+    const executionUserId = req.user?._id || req.user?.id;
+    if (!executionUserId) {
+      return res.status(401).json({ success: false, message: 'Authenticated user context is required.' });
+    }
+
+    // Invoke backend business service pipeline handler directly (Page 15)
+    const outcome = await purchaseInvoiceService.processThreeWayInvoiceMatch(
+      req.params.id,
+      executionUserId
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: `Invoice evaluation completed. Status locked: ${outcome.invoice.matchingStatus}.`,
+      data: {
+        invoiceNumber: outcome.invoice.invoiceNumber,
+        matchingStatus: outcome.invoice.matchingStatus,
+        matchingResult: outcome.invoice.matchingResult,
+        approvalStatus: outcome.invoice.approvalStatus,
+        analysisReport: outcome.auditReport
+      }
+    });
+  } catch (error) {
+    next(error); // Pass down into the server's global error router map block
+  }
+};

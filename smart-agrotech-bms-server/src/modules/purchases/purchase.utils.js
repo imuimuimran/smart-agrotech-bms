@@ -184,4 +184,129 @@ export const previewThreeWayMatchMatrix = ({
   return { status, result, variances };
 };
 
+/**
+ * Pure Three-Way Matching Calculation Engine (Page 15)
+ * Compares data points across lines without running side effects or mutations.
+ */
+export const comparePurchaseInvoiceMatrix = ({
+  purchaseOrder,
+  goodsReceipts,
+  invoice,
+  unresolvedDiscrepancies = []
+}) => {
+  // 1. Initialize Product Map Trackers (Page 3-4)
+  const poQtyMap = new Map();
+  const poPriceMap = new Map();
+  purchaseOrder.items.forEach(item => {
+    const pId = item.productId.toString();
+    poQtyMap.set(pId, (poQtyMap.get(pId) || 0) + item.orderedQuantity);
+    poPriceMap.set(pId, Number(item.expectedUnitCost.toString())); // Baseline unit cost reference
+  });
+
+  // 2. Aggregate Accepted Goods Receipt Quantities (Page 3-4)
+  const acceptedQtyMap = new Map();
+  goodsReceipts.forEach(receipt => {
+    receipt.items.forEach(item => {
+      const pId = item.productId.toString();
+      acceptedQtyMap.set(pId, (acceptedQtyMap.get(pId) || 0) + item.acceptedQuantity); // Use accepted volume (Page 3)
+    });
+  });
+
+  // 3. Map Supplier Invoiced Quantities (Page 4)
+  const invoiceQtyMap = new Map();
+  const invoicePriceMap = new Map();
+  invoice.items.forEach(item => {
+    const pId = item.productId.toString();
+    invoiceQtyMap.set(pId, (invoiceQtyMap.get(pId) || 0) + item.invoicedQuantity);
+    invoicePriceMap.set(pId, Number(item.unitPrice.toString()));
+  });
+
+  // Collect a unique set of all Product IDs present across documents (Page 5)
+  const allProductIds = new Set([
+    ...poQtyMap.keys(),
+    ...acceptedQtyMap.keys(),
+    ...invoiceQtyMap.keys()
+  ]);
+
+  let quantityMatched = true;
+  let priceMatched = true;
+  const quantityVariances = [];
+  const priceVariances = [];
+
+  // 4. Run Product-Level Quantitative Audits (Page 2, 5)
+  allProductIds.forEach(pId => {
+    const ordered = poQtyMap.get(pId) || 0;
+    const accepted = acceptedQtyMap.get(pId) || 0;
+    const invoiced = invoiceQtyMap.get(pId) || 0;
+    const poPrice = poPriceMap.get(pId) || 0;
+    const invPrice = invoicePriceMap.get(pId) || 0;
+
+    // Check quantity alignments (Page 5)
+    if (invoiced !== ordered || invoiced !== accepted) {
+      quantityMatched = false;
+      quantityVariances.push({
+        productId: pId,
+        ordered,
+        accepted,
+        invoiced,
+        variance: invoiced - accepted,
+        type: invoiced > accepted ? 'OVER_INVOICED' : 'UNDER_INVOICED'
+      });
+    }
+
+    // Check pricing parameters (Page 6)
+    if (invoiced > 0 && invPrice !== poPrice) {
+      priceMatched = false;
+      priceVariances.push({
+        productId: pId,
+        poPrice,
+        invoicePrice: invPrice,
+        variance: invPrice - poPrice
+      });
+    }
+  });
+
+  // 5. Evaluate Unresolved Discrepancies Flag Gates (Page 8-9)
+  const discrepancyBlocking = unresolvedDiscrepancies.length > 0;
+
+  // 6. Formulate Multi-Dimensional Outcome Status Matrix (Page 11-12)
+  let status = 'MATCHED';
+  let result = 'FULL_MATCH';
+
+  if (discrepancyBlocking) {
+    status = 'BLOCKED'; // Missing parameters or open disputes lock the workflow (Page 12)
+    result = 'DISCREPANCY_PENDING';
+  } else if (invoiceVariancesExceedOrderedBounds(invoiceQtyMap, poQtyMap)) {
+    status = 'BLOCKED';
+    result = 'BLOCKED'; // Invoiced volume exceeds contract bounds (Page 12)
+  } else if (!priceMatched && !quantityMatched) {
+    status = 'VARIANCE';
+    result = 'MANUAL_REVIEW';
+  } else if (!priceMatched) {
+    status = 'VARIANCE';
+    result = 'PRICE_VARIANCE';
+  } else if (!quantityMatched) {
+    status = 'VARIANCE';
+    result = 'QUANTITY_VARIANCE';
+  }
+
+  return {
+    status,
+    result,
+    quantity: { matched: quantityMatched, variances: quantityVariances },
+    price: { matched: priceMatched, variances: priceVariances },
+    discrepancy: { blocking: discrepancyBlocking, counts: unresolvedDiscrepancies.length }
+  };
+};
+
+// Helper utility to identify over-billing trends
+const invoiceVariancesExceedOrderedBounds = (invMap, poMap) => {
+  for (const [pId, invQty] of invMap.entries()) {
+    const ordered = poMap.get(pId) || 0;
+    if (invQty > ordered) return true; // Blocked: Bill cannot exceed contract orders (Page 5-6)
+  }
+  return false;
+};
+
+
 

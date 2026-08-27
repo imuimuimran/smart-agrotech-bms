@@ -13,6 +13,7 @@ import {
   MATCH_RESULT_TYPES, 
   MATCHING_STATUS, 
   INVOICE_STATUS,
+  PURCHASE_INVOICE_STATUS,
 } from './purchase.constants.js';
 import { PurchaseOrderApproval } from './purchaseApproval.model.js';
 import { PurchaseOrderCommunication } from './purchaseCommunication.model.js';
@@ -28,6 +29,7 @@ import { DiscrepancyResolution } from './discrepancyResolution.model.js';
 import { PurchaseInvoice } from './purchaseInvoice.model.js';
 import { InvoiceMatchResult } from './invoiceMatchResult.model.js';
 import { Supplier } from '../suppliers/supplier.model.js';
+import { comparePurchaseInvoiceMatrix } from './purchase.utils.js';
 
 export const createPurchaseOrder = async (poInput, userId) => {
   const session = await mongoose.startSession(); // Phase 9.4.32 Transaction Control
@@ -1090,7 +1092,7 @@ export const registerPurchaseInvoice = async (payloadData, executionUserId) => {
   }
 };
 
-/*
+/**
  * Phase 9.10.25 — Create Purchase Invoice Draft (Page 1)
  * Executes an atomic database transaction to validate relationships and compute totals.
  * @param {Object} invoiceInput - Structural payload parsed by Zod validation gates
@@ -1279,6 +1281,82 @@ export const createPurchaseInvoice = async (invoiceInput, executionUserId) => {
     session.endSession();
   }
 };
+
+/**
+ * Service Wrapper Execution Engine (Page 15)
+ * Collects related database components and executes the match rules within an atomic transaction.
+ * @param {String} invoiceId - Target Purchase Invoice identifier
+ * @param {String} executionUserId - Requesting entity user footprint
+ */
+export const processThreeWayInvoiceMatch = async (invoiceId, executionUserId) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // 1. Fetch reference Invoice record
+    const invoice = await PurchaseInvoice.findById(invoiceId).session(session);
+    if (!invoice) throw new Error('Target Purchase Invoice document record not found.');
+
+    // Enforce workflow lifecycle boundaries (Page 6 of 9.10.23)
+    if (invoice.approvalStatus === 'APPROVED' || invoice.paymentStatus === 'PAID') {
+      throw new Error('Process Locked: Cannot run matching on an already approved or settled invoice.');
+    }
+
+    // 2. Hydrate related Procurement records from database context
+    const purchaseOrder = await PurchaseOrder.findById(invoice.purchaseOrderId).session(session);
+    const goodsReceipts = await GoodsReceipt.find({ _id: { $in: invoice.goodsReceiptIds } }).session(session);
+
+    // 3. Extract open, unresolved receiving discrepancy traces from Phase 9.9 (Page 9)
+    const blockingStatuses = ['OPEN', 'UNDER_REVIEW', 'SUPPLIER_CONTACTED', 'AWAITING_SUPPLIER', 'RESOLUTION_PENDING'];
+    const unresolvedDiscrepancies = await PurchaseReceivingDiscrepancy.find({
+      goodsReceiptId: { $in: invoice.goodsReceiptIds },
+      status: { $in: blockingStatuses }
+    }).session(session);
+
+    // 4. Delegate to pure calculation calculation utility matrix (Page 15)
+    const auditReport = comparePurchaseInvoiceMatrix({
+      purchaseOrder,
+      goodsReceipts,
+      invoice,
+      unresolvedDiscrepancies
+    });
+
+    // 5. Update State vectors based on findings (Page 16)
+    invoice.matchingStatus = auditReport.status;
+    invoice.matchingResult = auditReport.result;
+    
+    // Explicit Invoice workflow transition mapping (Page 16)
+    if (auditReport.status === 'MATCHED') {
+      invoice.approvalStatus = PURCHASE_INVOICE_STATUS.MATCHED;
+    } else if (auditReport.status === 'VARIANCE') {
+      invoice.approvalStatus = PURCHASE_INVOICE_STATUS.VARIANCE_FOUND;
+    } else if (auditReport.status === 'BLOCKED') {
+      invoice.approvalStatus = PURCHASE_INVOICE_STATUS.UNDER_REVIEW;
+    }
+
+    // Record sequential verification log context row footprint (Page 4 of 9.10.22)
+    invoice.approvalHistory.push({
+      action: 'SENT_FOR_REVIEW',
+      performedBy: executionUserId,
+      performedAt: new Date(),
+      comments: `Automated matching routine finished. Result state: ${auditReport.result}.`
+    });
+
+    invoice.updatedBy = executionUserId;
+    await invoice.save({ session });
+
+    // Commit transaction cleanly, leaving history records untouched (Page 2, 17)
+    await session.commitTransaction();
+    return { invoice, auditReport };
+
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
 
 
 

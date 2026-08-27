@@ -78,6 +78,15 @@ router.post(
   invoiceController.handleCreatePurchaseInvoice       // 4. Invokes endpoint execution handler
 );
 
+// Expose command-isolated action path matching your endpoint mapping principles (Page 10)
+router.post(
+  '/purchase-invoices/:id/match',
+  verifyToken,
+  authorize(ROLES.ADMIN, ROLES.FINANCE_MANAGER),
+  purchaseController.handleExecuteInvoiceMatching
+);
+
+
 // History Audit Log Fetching Path
 router.get(
   '/:id/communications', 
