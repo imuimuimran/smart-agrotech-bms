@@ -18,6 +18,7 @@ import { createPurchaseInvoiceSchema } from './purchase.validation.js';
 import { verifyToken, authorize, validateRequest } from '../../middlewares/auth.middleware.js';
 import { ROLES } from '../../constants/roles.js'; // Reuses your project's active roles enum matrix
 
+
 const router = express.Router();
 
 // // Base Document Querying and Formulations
@@ -78,14 +79,20 @@ router.post(
   invoiceController.handleCreatePurchaseInvoice       // 4. Invokes endpoint execution handler
 );
 
-// Expose command-isolated action path matching your endpoint mapping principles (Page 10)
+// // Expose command-isolated action path matching your endpoint mapping principles (Page 10)
+// router.post(
+//   '/purchase-invoices/:id/match',
+//   verifyToken,
+//   authorize(ROLES.ADMIN, ROLES.FINANCE_MANAGER),
+//   purchaseController.handleExecuteInvoiceMatching
+// );
+
 router.post(
   '/purchase-invoices/:id/match',
-  verifyToken,
-  authorize(ROLES.ADMIN, ROLES.FINANCE_MANAGER),
-  purchaseController.handleExecuteInvoiceMatching
+  verifyToken,                                            // 1. Decodes and confirms user tracking context (Page 4)
+  authorize(ROLES.ADMIN, ROLES.FINANCE_MANAGER),          // 2. Restricts path access server-side (Page 4-5)
+  purchaseController.handleMatchPurchaseInvoice           // 3. Invokes non-CRUD execution handler (Page 4)
 );
-
 
 // History Audit Log Fetching Path
 router.get(

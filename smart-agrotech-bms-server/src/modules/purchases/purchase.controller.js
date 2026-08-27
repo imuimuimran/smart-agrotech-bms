@@ -464,3 +464,72 @@ export const handleExecuteInvoiceMatching = async (req, res, next) => {
     next(error); // Pass down into the server's global error router map block
   }
 };
+
+
+/**
+ * Three-Way Matching Trigger Endpoint Handler (Page 3)
+ * Operates as a thin command wrapper layer. Does not make business decisions itself.
+ * @param {Object} req - Express Request Context
+ * @param {Object} res - Express Response Context
+ */
+export const handleMatchPurchaseInvoice = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 1. Initial Hex ObjectId Structure Sanity Check (Page 5)
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid Purchase Invoice ID.'
+      });
+    }
+
+    // 2. Resolve Authenticated Execution User Trace Identity (Page 3, 5)
+    const executionUserId = req.user?._id || req.user?.id;
+    if (!executionUserId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authenticated user context is required.'
+      });
+    }
+
+    // 3. Delegate execution directly downstream to processing service (Page 3, 6)
+    // No request body data parsing is accepted or trusted to influence results (Page 17)
+    const outcome = await purchaseInvoiceService.processThreeWayInvoiceMatch(
+      id,
+      executionUserId
+    );
+
+    // 4. Return explicit multi-dimensional decision state mapping (Page 3, 18)
+    return res.status(200).json({
+      success: true,
+      message: 'Purchase Invoice matching completed successfully.',
+      data: {
+        invoiceId: outcome.invoice._id,
+        invoiceNumber: outcome.invoice.invoiceNumber,
+        matchingStatus: outcome.invoice.matchingStatus, // e.g., 'MATCHED', 'VARIANCE', 'BLOCKED' (Page 12)
+        matchingResult: outcome.invoice.matchingResult, // Points to audit log references
+        approvalStatus: outcome.invoice.approvalStatus, // Kept separate from matching states (Page 11)
+        analysisReport: outcome.auditReport             // Exposes granular error breakdown tables (Page 18)
+      }
+    });
+
+  } catch (error) {
+    console.error('Match Purchase Invoice Error:', error);
+
+    // Typed Domain Error mapping boundaries (Page 3, 7)
+    const msg = error.message;
+    if (msg.includes('not found') || msg.includes('missing')) {
+      return res.status(404).json({ success: false, message: msg });
+    }
+    if (msg.includes('Process Locked') || msg.includes('already approved')) {
+      return res.status(422).json({ success: false, message: msg });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: msg || 'Failed to match Purchase Invoice.'
+    });
+  }
+};
+
