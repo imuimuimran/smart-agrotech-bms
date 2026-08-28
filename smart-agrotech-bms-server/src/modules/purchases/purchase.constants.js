@@ -352,4 +352,18 @@ export const PURCHASE_INVOICE_MATCH_DIMENSION = {
 };
 export const PURCHASE_INVOICE_MATCH_DIMENSION_LIST = Object.values(PURCHASE_INVOICE_MATCH_DIMENSION);
 
+// =========================================================================
+// ACCOUNTS PAYABLE WORKFLOW CONSTANTS (PHASE 9.10.33)
+// =========================================================================
+
+// Accounts Payable Operating States (Page 4-5)
+export const AP_LIFECYCLE = {
+  OPEN: 'OPEN',                       // Liability active, awaiting funding release
+  PARTIALLY_PAID: 'PARTIALLY_PAID',   // Token sum distributed, balance remaining
+  PAID: 'PAID',                       // Ledger liability fully settled
+  CANCELLED: 'CANCELLED'              // Voided via compensating accounting journal overrides
+};
+export const AP_LIFECYCLE_LIST = Object.values(AP_LIFECYCLE);
+
+
 

@@ -26,6 +26,7 @@ import { SupplierResponse } from './supplierResponse.model.js';
 import { InventoryTransaction } from './inventoryTransaction.model.js';
 import { PurchaseReceivingDiscrepancy } from './purchaseDiscrepancy.model.js';
 import { DiscrepancyResolution } from './discrepancyResolution.model.js';
+import { AccountsPayable } from './accountsPayable.model.js';
 import { PurchaseInvoice } from './purchaseInvoice.model.js';
 import { InvoiceMatchResult } from './invoiceMatchResult.model.js';
 import { Supplier } from '../suppliers/supplier.model.js';
@@ -1530,6 +1531,82 @@ export const revisePurchaseInvoice = async (invoiceId, updatedItems, updatedTota
     session.endSession();
   }
 };
+
+/**
+ * Accounts Payable Posting Service (Page 9, 11)
+ * Moves an approved invoice into liabilities within an isolated MongoDB transaction session.
+ * @param {String} invoiceId - Target Purchase Invoice identifier
+ * @param {String} executionUserId - Requesting authenticated session entity footprint
+ */
+export const postInvoiceToAccountsPayable = async (invoiceId, executionUserId) => {
+  const session = await mongoose.startSession();
+  session.startTransaction(); // Initiate transactional monitoring bounds (Page 11)
+
+  try {
+    // 1. Fetch current target Invoice head tracking block inside the active transaction session
+    const invoice = await PurchaseInvoice.findById(invoiceId).session(session);
+    if (!invoice) throw new Error('Target Purchase Invoice document record not found.');
+
+    // 2. 9.10.33.3 & 9.10.33.17 — Precondition State Gate: Enforce strict approval presence (Page 2, 10)
+    // Prevents unapproved or rejected billing inputs from polluting general liabilities (Page 3)
+    if (invoice.approvalStatus !== 'APPROVED') {
+      throw new Error(`AP Posting Error: Invoice cannot be posted to AP while flagged as ${invoice.approvalStatus}.`);
+    }
+
+    // 3. 9.10.33.13 — Active Idempotency Guardrail: Block duplicate entry postings (Page 8)
+    if (invoice.accountsPayableId) {
+      throw new Error('AP Posting Error: A liability entry for this invoice has already been compiled.');
+    }
+
+    // 4. Concurrency-Safe Human-Readable Number Sequence Generation (Page 10 of 9.10.25)
+    const currentYear = new Date().getFullYear();
+    const counterDoc = await Counter.findOneAndUpdate(
+      { key: `accounts-payable-${currentYear}` },
+      { $inc: { sequence: 1 } },
+      { new: true, upsert: true, session }
+    );
+    const apNumber = `AP-${currentYear}-${String(counterDoc.sequence).padStart(6, '0')}`;
+
+    // 5. Build detached transaction ledger document instance (Page 4, 11)
+    // Captures exact pricing data vectors natively without altering source histories (Page 3, 13)
+    const payableAmountStr = invoice.grandTotal.toString(); // Source of financial truth (Page 3)
+
+    const apLiability = new AccountsPayable({
+      apNumber,
+      purchaseInvoiceId: invoice._id,
+      purchaseOrderId: invoice.purchaseOrderId,
+      supplierId: invoice.supplierId,
+      payableAmount: mongoose.Types.Decimal128.fromString(payableAmountStr),
+      paidAmount: mongoose.Types.Decimal128.fromString('0.00'), // Initialized to zero (Page 4)
+      outstandingAmount: mongoose.Types.Decimal128.fromString(payableAmountStr), // Outstanding = Payable (Page 4)
+      dueDate: invoice.dueDate,
+      status: 'OPEN',
+      postedBy: executionUserId,
+      history: [{
+        action: 'POSTED_LIABILITY',
+        performedBy: executionUserId,
+        comments: `Invoice ${invoice.invoiceNumber} successfully integrated into general accounts payable.`
+      }]
+    });
+    await apLiability.save({ session });
+
+    // 6. Link back-references securely onto the source billing document (Page 11, 12)
+    invoice.accountsPayableId = apLiability._id;
+    await invoice.save({ session });
+
+    // Commit all operations atomically across the collection layout structures (Page 12)
+    await session.commitTransaction();
+    return apLiability;
+
+  } catch (error) {
+    // Abort execution path state modifications cleanly (Page 11-12)
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
 
 
 

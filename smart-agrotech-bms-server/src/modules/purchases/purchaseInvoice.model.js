@@ -272,6 +272,7 @@ const PurchaseInvoiceSchema = new Schema({
   accountsPayableId: {
     type: Schema.Types.ObjectId,
     ref: 'AccountsPayable',
+    default: null,
     index: true
   },
   paymentStatus: {

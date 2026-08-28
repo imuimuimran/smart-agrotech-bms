@@ -740,3 +740,42 @@ export const handleRevisePurchaseInvoice = async (req, res, next) => {
     next(error);
   }
 }; 
+
+/**
+ * Accounts Payable Ledger Command Trigger Handler (Page 10)
+ * Maps input paths, extracts security parameters, and dispatches instructions downstream.
+ */
+export const handlePostInvoiceToAP = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Resolve context execution identifiers directly from token decoding fields
+    const executionUserId = req.user?._id || req.user?.id;
+    if (!executionUserId) {
+      return res.status(401).json({ success: false, message: 'Authenticated user context is required.' });
+    }
+
+    // Delegate execution downstream (Page 10)
+    const apRecord = await purchaseInvoiceService.postInvoiceToAccountsPayable(id, executionUserId);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Purchase Invoice successfully integrated into general Accounts Payable.',
+      data: {
+        id: apRecord._id,
+        apNumber: apRecord.apNumber,
+        purchaseInvoiceId: apRecord.purchaseInvoiceId,
+        payableAmount: apRecord.payableAmount,
+        outstandingAmount: apRecord.outstandingAmount,
+        status: apRecord.status                      // Confirmed state: 'OPEN' (Page 4, 12)
+      }
+    });
+
+  } catch (error) {
+    const msg = error.message;
+    if (msg.includes('not found')) return res.status(404).json({ success: false, message: msg });
+    if (msg.includes('AP Posting Error')) return res.status(422).json({ success: false, message: msg });
+    next(error);
+  }
+};
+

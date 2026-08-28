@@ -110,6 +110,14 @@ router.post(
   purchaseController.handleRevisePurchaseInvoice
 ); 
 
+// Action Command Surface Expositions (Page 10)
+router.post(
+  '/purchase-invoices/:id/post-to-ap',
+  verifyToken,
+  authorize(ROLES.ADMIN, ROLES.FINANCE_MANAGER), // Enforces strict security validation boundaries (Page 10)
+  purchaseController.handlePostInvoiceToAP
+);
+
 
 // History Audit Log Fetching Path
 router.get(
