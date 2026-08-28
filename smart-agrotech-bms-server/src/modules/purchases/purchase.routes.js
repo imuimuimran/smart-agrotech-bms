@@ -61,15 +61,7 @@ router.post('/goods-receipts/:id/inspection', receiptController.handleFinalizeRe
 router.post('/goods-receipts/:receiptId/discrepancies', discrepancyController.handleRaiseDiscrepancy);
 router.post('/receiving-discrepancies/:id/resolve', discrepancyController.handleProposeResolution);
 
-// Dedicated Entry Point Structure for Invoicing Boundaries
-// router.post('/purchase-invoices', controller.handleRegisterInvoice);
 
-// router.post(
-//   '/purchase-invoices',
-//   // protectRoute,                                  // Injects token authentication safety layers
-//   // restrictTo('purchasing_manager', 'finance'),    // Enforces permission-based RBAC constraints (Page 4)
-//   purchaseController.handleCreatePurchaseInvoice
-// );
 
 router.post(
   '/purchase-invoices',
@@ -94,12 +86,11 @@ router.post(
   purchaseController.handleMatchPurchaseInvoice           // 3. Invokes non-CRUD execution handler (Page 4)
 );
 
-// Expose command-isolated pathway following your established module actions (Page 12)
 router.post(
   '/purchase-invoices/:id/approve',
-  verifyToken, // Decodes user session identity contexts
-  // RBAC checks are verified dynamically inside the service layer based on price threshold configs (Page 5)
-  purchaseController.handleApprovePurchaseInvoice
+  verifyToken,                                              // 1. Decodes and confirms credentials (Page 4)
+  authorize(ROLES.MANAGER, ROLES.ADMIN),                    // 2. Enforces baseline system RBAC bounds
+  purchaseController.handleApprovePurchaseInvoice           // 3. Invokes lean execution handler (Page 4)
 );
 
 

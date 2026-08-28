@@ -533,54 +533,129 @@ export const handleMatchPurchaseInvoice = async (req, res) => {
   }
 };
 
+// /**
+//  * Purchase Invoice Approval Command Controller Trigger (Page 12)
+//  * Maps input paths and security metadata directly down into your service execution layers.
+//  */
+// export const handleApprovePurchaseInvoice = async (req, res, next) => {
+//   try {
+//     const { id } = req.params;
+
+//     // Validate structural incoming payload comment parameters
+//     const parsedPayload = validation.purchaseInvoiceApprovalDecisionSchema.safeParse(req.body);
+//     if (!parsedPayload.success) {
+//       return res.status(400).json({ success: false, errors: parsedPayload.error.format() });
+//     }
+
+//     // Resolve context identities directly from backend token decoding layers
+//     const executionUserId = req.user?._id || req.user?.id;
+//     const userRole = req.user?.role; // e.g., 'purchasing_manager', 'department_manager'
+
+//     if (!executionUserId || !userRole) {
+//       return res.status(401).json({ success: false, message: 'Authenticated user role and context are required.' });
+//     }
+
+//     const updatedInvoice = await purchaseInvoiceService.approvePurchaseInvoice(
+//       id,
+//       executionUserId,
+//       userRole,
+//       parsedPayload.data
+//     );
+
+//     return res.status(200).json({
+//       success: true,
+//       message: 'Purchase Invoice financially authorized and approved successfully.',
+//       data: {
+//         invoiceNumber: updatedInvoice.invoiceNumber,
+//         status: updatedInvoice.status,
+//         approvalStatus: updatedInvoice.approvalStatus, // Transitioned cleanly to APPROVED (Page 13)
+//         paymentStatus: updatedInvoice.paymentStatus     // Remains frozen at UNPAID (Page 13)
+//       }
+//     });
+
+//   } catch (error) {
+//     const msg = error.message;
+//     if (msg.includes('Compliance Violation') || msg.includes('Authority Error')) {
+//       return res.status(403).json({ success: false, message: msg }); // Enforce strict RBAC blocking
+//     }
+//     if (msg.includes('Procurement Blocked') || msg.includes('Process Invalid')) {
+//       return res.status(422).json({ success: false, message: msg });
+//     }
+//     next(error);
+//   }
+// };
+
 /**
- * Purchase Invoice Approval Command Controller Trigger (Page 12)
- * Maps input paths and security metadata directly down into your service execution layers.
+ * Phase 9.10.31 — Purchase Invoice Approval Controller (Page 3)
+ * Thin entry layer for parsing parameters and invoking domain operations.
+ * @param {Object} req - Incoming Express Request Context
+ * @param {Object} res - Outgoing Express Response Context
  */
-export const handleApprovePurchaseInvoice = async (req, res, next) => {
+export const handleApprovePurchaseInvoice = async (req, res) => {
   try {
     const { id } = req.params;
+    const { comment } = req.body;
 
-    // Validate structural incoming payload comment parameters
-    const parsedPayload = validation.purchaseInvoiceApprovalDecisionSchema.safeParse(req.body);
-    if (!parsedPayload.success) {
-      return res.status(400).json({ success: false, errors: parsedPayload.error.format() });
+    // 1. Initial Structural Hex ObjectId Sanity Check (Page 5)
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid Purchase Invoice ID.'
+      });
     }
 
-    // Resolve context identities directly from backend token decoding layers
-    const executionUserId = req.user?._id || req.user?.id;
+    // 2. Extract User Tracking Fields from Authenticated Session Token (Page 3)
+    const userId = req.user?._id || req.user?.id;
     const userRole = req.user?.role; // e.g., 'purchasing_manager', 'department_manager'
 
-    if (!executionUserId || !userRole) {
-      return res.status(401).json({ success: false, message: 'Authenticated user role and context are required.' });
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authenticated user context is required.'
+      });
     }
 
-    const updatedInvoice = await purchaseInvoiceService.approvePurchaseInvoice(
+    // 3. Delegate to Transactional Approval Service Operation (Page 3, 6)
+    // Client cannot submit states directly; server evaluates authorization gates (Page 1)
+    const invoice = await purchaseInvoiceService.approvePurchaseInvoice(
       id,
-      executionUserId,
+      userId,
       userRole,
-      parsedPayload.data
+      comment
     );
 
+    // 4. Return Final Success Confirmation Payload (Page 3, 13)
     return res.status(200).json({
       success: true,
-      message: 'Purchase Invoice financially authorized and approved successfully.',
+      message: 'Purchase Invoice approved successfully.',
       data: {
-        invoiceNumber: updatedInvoice.invoiceNumber,
-        status: updatedInvoice.status,
-        approvalStatus: updatedInvoice.approvalStatus, // Transitioned cleanly to APPROVED (Page 13)
-        paymentStatus: updatedInvoice.paymentStatus     // Remains frozen at UNPAID (Page 13)
+        id: invoice._id,
+        invoiceNumber: invoice.invoiceNumber,
+        status: invoice.status,                 // Advanced cleanly to APPROVED (Page 13)
+        approvalStatus: invoice.approvalStatus, // Synced confirmation state vector
+        paymentStatus: invoice.paymentStatus     // Remains safely unmutated at UNPAID (Page 15)
       }
     });
 
   } catch (error) {
+    console.error('Approve Purchase Invoice Error:', error);
+
+    // 5. Map Typed Domain Exceptions to Accurate HTTP Response Codes (Page 3, 7, 13)
     const msg = error.message;
+    if (msg.includes('not found') || msg.includes('missing')) {
+      return res.status(404).json({ success: false, message: msg });
+    }
     if (msg.includes('Compliance Violation') || msg.includes('Authority Error')) {
-      return res.status(403).json({ success: false, message: msg }); // Enforce strict RBAC blocking
+      return res.status(403).json({ success: false, message: msg }); // Strict RBAC Blocking (Page 13-14)
     }
-    if (msg.includes('Procurement Blocked') || msg.includes('Process Invalid')) {
-      return res.status(422).json({ success: false, message: msg });
+    if (msg.includes('State Violation') || msg.includes('Procurement Blocked') || msg.includes('Process Invalid')) {
+      return res.status(422).json({ success: false, message: msg }); // Invalid Transition Triggers
     }
-    next(error);
+
+    // Fallback unhandled infrastructure trace (Page 3)
+    return res.status(500).json({
+      success: false,
+      message: msg || 'Failed to approve Purchase Invoice.'
+    });
   }
 };
