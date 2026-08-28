@@ -779,3 +779,30 @@ export const handlePostInvoiceToAP = async (req, res, next) => {
   }
 };
 
+/**
+ * Supplier Due Dashboard Request Handler (Page 10)
+ * Safely routes dynamic aggregate lookup reports upstream to interface layers.
+ */
+export const handleGetSupplierDueDashboard = async (req, res, next) => {
+  try {
+    const filters = {};
+    if (req.query.supplierId) {
+      if (!mongoose.Types.ObjectId.isValid(req.query.supplierId)) {
+        return res.status(400).json({ success: false, message: 'Invalid Supplier ID filtering parameter.' });
+      }
+      filters.supplierId = req.query.supplierId;
+    }
+
+    // Invoke automated balance calculation service directly (Page 11)
+    const reportData = await purchaseInvoiceService.getSupplierDueDashboardSummary(filters);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Supplier due financial summaries calculated and compiled successfully.',
+      data: reportData
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

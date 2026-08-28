@@ -1607,6 +1607,67 @@ export const postInvoiceToAccountsPayable = async (invoiceId, executionUserId) =
   }
 };
 
+/**
+ * Dynamic Supplier Due Aggregation Engine (Page 10-11)
+ * Computes live corporate liabilities by running database sums over active AP records.
+ * @param {Object} filters - Optional dashboard query filters (e.g., supplierId)
+ */
+export const getSupplierDueDashboardSummary = async (filters = {}) => {
+  const matchStage = { status: { $ne: 'PAID' } }; // Filter for un-settled outstanding liabilities (Page 12-13)
+  
+  if (filters.supplierId) {
+    matchStage.supplierId = new mongoose.Types.ObjectId(filters.supplierId);
+  }
+
+  // High-volume analytical grouping pipeline
+  const aggregationSummary = await AccountsPayable.aggregate([
+    { $match: matchStage },
+    {
+      $group: {
+        _id: '$supplierId',
+        totalPurchaseValue: { $sum: { $toDouble: '$payableAmount' } }, // Scale balances (Page 1)
+        totalPaidAmount: { $sum: { $toDouble: '$paidAmount' } },
+        totalOutstandingDue: { $sum: { $toDouble: '$outstandingAmount' } }, // Real-time derive (Page 11)
+        activeInvoiceCount: { $sum: 1 }
+      }
+    },
+    {
+      $lookup: {
+        from: 'suppliers', // Connects back to master vendor collection bounds
+        localField: '_id',
+        foreignField: '_id',
+        as: 'supplierInfo'
+      }
+    },
+    { $unwind: '$supplierInfo' },
+    {
+      $project: {
+        _id: 1,
+        supplierName: '$supplierInfo.name',
+        supplierEmail: '$supplierInfo.email',
+        purchaseValue: '$totalPurchaseValue',
+        paidAmount: '$totalPaidAmount',
+        outstandingAmount: '$totalOutstandingDue', // Maps clean fields to match original requirements (Page 1)
+        invoiceCount: '$activeInvoiceCount'
+      }
+    },
+    { $sort: { outstandingAmount: -1 } } // Prioritize highest exposures at top (Page 10)
+  ]);
+
+  // Compute systemic global procurement metrics for financial dashboards
+  let absoluteSystemicDue = 0;
+  aggregationSummary.forEach(row => {
+    absoluteSystemicDue += row.outstandingAmount;
+  });
+
+  return {
+    dashboardGeneratedAt: new Date(),
+    globalSystemicOutstandingDue: absoluteSystemicDue.toFixed(2),
+    supplierBreakdownSheet: aggregationSummary
+  };
+};
+
+
 
 
 

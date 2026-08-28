@@ -129,4 +129,12 @@ router.get(
 // Audit History Fetch Endpoint
 router.get('/:id/approval-history', approvalController.handleGetPOHistory);
 
+// Accounts Payable Command & View Surface Expositions (Page 15)
+router.get(
+  '/accounts-payable/supplier-due',
+  verifyToken,
+  authorize(ROLES.MANAGER, ROLES.ADMIN), // Restricts access to sensitive corporate financial data (Page 19)
+  purchaseController.handleGetSupplierDueDashboard
+);
+
 export default router;
