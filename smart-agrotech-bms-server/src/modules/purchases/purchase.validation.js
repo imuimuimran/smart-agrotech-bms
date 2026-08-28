@@ -385,3 +385,15 @@ export const purchaseInvoiceRejectionDecisionSchema = z.object({
     .min(10, "A meaningful rejection explanation (minimum 10 characters) must be supplied.") // Enforces audit visibility
     .max(500, "Rejection explanation cannot exceed 500 characters.")
 });
+
+// =========================================================================
+// PURCHASE INVOICE REJECTION VALIDATION (PHASE 9.10.32)
+// =========================================================================
+
+export const purchaseInvoiceRejectionSchema = z.object({
+  comment: z
+    .string()
+    .trim()
+    .min(10, "A meaningful rejection explanation (minimum 10 characters) must be supplied.") // Required for Audit (Page 5)
+    .max(500, "Rejection explanation cannot exceed 500 characters.")
+});

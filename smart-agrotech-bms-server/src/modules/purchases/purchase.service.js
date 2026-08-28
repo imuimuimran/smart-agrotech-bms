@@ -1432,6 +1432,106 @@ export const approvePurchaseInvoice = async (invoiceId, executionUserId, userRol
   }
 };
 
+/**
+ * Transactional Invoice Rejection Workflow (Page 2, 11)
+ * Moves an invoice out of review gates while preserving complete audit trails.
+ */
+export const rejectPurchaseInvoice = async (invoiceId, executionUserId, userRole, comment) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // 1. Fetch current target Invoice head tracking block inside the active transaction session
+    const invoice = await PurchaseInvoice.findById(invoiceId).session(session);
+    if (!invoice) throw new Error('Target Purchase Invoice document record not found.');
+
+    // 2. State-Machine Guardrail: Only allow rejection prior to commercial execution (Page 5-6)
+    const revisableStates = [PURCHASE_INVOICE_STATUS.UNDER_REVIEW, PURCHASE_INVOICE_STATUS.UNDER_MATCHING, PURCHASE_INVOICE_STATUS.VARIANCE_FOUND];
+    if (invoice.approvalStatus === 'APPROVED' || invoice.paymentStatus === 'PAID') {
+      throw new Error('Process Invalid: Cannot reject an invoice that has been approved or paid.');
+    }
+
+    const previousStatus = invoice.approvalStatus;
+
+    // 3. Advance state vectors to REJECTED (Page 3)
+    // Retains historical database persistence—never runs destructive deletions (Page 2)
+    invoice.approvalStatus = PURCHASE_INVOICE_STATUS.REJECTED;
+    invoice.status = PURCHASE_INVOICE_STATUS.REJECTED;
+
+    // 4. Record chronological audit trail log context row footprint (Page 11)
+    invoice.approvalHistory.push({
+      action: 'REJECTED',
+      performedBy: executionUserId,
+      performedAt: new Date(),
+      comments: comment
+    });
+
+    invoice.updatedBy = executionUserId;
+    await invoice.save({ session });
+
+    // Commit all operations atomically
+    await session.commitTransaction();
+    return invoice;
+
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
+/**
+ * Controlled Invoice Version Revision Branching (Page 7-8, 12)
+ * Increments document versions to prevent unlogged direct text overrides.
+ */
+export const revisePurchaseInvoice = async (invoiceId, updatedItems, updatedTotals, executionUserId) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const parentInvoice = await PurchaseInvoice.findById(invoiceId).session(session);
+    if (!parentInvoice) throw new Error('Base invoice reference target vanished.');
+    if (parentInvoice.status !== PURCHASE_INVOICE_STATUS.REJECTED) {
+      throw new Error('State Violation: Only a formally REJECTED invoice can enter the revision track.');
+    }
+
+    // Increment document version to protect data history branching (Page 8)
+    parentInvoice.purchaseOrderVersion += 1; 
+    parentInvoice.items = updatedItems;
+    
+    // Inject recalculations from backend precision engine utilities (Page 8)
+    parentInvoice.subtotal = mongoose.Types.Decimal128.fromString(Number(updatedTotals.subtotal).toFixed(2));
+    parentInvoice.grandTotal = mongoose.Types.Decimal128.fromString(Number(updatedTotals.grandTotal).toFixed(2));
+    
+    // Core Reset Rule: Force a complete clear of matching states (Page 8-9)
+    parentInvoice.status = PURCHASE_INVOICE_STATUS.DRAFT;
+    parentInvoice.approvalStatus = 'PENDING';
+    parentInvoice.matchingStatus = 'NOT_STARTED'; // Reset: Must pass through 3-way matching again (Page 9)
+    parentInvoice.matchingResult = null;
+
+    parentInvoice.approvalHistory.push({
+      action: 'SUBMITTED',
+      performedBy: executionUserId,
+      performedAt: new Date(),
+      comments: `Controlled revision submitted. Advanced to Version ${parentInvoice.purchaseOrderVersion}.`
+    });
+
+    parentInvoice.updatedBy = executionUserId;
+    await parentInvoice.save({ session });
+
+    await session.commitTransaction();
+    return parentInvoice;
+
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
+
 
 
 

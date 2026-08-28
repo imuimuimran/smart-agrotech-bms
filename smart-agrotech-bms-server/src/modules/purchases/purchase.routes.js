@@ -93,6 +93,23 @@ router.post(
   purchaseController.handleApprovePurchaseInvoice           // 3. Invokes lean execution handler (Page 4)
 );
 
+// src/modules/purchases/purchase.routes.js
+
+// Action Command Surface Expositions (Page 4)
+router.post(
+  '/purchase-invoices/:id/reject',
+  verifyToken,
+  authorize(ROLES.MANAGER, ROLES.ADMIN), // Enforce backend RBAC (Page 4)
+  purchaseController.handleRejectPurchaseInvoice
+);
+
+router.post(
+  '/purchase-invoices/:id/revise',
+  verifyToken,
+  authorize(ROLES.STAFF, ROLES.MANAGER, ROLES.ADMIN),
+  purchaseController.handleRevisePurchaseInvoice
+); 
+
 
 // History Audit Log Fetching Path
 router.get(

@@ -586,7 +586,7 @@ export const handleMatchPurchaseInvoice = async (req, res) => {
 // };
 
 /**
- * Phase 9.10.31 — Purchase Invoice Approval Controller (Page 3)
+ * Purchase Invoice Approval Controller (Page 3)
  * Thin entry layer for parsing parameters and invoking domain operations.
  * @param {Object} req - Incoming Express Request Context
  * @param {Object} res - Outgoing Express Response Context
@@ -659,3 +659,84 @@ export const handleApprovePurchaseInvoice = async (req, res) => {
     });
   }
 };
+
+/**
+ * Purchase Invoice Rejection Endpoint Handler (Page 3)
+ */
+export const handleRejectPurchaseInvoice = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Structural validation check via Zod filter
+    const parsedPayload = validation.purchaseInvoiceRejectionSchema.safeParse(req.body);
+    if (!parsedPayload.success) {
+      return res.status(400).json({ success: false, errors: parsedPayload.error.format() });
+    }
+
+    const executionUserId = req.user?._id || req.user?.id;
+    const userRole = req.user?.role;
+    if (!executionUserId) {
+      return res.status(401).json({ success: false, message: 'Authenticated user context is required.' });
+    }
+
+    const result = await purchaseInvoiceService.rejectPurchaseInvoice(
+      id,
+      executionUserId,
+      userRole,
+      parsedPayload.data.comment
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Purchase Invoice rejected successfully.',
+      data: {
+        id: result._id,
+        invoiceNumber: result.invoiceNumber,
+        status: result.status,
+        approvalStatus: result.approvalStatus
+      }
+    });
+  } catch (error) {
+    const msg = error.message;
+    if (msg.includes('not found')) return res.status(404).json({ success: false, message: msg });
+    if (msg.includes('Process Invalid')) return res.status(422).json({ success: false, message: msg });
+    next(error);
+  }
+};
+
+/**
+ * Purchase Invoice Revision Submission Handler (Page 7-8)
+ */
+export const handleRevisePurchaseInvoice = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const executionUserId = req.user?._id || req.user?.id;
+    
+    // Extract new line parameters from request body, pass down to internal math engine, then delegate
+    const { items, totals } = req.body; 
+
+    const revisedInvoice = await purchaseInvoiceService.revisePurchaseInvoice(
+      id,
+      items,
+      totals,
+      executionUserId
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Purchase Invoice revised successfully and reverted to DRAFT tracking state.',
+      data: {
+        id: revisedInvoice._id,
+        invoiceNumber: revisedInvoice.invoiceNumber,
+        version: revisedInvoice.purchaseOrderVersion,
+        matchingStatus: revisedInvoice.matchingStatus, // Confirmed reset to 'NOT_STARTED' (Page 9)
+        status: revisedInvoice.status
+      }
+    });
+  } catch (error) {
+    const msg = error.message;
+    if (msg.includes('not found')) return res.status(404).json({ success: false, message: msg });
+    if (msg.includes('State Violation')) return res.status(422).json({ success: false, message: msg });
+    next(error);
+  }
+}; 
