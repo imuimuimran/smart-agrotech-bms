@@ -14,6 +14,7 @@ import {
   MATCHING_STATUS, 
   INVOICE_STATUS,
   PURCHASE_INVOICE_STATUS,
+  AP_LIFECYCLE,
 } from './purchase.constants.js';
 import { PurchaseOrderApproval } from './purchaseApproval.model.js';
 import { PurchaseOrderCommunication } from './purchaseCommunication.model.js';
@@ -26,6 +27,7 @@ import { SupplierResponse } from './supplierResponse.model.js';
 import { InventoryTransaction } from './inventoryTransaction.model.js';
 import { PurchaseReceivingDiscrepancy } from './purchaseDiscrepancy.model.js';
 import { DiscrepancyResolution } from './discrepancyResolution.model.js';
+import { PurchasePayment } from './purchasePayment.model.js';
 import { AccountsPayable } from './accountsPayable.model.js';
 import { PurchaseInvoice } from './purchaseInvoice.model.js';
 import { InvoiceMatchResult } from './invoiceMatchResult.model.js';
@@ -1666,6 +1668,99 @@ export const getSupplierDueDashboardSummary = async (filters = {}) => {
     supplierBreakdownSheet: aggregationSummary
   };
 };
+
+/**
+ * Transactional Supplier Settlement Engine (Page 9-10)
+ * Processes financial funding allocations while enforcing strict balance rules.
+ * @param {String} invoiceId - Target Purchase Invoice identifier reference
+ * @param {Object} paymentInput - Validated input payload tracking data vectors
+ * @param {String} executionUserId - Requesting admin identifier context
+ */
+export const recordSupplierInvoicePayment = async (invoiceId, paymentInput, executionUserId) => {
+  const session = await mongoose.startSession();
+  session.startTransaction(); // Wrap execution inside atomic transactional boundary (Page 10)
+
+  try {
+    // 1. Fetch current target Accounts Payable record using an explicit lock step look-up (Page 10)
+    const apLiability = await AccountsPayable.findOne({ purchaseInvoiceId: invoiceId }).session(session);
+    if (!apLiability) {
+      throw new Error('Settlement Error: Reference Accounts Payable liability record missing.');
+    }
+
+    // 2. Idempotency Retry Guardrail Check (Page 11-12)
+    if (paymentInput.idempotencyKey) {
+      const activeMatch = await PurchasePayment.findOne({ idempotencyKey: paymentInput.idempotencyKey }).session(session);
+      if (activeMatch) return activeMatch; // Gracefully bypass execution if payment was already written
+    }
+
+    // 3. Operational Amount Over-Payment Boundary Verification (Page 4)
+    const currentOutstanding = Number(apLiability.outstandingAmount.toString());
+    const incomingAllocation = Number(paymentInput.amount);
+
+    if (incomingAllocation > currentOutstanding) {
+      throw new Error(`Settlement Blocked: Payment amount (${incomingAllocation} BDT) exceeds remaining outstanding liability (${currentOutstanding} BDT).`);
+    }
+
+    // 4. Concurrency-Safe Human-Readable Number Sequence Serial Generation (Page 10 of 9.10.25)
+    const currentYear = new Date().getFullYear();
+    const counterDoc = await Counter.findOneAndUpdate(
+      { key: `purchase-payment-${currentYear}` },
+      { $inc: { sequence: 1 } },
+      { new: true, upsert: true, session }
+    );
+    const paymentNumber = `PMT-${currentYear}-${String(counterDoc.sequence).padStart(6, '0')}`;
+
+    // 5. Build permanent, immutable ledger transaction document (Page 1, 12)
+    const paymentRecord = new PurchasePayment({
+      paymentNumber,
+      accountsPayableId: apLiability._id,
+      purchaseInvoiceId: apLiability.purchaseInvoiceId,
+      purchaseId: apLiability.purchaseOrderId, // Support legacy trace points (Page 3)
+      supplierId: apLiability.supplierId,      // Support legacy trace points (Page 3)
+      amount: mongoose.Types.Decimal128.fromString(incomingAllocation.toFixed(2)),
+      paymentMethod: paymentInput.paymentMethod,
+      reference: paymentInput.reference,
+      comment: paymentInput.comment,
+      idempotencyKey: paymentInput.idempotencyKey,
+      recordedBy: executionUserId
+    });
+    await paymentRecord.save({ session });
+
+    // 6. Recalculate liability status vectors and step down outstanding parameters (Page 5, 10, 15)
+    const updatedPaidTotal = Number(apLiability.paidAmount.toString()) + incomingAllocation;
+    const updatedOutstandingTotal = Number(apLiability.payableAmount.toString()) - updatedPaidTotal;
+
+    apLiability.paidAmount = mongoose.Types.Decimal128.fromString(updatedPaidTotal.toFixed(2));
+    apLiability.outstandingAmount = mongoose.Types.Decimal128.fromString(updatedOutstandingTotal.toFixed(2));
+
+    // Dynamic state transition mapping (Page 5, 17-18)
+    if (updatedOutstandingTotal === 0) {
+      apLiability.status = AP_LIFECYCLE.PAID; // Full Settlement cleared (Page 5, 18)
+    } else {
+      apLiability.status = AP_LIFECYCLE.PARTIALLY_PAID; // Partial settlement recorded (Page 5, 17)
+    }
+
+    // Log tracking trail metrics onto the AP sheet directly (Page 12 of 9.10.33)
+    apLiability.history.push({
+      action: updatedOutstandingTotal === 0 ? 'FULLY_PAID' : 'PARTIALLY_PAID',
+      performedBy: executionUserId,
+      comments: `Recorded ${paymentInput.paymentMethod} settlement allocation: ${incomingAllocation} BDT. Reference: ${paymentInput.reference || 'N/A'}.`
+    });
+
+    await apLiability.save({ session });
+
+    // Commit transaction cleanly, guaranteeing zero partial drift errors (Page 10-11)
+    await session.commitTransaction();
+    return paymentRecord;
+
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
 
 
 

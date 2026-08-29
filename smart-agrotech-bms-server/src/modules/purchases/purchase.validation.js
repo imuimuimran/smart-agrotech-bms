@@ -397,3 +397,19 @@ export const purchaseInvoiceRejectionSchema = z.object({
     .min(10, "A meaningful rejection explanation (minimum 10 characters) must be supplied.") // Required for Audit (Page 5)
     .max(500, "Rejection explanation cannot exceed 500 characters.")
 });
+
+// =========================================================================
+// PURCHASE SETTLEMENT VALIDATION SCHEMAS (PHASE 9.10.35)
+// =========================================================================
+
+export const createPurchasePaymentSchema = z.object({
+  amount: z
+    .number()
+    .positive("Payment allocation distribution sum must be a positive number greater than zero."),
+  paymentMethod: z.enum(['Cash', 'Bank Transfer', 'bKash', 'Nagad', 'Rocket', 'Cheque'], {
+    errorMap: () => ({ message: "Selected transaction channel is currently unsupported." })
+  }),
+  reference: z.string().trim().max(100).optional().default(""),
+  comment: z.string().trim().max(500).optional().default(""),
+  idempotencyKey: z.string().trim().optional()
+});

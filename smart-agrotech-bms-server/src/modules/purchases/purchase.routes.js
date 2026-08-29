@@ -118,6 +118,20 @@ router.post(
   purchaseController.handlePostInvoiceToAP
 );
 
+// src/modules/purchases/purchase.routes.js
+
+/**
+ * Traditional Procurement Payment Action Binding Command (Page 8-9)
+ * POST /api/purchases/purchase-invoices/:id/payment
+ */
+router.post(
+  '/purchase-invoices/:id/payment',
+  verifyToken,
+  authorize(ROLES.ADMIN), // Rule: Restrict payment commands strictly to Admin (Page 8, 19)
+  purchaseController.handleRecordInvoicePayment
+);
+
+
 
 // History Audit Log Fetching Path
 router.get(

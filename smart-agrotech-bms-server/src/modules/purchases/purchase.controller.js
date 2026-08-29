@@ -806,3 +806,50 @@ export const handleGetSupplierDueDashboard = async (req, res, next) => {
   }
 };
 
+/**
+ * Purchase Settlement Creation Command Trigger (Page 9)
+ * Connects directly back to the project's traditional API endpoint layout structure rules.
+ */
+export const handleRecordInvoicePayment = async (req, res, next) => {
+  try {
+    const { id } = req.params; // Expects target Purchase Invoice ID anchor reference string
+
+    // Validate request structure via Zod middleware helper pipeline shapes
+    const parsedPayload = validation.createPurchasePaymentSchema.safeParse(req.body);
+    if (!parsedPayload.success) {
+      return res.status(400).json({ success: false, errors: parsedPayload.error.format() });
+    }
+
+    const executionUserId = req.user?._id || req.user?.id;
+    if (!executionUserId) {
+      return res.status(401).json({ success: false, message: 'Authenticated user context is required.' });
+    }
+
+    // Delegate transaction processing down to service operations (Page 10)
+    const transaction = await purchaseInvoiceService.recordSupplierInvoicePayment(
+      id,
+      parsedPayload.data,
+      executionUserId
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: 'Supplier payment allocation transaction recorded successfully.',
+      data: {
+        paymentNumber: transaction.paymentNumber,
+        amount: transaction.amount,
+        paymentMethod: transaction.paymentMethod,
+        reference: transaction.reference,
+        paymentDate: transaction.paymentDate // Traceable timestamp output confirmation (Page 8)
+      }
+    });
+
+  } catch (error) {
+    const msg = error.message;
+    if (msg.includes('missing') || msg.includes('missing')) return res.status(404).json({ success: false, message: msg });
+    if (msg.includes('Settlement Blocked') || msg.includes('Integrity Violation')) {
+      return res.status(422).json({ success: false, message: msg }); // Over-payment reject triggers (Page 4, 19)
+    }
+    next(error);
+  }
+};
