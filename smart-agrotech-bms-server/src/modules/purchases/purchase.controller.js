@@ -302,77 +302,6 @@ export const handleRegisterInvoice = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// /*
-//  * Create Purchase Invoice Endpoint Handler (Page 2)
-//  * Acts as the entry layer for parsing and structural validation routing.
-//  * @param {Object} req - Incoming Express Request context
-//  * @param {Object} res - Outgoing Express Response context
-//  */
-// export const handleCreatePurchaseInvoice = async (req, res) => {
-//   try {
-//     // 1. Initial Request Structural DTO Validation Check (Page 2)
-//     const parsedPayload = validation.createPurchaseInvoiceSchema.safeParse(req.body);
-//     if (!parsedPayload.success) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Purchase Invoice validation failed.',
-//         errors: parsedPayload.error.format() // Formats error structures clearly for frontend consumption
-//       });
-//     }
-
-//     // 2. Extract and Verify Authenticated User Context Identity (Page 2-3)
-//     const executionUserId = req.user?._id || req.user?.id;
-//     if (!executionUserId) {
-//       return res.status(401).json({
-//         success: false,
-//         message: 'Authenticated user context is required.'
-//       });
-//     }
-
-//     // 3. Delegate Clean Input Parameters Downward to Service Layer (Page 2, 9)
-//     const invoice = await purchaseInvoiceService.createPurchaseInvoice(
-//       parsedPayload.data,
-//       executionUserId
-//     );
-
-//     // 4. Return Explicit 201 Document Persistent Success Response (Page 2-3)
-//     return res.status(201).json({
-//       success: true,
-//       message: 'Purchase Invoice created successfully.',
-//       data: {
-//         _id: invoice._id,
-//         invoiceNumber: invoice.invoiceNumber,
-//         supplierInvoiceNumber: invoice.supplierInvoiceNumber,
-//         matchingStatus: invoice.matchingStatus,   // Kept separate as 'NOT_STARTED' at setup (Page 8)
-//         approvalStatus: invoice.approvalStatus,   // Initializing state vector mapping (Page 8)
-//         paymentStatus: invoice.paymentStatus       // Initializing financial vector mapping (Page 8)
-//       }
-//     });
-
-//   } catch (error) {
-//     console.error('Create Purchase Invoice Error:', error);
-
-//     // 5. Explicit Domain Error Mapping Gate (Page 6)
-//     // Prevents masking specific functional failures under a blanket 500 code
-//     const msg = error.message;
-//     if (msg.includes('not found') || msg.includes('missing')) {
-//       return res.status(404).json({ success: false, message: msg });
-//     }
-//     if (msg.includes('mismatch') || msg.includes('already exists') || msg.includes('duplicate')) {
-//       return res.status(409).json({ success: false, message: msg });
-//     }
-//     if (msg.includes('INACTIVE') || msg.includes('not finalized')) {
-//       return res.status(422).json({ success: false, message: msg });
-//     }
-
-//     // Fallback unexpected infrastructure catch-all (Page 6)
-//     return res.status(500).json({
-//       success: false,
-//       message: msg || 'Failed to create Purchase Invoice.'
-//     });
-//   }
-// };
-
 /**
  * Phase 9.10.27 — Protected Purchase Invoice Creation Handler (Page 5)
  * Consumes pre-validated data to remove duplicate client body parsing.
@@ -532,58 +461,6 @@ export const handleMatchPurchaseInvoice = async (req, res) => {
     });
   }
 };
-
-// /**
-//  * Purchase Invoice Approval Command Controller Trigger (Page 12)
-//  * Maps input paths and security metadata directly down into your service execution layers.
-//  */
-// export const handleApprovePurchaseInvoice = async (req, res, next) => {
-//   try {
-//     const { id } = req.params;
-
-//     // Validate structural incoming payload comment parameters
-//     const parsedPayload = validation.purchaseInvoiceApprovalDecisionSchema.safeParse(req.body);
-//     if (!parsedPayload.success) {
-//       return res.status(400).json({ success: false, errors: parsedPayload.error.format() });
-//     }
-
-//     // Resolve context identities directly from backend token decoding layers
-//     const executionUserId = req.user?._id || req.user?.id;
-//     const userRole = req.user?.role; // e.g., 'purchasing_manager', 'department_manager'
-
-//     if (!executionUserId || !userRole) {
-//       return res.status(401).json({ success: false, message: 'Authenticated user role and context are required.' });
-//     }
-
-//     const updatedInvoice = await purchaseInvoiceService.approvePurchaseInvoice(
-//       id,
-//       executionUserId,
-//       userRole,
-//       parsedPayload.data
-//     );
-
-//     return res.status(200).json({
-//       success: true,
-//       message: 'Purchase Invoice financially authorized and approved successfully.',
-//       data: {
-//         invoiceNumber: updatedInvoice.invoiceNumber,
-//         status: updatedInvoice.status,
-//         approvalStatus: updatedInvoice.approvalStatus, // Transitioned cleanly to APPROVED (Page 13)
-//         paymentStatus: updatedInvoice.paymentStatus     // Remains frozen at UNPAID (Page 13)
-//       }
-//     });
-
-//   } catch (error) {
-//     const msg = error.message;
-//     if (msg.includes('Compliance Violation') || msg.includes('Authority Error')) {
-//       return res.status(403).json({ success: false, message: msg }); // Enforce strict RBAC blocking
-//     }
-//     if (msg.includes('Procurement Blocked') || msg.includes('Process Invalid')) {
-//       return res.status(422).json({ success: false, message: msg });
-//     }
-//     next(error);
-//   }
-// };
 
 /**
  * Purchase Invoice Approval Controller (Page 3)

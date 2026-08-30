@@ -346,17 +346,6 @@ export const getPOApprovalHistory = async (poId) => {
     .sort({ performedAt: 1 });
 };
 
-// export const approvePurchaseOrder = async (poId, userId) => {
-//   const po = await PurchaseOrder.findById(poId);
-//   if (!po) throw new Error('Purchase Order not found');
-//   if (po.status !== PO_STATUS.SUBMITTED) throw new Error('Only SUBMITTED purchase orders can be approved');
-
-//   po.status = PO_STATUS.APPROVED;
-//   po.approvedBy = userId;
-//   po.approvedAt = new Date();
-//   return await po.save();
-// };
-
 /**
  * Complete Procurement Dispatch Workflow
  */
