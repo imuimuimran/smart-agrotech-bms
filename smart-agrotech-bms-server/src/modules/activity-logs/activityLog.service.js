@@ -25,7 +25,7 @@ const logActivity = async ({
 }) => {
   // 1. Structure the data payload matching your defined Schema contract
   const activityData = {
-    user,
+    userId: user,
     action,
     module,
     entityId,
@@ -50,14 +50,14 @@ const logActivity = async ({
  * High-Throughput Read Pipeline utilizing the system QueryBuilder for safe filtering
  */
 const getAllLogsFromDB = async (queryParameters) => {
-  // Enforce chronological newest-first sort as the foundational fallback state
-  const defaultSort = queryParameters.sort || '-timestamp';
+  // Fall back cleanly to descending chronological layout if no sort string is supplied
+  const defaultSort = queryParameters.sort || '-createdAt'; 
   
   const logQueryInstance = new QueryBuilder(
-    ActivityLog.find().populate('user', 'publicId name email role'), 
+    ActivityLog.find().populate('userId', 'publicId name email role'), // Population bound cleanly to target reference
     { ...queryParameters, sort: defaultSort }
   )
-    .search(['action', 'module', 'description']) // Whitelisted text search fields
+    .search(['action', 'module', 'description']) // Whitelisted text-search boundaries (Rule 10.8.16)
     .filter()
     .sort()
     .paginate();
@@ -72,7 +72,7 @@ const getAllLogsFromDB = async (queryParameters) => {
  * Fetch a single distinct audit event entry by its primary ObjectId mapping
  */
 const getSingleLogFromDB = async (id) => {
-  const log = await ActivityLog.findById(id).populate('user', 'publicId name email role');
+  const log = await ActivityLog.findById(id).populate('userId', 'publicId name email role');
   return log;
 };
 

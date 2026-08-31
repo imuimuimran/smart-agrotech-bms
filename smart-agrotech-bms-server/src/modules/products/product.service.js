@@ -309,15 +309,17 @@ const deleteProduct = async (productId, reqUser) => {
   product.updatedBy = reqUser.publicId;
 
   await product.save();
-  // Authoritative Logging Point: Trigger ONLY after soft-deletion state change succeeds
+  // Trigger after successful product persistence execution paths
   await ActivityLogService.logActivity({
-    user: reqUser._id || reqUser.id,
-    action: ACTIVITY_ACTIONS.DELETE,
+    user: reqUser._id || reqUser.id, // Internal user database reference tracking
+    action: ACTIVITY_ACTIONS.CREATE,
     module: ACTIVITY_MODULES.PRODUCT,
     entityId: product._id,
-    description: `Deleted product ${product.publicId}`.trim(),
+    description: `Admin created Product ${product.publicId}`.trim(),
     metadata: {
       publicId: product.publicId,
+      sku: product.sku,
+      productName: product.productName,
     },
   });
 
