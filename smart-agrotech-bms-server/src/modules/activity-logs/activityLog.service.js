@@ -1,4 +1,5 @@
 import { ActivityLog } from './activityLog.model.js';
+import QueryBuilder from '../../builder/QueryBuilder.js';
 
 /**
  * Centralized logging mechanism to write immutable server-controlled audit trail records.
@@ -45,6 +46,38 @@ const logActivity = async ({
   return activity;
 };
 
+/**
+ * High-Throughput Read Pipeline utilizing the system QueryBuilder for safe filtering
+ */
+const getAllLogsFromDB = async (queryParameters) => {
+  // Enforce chronological newest-first sort as the foundational fallback state
+  const defaultSort = queryParameters.sort || '-timestamp';
+  
+  const logQueryInstance = new QueryBuilder(
+    ActivityLog.find().populate('user', 'publicId name email role'), 
+    { ...queryParameters, sort: defaultSort }
+  )
+    .search(['action', 'module', 'description']) // Whitelisted text search fields
+    .filter()
+    .sort()
+    .paginate();
+
+  const data = await logQueryInstance.modelQuery;
+  const meta = await logQueryInstance.countTotal();
+
+  return { data, meta };
+};
+
+/**
+ * Fetch a single distinct audit event entry by its primary ObjectId mapping
+ */
+const getSingleLogFromDB = async (id) => {
+  const log = await ActivityLog.findById(id).populate('user', 'publicId name email role');
+  return log;
+};
+
 export const ActivityLogService = {
   logActivity,
+  getAllLogsFromDB,
+  getSingleLogFromDB,
 };

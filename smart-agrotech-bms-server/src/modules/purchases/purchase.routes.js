@@ -15,7 +15,9 @@ import { createPurchaseInvoiceSchema } from './purchase.validation.js';
 
 // Import active system shared security middleware layers (Page 3)
 // Modify these import targets if your core app files reside in a different folder:
-import { verifyToken, authorize, validateRequest } from '../../middlewares/auth.middleware.js';
+import verifyToken from '../../middlewares/auth.middleware.js';
+import authorize from '../../middlewares/authorize.middleware.js';
+import validateRequest from '../../middlewares/validate.middleware.js';
 import { ROLES } from '../../constants/roles.js'; // Reuses your project's active roles enum matrix
 
 
