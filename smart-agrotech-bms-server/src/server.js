@@ -18,6 +18,11 @@ const startServer = async () => {
   try {
     await connectDB();
 
+    if (env.nodeEnv === "development") {
+      const { runActivityLogVerificationSuite } = await import("./modules/activity-logs/activityLog.test.js");
+      await runActivityLogVerificationSuite();
+    }
+
     app.listen(env.port, () => {
       console.log(`
 ==========================================
