@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import { Sale } from './sale.model.js';
 import { SalePayment } from './salePayment.model.js';
-import { SALE_STATUS, SALE_DEFAULT_SORT } from './sale.constants.js';
+import { SALE_STATUS } from './sale.constants.js';
 import {
   calculateSaleFinancials,
   buildSaleItemSnapshot,
@@ -9,11 +9,163 @@ import {
 } from './sale.utils.js';
 import Customer from '../customers/customer.model.js';
 import Product from '../products/product.model.js';
+import { InventoryLog } from '../inventory/inventoryLog.model.js';
 import { InventoryTransaction } from '../purchases/inventoryTransaction.model.js';
 import { ActivityLog } from '../activityLogs/activityLog.model.js';
 import { getNextSequence } from '../../utils/sequence.util.js';
 import generatePublicId from '../../utils/publicId.util.js';
 import QueryBuilder from '../../builder/QueryBuilder.js';
+
+// /**
+//  * Create a new enterprise sale transaction.
+//  */
+// export const createSaleService = async (payload, currentUser) => {
+//   const session = await mongoose.startSession();
+//   session.startTransaction();
+
+//   try {
+//     const { customerId, products, discount = 0, paidAmount = 0, saleDate, remarks } = payload;
+
+//     // 1. Validate Customer
+//     const customer = await Customer.findOne({ _id: customerId, isDeleted: { $ne: true } }).session(session);
+//     if (!customer) {
+//       throw new Error('Customer not found or is inactive.');
+//     }
+
+//     // 2. Validate Products, Stock, and Build Snapshots
+//     const validatedItems = [];
+//     for (const item of products) {
+//       const product = await Product.findOne({ _id: item.productId, isDeleted: { $ne: true } }).session(session);
+//       if (!product) {
+//         throw new Error(`Product with ID ${item.productId} not found.`);
+//       }
+
+//       if (product.status !== 'ACTIVE') {
+//         throw new Error(`Product "${product.productName}" is not active for sale.`);
+//       }
+
+//       // Check available stock
+//       if (product.stock < item.quantity) {
+//         throw new Error(`Insufficient stock for product "${product.name}". Available: ${product.stock}, Requested: ${item.quantity}`);
+//       }
+
+//       // Authoritative pricing
+//       const unitPrice = item.unitPrice !== undefined ? item.unitPrice : product.sellingPrice;
+
+//       const snapshot = buildSaleItemSnapshot({
+//         product,
+//         quantity: item.quantity,
+//         unitPrice,
+//         discount: item.discount,
+//       });
+
+//       validatedItems.push({
+//         snapshot,
+//         productDoc: product,
+//       });
+//     }
+
+//     const itemSnapshots = validatedItems.map((i) => i.snapshot);
+
+//     // 3. Calculate Financials
+//     const financials = calculateSaleFinancials({
+//       items: itemSnapshots,
+//       saleDiscount: discount,
+//       paidAmount,
+//     });
+
+//     if (financials.paidAmount > financials.totalAmount) {
+//       throw new Error('Initial payment amount cannot exceed the total sale amount.');
+//     }
+
+//     // 4. Generate Sequential Invoice Number
+//     const seqValue = await getNextSequence('invoice', session);
+//     const year = new Date().getFullYear();
+//     const invoiceNumber = `INV-${year}-${String(seqValue).padStart(6, '0')}`;
+//     const publicId = generatePublicId('SALE');
+
+//     // 5. Persist Sale
+//     const saleDoc = new Sale({
+//       publicId,
+//       invoiceNumber,
+//       customerId: customer._id,
+//       products: itemSnapshots,
+//       subtotal: financials.subtotal,
+//       discount: financials.discount,
+//       totalAmount: financials.totalAmount,
+//       paidAmount: financials.paidAmount,
+//       dueAmount: financials.dueAmount,
+//       saleDate: saleDate || new Date(),
+//       status: SALE_STATUS.CONFIRMED,
+//       remarks,
+//       createdBy: currentUser._id,
+//     });
+
+//     await saleDoc.save({ session });
+
+//     // 6. Update Inventory and Create Transaction Records (InventoryLog omitted)
+//     for (const item of validatedItems) {
+//       const { productDoc, snapshot } = item;
+
+//       productDoc.stock -= snapshot.quantity;
+//       productDoc.updatedBy = currentUser._id;
+//       await productDoc.save({ session });
+
+//       const inventoryTxn = new InventoryTransaction({
+//         publicId: generatePublicId('INVTX'),
+//         productId: productDoc._id,
+//         type: 'SALE_OUT',
+//         quantity: snapshot.quantity,
+//         referenceModel: 'Sale',
+//         referenceId: saleDoc._id,
+//         remarks: `Sale fulfillment for Invoice ${invoiceNumber}`,
+//         createdBy: currentUser._id,
+//       });
+//       await inventoryTxn.save({ session });
+//     }
+
+//     // 7. Persist Initial Payment if paidAmount > 0
+//     if (financials.paidAmount > 0) {
+//       const paymentDoc = new SalePayment({
+//         publicId: generatePublicId('PAY'),
+//         saleId: saleDoc._id,
+//         customerId: customer._id,
+//         amount: financials.paidAmount,
+//         paymentMethod: 'CASH',
+//         reference: `Initial payment for ${invoiceNumber}`,
+//         createdBy: currentUser._id,
+//       });
+//       await paymentDoc.save({ session });
+//     }
+
+//     // 8. Update Customer Due Balance
+//     customer.totalDue = (customer.totalDue || 0) + financials.dueAmount;
+//     customer.totalPurchase = (customer.totalPurchase || 0) + financials.totalAmount;
+//     customer.totalPaid = (customer.totalPaid || 0) + financials.paidAmount;
+//     await customer.save({ session });
+
+//     // 9. Activity Logging
+//     const activityLog = new ActivityLog({
+//       publicId: generatePublicId('ACT'),
+//       userId: currentUser._id,
+//       module: 'SALES',
+//       action: 'SALE_CREATED',
+//       description: `Created Sale Invoice ${invoiceNumber} for customer ${customer.name}`,
+//       metadata: { saleId: saleDoc._id, invoiceNumber, totalAmount: financials.totalAmount },
+//     });
+//     await activityLog.save({ session });
+
+//     await session.commitTransaction();
+//     session.endSession();
+
+//     return saleDoc;
+//   } catch (error) {
+//     await session.abortTransaction();
+//     session.endSession();
+//     throw error;
+//   }
+// };
+
 
 /**
  * Create a new enterprise sale transaction.
@@ -40,16 +192,16 @@ export const createSaleService = async (payload, currentUser) => {
       }
 
       if (product.status !== 'ACTIVE') {
-        throw new Error(`Product "${product.name}" is not active for sale.`);
+        throw new Error(`Product "${product.productName}" is not active for sale.`);
       }
 
-      // Check available stock
-      if (product.stock < item.quantity) {
-        throw new Error(`Insufficient stock for product "${product.name}". Available: ${product.stock}, Requested: ${item.quantity}`);
+      // Check currentStock
+      if (product.currentStock < item.quantity) {
+        throw new Error(`Insufficient stock for product "${product.productName}". Available: ${product.currentStock}, Requested: ${item.quantity}`);
       }
 
-      // Authoritative pricing
-      const unitPrice = item.unitPrice !== undefined ? item.unitPrice : product.sellingPrice;
+      // Authoritative pricing from pricing.sellingPrice
+      const unitPrice = item.unitPrice !== undefined ? item.unitPrice : product.pricing.sellingPrice;
 
       const snapshot = buildSaleItemSnapshot({
         product,
@@ -102,25 +254,27 @@ export const createSaleService = async (payload, currentUser) => {
 
     await saleDoc.save({ session });
 
-    // 6. Update Inventory and Create Transaction Records (InventoryLog omitted)
+    // 6. Update Inventory via InventoryLog & currentStock
     for (const item of validatedItems) {
       const { productDoc, snapshot } = item;
+      const previousStock = productDoc.currentStock;
+      const currentStock = previousStock - snapshot.quantity;
 
-      productDoc.stock -= snapshot.quantity;
+      productDoc.currentStock = currentStock;
       productDoc.updatedBy = currentUser._id;
       await productDoc.save({ session });
 
-      const inventoryTxn = new InventoryTransaction({
-        publicId: generatePublicId('INVTX'),
+      const inventoryLog = new InventoryLog({
         productId: productDoc._id,
-        type: 'SALE_OUT',
+        type: 'sale',
         quantity: snapshot.quantity,
-        referenceModel: 'Sale',
+        previousStock,
+        currentStock,
         referenceId: saleDoc._id,
+        referenceType: 'sale',
         remarks: `Sale fulfillment for Invoice ${invoiceNumber}`,
-        createdBy: currentUser._id,
       });
-      await inventoryTxn.save({ session });
+      await inventoryLog.save({ session });
     }
 
     // 7. Persist Initial Payment if paidAmount > 0
@@ -145,12 +299,11 @@ export const createSaleService = async (payload, currentUser) => {
 
     // 9. Activity Logging
     const activityLog = new ActivityLog({
-      publicId: generatePublicId('ACT'),
       userId: currentUser._id,
       module: 'SALES',
       action: 'SALE_CREATED',
-      description: `Created Sale Invoice ${invoiceNumber} for customer ${customer.name}`,
-      metadata: { saleId: saleDoc._id, invoiceNumber, totalAmount: financials.totalAmount },
+      description: `Created Sale Invoice ${invoiceNumber} for customer ${customer.name || customer.customerName}`,
+      ipAddress: currentUser.ipAddress || '127.0.0.1',
     });
     await activityLog.save({ session });
 

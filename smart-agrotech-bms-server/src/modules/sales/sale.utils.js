@@ -232,8 +232,9 @@ export const buildSaleItemSnapshot = ({
   discount = 0,
 }) => {
   const normalizedQuantity = Number(quantity);
-  const normalizedUnitPrice =
-    roundMoney(unitPrice);
+  const normalizedUnitPrice = roundMoney(
+    unitPrice !== undefined ? unitPrice : product.pricing?.sellingPrice || 0
+  );
   const normalizedDiscount =
     roundMoney(discount);
   const lineTotal = calculateLineTotal({
@@ -243,7 +244,7 @@ export const buildSaleItemSnapshot = ({
   });
   return {
     productId: product._id,
-    productName: product.name,
+    productName: product.productName,
     sku: product.sku,
     quantity: normalizedQuantity,
     unitPrice: normalizedUnitPrice,
