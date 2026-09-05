@@ -19,157 +19,6 @@ import QueryBuilder from '../../builder/QueryBuilder.js';
 // /**
 //  * Create a new enterprise sale transaction.
 //  */
-// export const createSaleService = async (payload, currentUser) => {
-//   const session = await mongoose.startSession();
-//   session.startTransaction();
-
-//   try {
-//     const { customerId, products, discount = 0, paidAmount = 0, saleDate, remarks } = payload;
-
-//     // 1. Validate Customer
-//     const customer = await Customer.findOne({ _id: customerId, isDeleted: { $ne: true } }).session(session);
-//     if (!customer) {
-//       throw new Error('Customer not found or is inactive.');
-//     }
-
-//     // 2. Validate Products, Stock, and Build Snapshots
-//     const validatedItems = [];
-//     for (const item of products) {
-//       const product = await Product.findOne({ _id: item.productId, isDeleted: { $ne: true } }).session(session);
-//       if (!product) {
-//         throw new Error(`Product with ID ${item.productId} not found.`);
-//       }
-
-//       if (product.status !== 'ACTIVE') {
-//         throw new Error(`Product "${product.productName}" is not active for sale.`);
-//       }
-
-//       // Check available stock
-//       if (product.stock < item.quantity) {
-//         throw new Error(`Insufficient stock for product "${product.name}". Available: ${product.stock}, Requested: ${item.quantity}`);
-//       }
-
-//       // Authoritative pricing
-//       const unitPrice = item.unitPrice !== undefined ? item.unitPrice : product.sellingPrice;
-
-//       const snapshot = buildSaleItemSnapshot({
-//         product,
-//         quantity: item.quantity,
-//         unitPrice,
-//         discount: item.discount,
-//       });
-
-//       validatedItems.push({
-//         snapshot,
-//         productDoc: product,
-//       });
-//     }
-
-//     const itemSnapshots = validatedItems.map((i) => i.snapshot);
-
-//     // 3. Calculate Financials
-//     const financials = calculateSaleFinancials({
-//       items: itemSnapshots,
-//       saleDiscount: discount,
-//       paidAmount,
-//     });
-
-//     if (financials.paidAmount > financials.totalAmount) {
-//       throw new Error('Initial payment amount cannot exceed the total sale amount.');
-//     }
-
-//     // 4. Generate Sequential Invoice Number
-//     const seqValue = await getNextSequence('invoice', session);
-//     const year = new Date().getFullYear();
-//     const invoiceNumber = `INV-${year}-${String(seqValue).padStart(6, '0')}`;
-//     const publicId = generatePublicId('SALE');
-
-//     // 5. Persist Sale
-//     const saleDoc = new Sale({
-//       publicId,
-//       invoiceNumber,
-//       customerId: customer._id,
-//       products: itemSnapshots,
-//       subtotal: financials.subtotal,
-//       discount: financials.discount,
-//       totalAmount: financials.totalAmount,
-//       paidAmount: financials.paidAmount,
-//       dueAmount: financials.dueAmount,
-//       saleDate: saleDate || new Date(),
-//       status: SALE_STATUS.CONFIRMED,
-//       remarks,
-//       createdBy: currentUser._id,
-//     });
-
-//     await saleDoc.save({ session });
-
-//     // 6. Update Inventory and Create Transaction Records (InventoryLog omitted)
-//     for (const item of validatedItems) {
-//       const { productDoc, snapshot } = item;
-
-//       productDoc.stock -= snapshot.quantity;
-//       productDoc.updatedBy = currentUser._id;
-//       await productDoc.save({ session });
-
-//       const inventoryTxn = new InventoryTransaction({
-//         publicId: generatePublicId('INVTX'),
-//         productId: productDoc._id,
-//         type: 'SALE_OUT',
-//         quantity: snapshot.quantity,
-//         referenceModel: 'Sale',
-//         referenceId: saleDoc._id,
-//         remarks: `Sale fulfillment for Invoice ${invoiceNumber}`,
-//         createdBy: currentUser._id,
-//       });
-//       await inventoryTxn.save({ session });
-//     }
-
-//     // 7. Persist Initial Payment if paidAmount > 0
-//     if (financials.paidAmount > 0) {
-//       const paymentDoc = new SalePayment({
-//         publicId: generatePublicId('PAY'),
-//         saleId: saleDoc._id,
-//         customerId: customer._id,
-//         amount: financials.paidAmount,
-//         paymentMethod: 'CASH',
-//         reference: `Initial payment for ${invoiceNumber}`,
-//         createdBy: currentUser._id,
-//       });
-//       await paymentDoc.save({ session });
-//     }
-
-//     // 8. Update Customer Due Balance
-//     customer.totalDue = (customer.totalDue || 0) + financials.dueAmount;
-//     customer.totalPurchase = (customer.totalPurchase || 0) + financials.totalAmount;
-//     customer.totalPaid = (customer.totalPaid || 0) + financials.paidAmount;
-//     await customer.save({ session });
-
-//     // 9. Activity Logging
-//     const activityLog = new ActivityLog({
-//       publicId: generatePublicId('ACT'),
-//       userId: currentUser._id,
-//       module: 'SALES',
-//       action: 'SALE_CREATED',
-//       description: `Created Sale Invoice ${invoiceNumber} for customer ${customer.name}`,
-//       metadata: { saleId: saleDoc._id, invoiceNumber, totalAmount: financials.totalAmount },
-//     });
-//     await activityLog.save({ session });
-
-//     await session.commitTransaction();
-//     session.endSession();
-
-//     return saleDoc;
-//   } catch (error) {
-//     await session.abortTransaction();
-//     session.endSession();
-//     throw error;
-//   }
-// };
-
-
-/**
- * Create a new enterprise sale transaction.
- */
 export const createSaleService = async (payload, currentUser) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -177,13 +26,16 @@ export const createSaleService = async (payload, currentUser) => {
   try {
     const { customerId, products, discount = 0, paidAmount = 0, saleDate, remarks } = payload;
 
-    // 1. Validate Customer
+    // 1. Validate Active Customer
     const customer = await Customer.findOne({ _id: customerId, isDeleted: { $ne: true } }).session(session);
     if (!customer) {
       throw new Error('Customer not found or is inactive.');
     }
+    if (customer.status === 'INACTIVE') {
+      throw new Error('Cannot process transactions for an inactive customer.');
+    }
 
-    // 2. Validate Products, Stock, and Build Snapshots
+    // 2. Validate Products, Stock availability, and Build Historical Snapshots
     const validatedItems = [];
     for (const item of products) {
       const product = await Product.findOne({ _id: item.productId, isDeleted: { $ne: true } }).session(session);
@@ -195,14 +47,15 @@ export const createSaleService = async (payload, currentUser) => {
         throw new Error(`Product "${product.productName}" is not active for sale.`);
       }
 
-      // Check currentStock
+      // Check currentStock capacity
       if (product.currentStock < item.quantity) {
         throw new Error(`Insufficient stock for product "${product.productName}". Available: ${product.currentStock}, Requested: ${item.quantity}`);
       }
 
-      // Authoritative pricing from pricing.sellingPrice
+      // Enforce authoritative pricing: use product's default nested pricing property
       const unitPrice = item.unitPrice !== undefined ? item.unitPrice : product.pricing.sellingPrice;
 
+      // Build immutable subdocument snapshot
       const snapshot = buildSaleItemSnapshot({
         product,
         quantity: item.quantity,
@@ -218,7 +71,7 @@ export const createSaleService = async (payload, currentUser) => {
 
     const itemSnapshots = validatedItems.map((i) => i.snapshot);
 
-    // 3. Calculate Financials
+    // 3. Authoritative Financial Calculations
     const financials = calculateSaleFinancials({
       items: itemSnapshots,
       saleDiscount: discount,
@@ -229,15 +82,15 @@ export const createSaleService = async (payload, currentUser) => {
       throw new Error('Initial payment amount cannot exceed the total sale amount.');
     }
 
-    // 4. Generate Sequential Invoice Number
+    // 4. Generate Atomic Sequential Invoice Number
     const seqValue = await getNextSequence('invoice', session);
     const year = new Date().getFullYear();
     const invoiceNumber = `INV-${year}-${String(seqValue).padStart(6, '0')}`;
-    const publicId = generatePublicId('SALE');
+    const salePublicId = generatePublicId('SALE');
 
-    // 5. Persist Sale
+    // 5. Persist the Sale Document
     const saleDoc = new Sale({
-      publicId,
+      publicId: salePublicId,
       invoiceNumber,
       customerId: customer._id,
       products: itemSnapshots,
@@ -254,30 +107,30 @@ export const createSaleService = async (payload, currentUser) => {
 
     await saleDoc.save({ session });
 
-    // 6. Update Inventory via InventoryLog & currentStock
+    // 6. Update Product Stock and Create Stock Movement Audit Trails (InventoryTransactions)
     for (const item of validatedItems) {
       const { productDoc, snapshot } = item;
-      const previousStock = productDoc.currentStock;
-      const currentStock = previousStock - snapshot.quantity;
 
-      productDoc.currentStock = currentStock;
+      // Deduct currentStock
+      productDoc.currentStock -= snapshot.quantity;
       productDoc.updatedBy = currentUser._id;
       await productDoc.save({ session });
 
-      const inventoryLog = new InventoryLog({
+      // Create tracking record using the verified purchases/inventoryTransaction module path
+      const inventoryTxn = new InventoryTransaction({
+        publicId: generatePublicId('INVTX'),
         productId: productDoc._id,
-        type: 'sale',
+        type: 'SALE_OUT',
         quantity: snapshot.quantity,
-        previousStock,
-        currentStock,
+        referenceModel: 'Sale',
         referenceId: saleDoc._id,
-        referenceType: 'sale',
         remarks: `Sale fulfillment for Invoice ${invoiceNumber}`,
+        createdBy: currentUser._id,
       });
-      await inventoryLog.save({ session });
+      await inventoryTxn.save({ session });
     }
 
-    // 7. Persist Initial Payment if paidAmount > 0
+    // 7. Persist Initial Payment Record if paidAmount > 0
     if (financials.paidAmount > 0) {
       const paymentDoc = new SalePayment({
         publicId: generatePublicId('PAY'),
@@ -291,19 +144,20 @@ export const createSaleService = async (payload, currentUser) => {
       await paymentDoc.save({ session });
     }
 
-    // 8. Update Customer Due Balance
-    customer.totalDue = (customer.totalDue || 0) + financials.dueAmount;
+    // 8. Integrate with Ledger / Update Customer Balance Fields
+    customer.currentBalance = (customer.currentBalance || 0) + financials.dueAmount;
+    customer.totalDue = (customer.totalDue || 0) + financials.dueAmount; 
     customer.totalPurchase = (customer.totalPurchase || 0) + financials.totalAmount;
     customer.totalPaid = (customer.totalPaid || 0) + financials.paidAmount;
     await customer.save({ session });
 
-    // 9. Activity Logging
+    // 9. Enterprise Activity Logging Integration
     const activityLog = new ActivityLog({
       userId: currentUser._id,
       module: 'SALES',
       action: 'SALE_CREATED',
-      description: `Created Sale Invoice ${invoiceNumber} for customer ${customer.name || customer.customerName}`,
-      ipAddress: currentUser.ipAddress || '127.0.0.1',
+      description: `Sale ${invoiceNumber} created for customer ${customer.name || customer.customerName}.`,
+      metadata: { saleId: saleDoc._id, invoiceNumber, totalAmount: financials.totalAmount },
     });
     await activityLog.save({ session });
 
@@ -317,6 +171,7 @@ export const createSaleService = async (payload, currentUser) => {
     throw error;
   }
 };
+
 
 /**
  * Record an installment or subsequent payment against a sale.
