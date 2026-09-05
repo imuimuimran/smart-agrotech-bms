@@ -65,6 +65,12 @@ const saleSchema = new mongoose.Schema(
       ref: 'Customer',
       required: true,
     },
+    warehouseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Warehouse',
+      required: true,
+      index: true
+    },
     products: {
       type: [saleItemSchema],
       validate: {
