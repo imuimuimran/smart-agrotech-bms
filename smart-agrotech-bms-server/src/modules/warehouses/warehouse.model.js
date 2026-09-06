@@ -96,6 +96,7 @@ warehouseSchema.pre(/^find/, function () {
 
 warehouseSchema.index({
   warehouseName: "text",
+  warehouseCode: "text",
   description: "text",
 });
 

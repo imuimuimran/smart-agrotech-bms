@@ -2,14 +2,14 @@ import mongoose from 'mongoose';
 
 const Schema = mongoose.Schema;
 
-// Pure Inventory Ledger Entity Shape
+// Corrected Polymorphic Inventory Ledger Entity Structure (Step 8 Implementation)
 const InventoryTransactionSchema = new Schema({
   productId: { type: Schema.Types.ObjectId, ref: 'Product', required: true, index: true },
   warehouseId: { type: Schema.Types.ObjectId, ref: 'Warehouse', required: true, index: true },
-  quantity: { type: Number, required: true }, // Positive for receipts, negative for returns/corrections
-  transactionType: { type: String, default: 'PURCHASE_RECEIPT', required: true }, 
-  referenceType: { type: String, default: 'GOODS_RECEIPT', required: true },       
-  referenceId: { type: Schema.Types.ObjectId, ref: 'GoodsReceipt', required: true, index: true }, // Traceability anchor
+  quantity: { type: Number, required: true }, // Positive for receipts, negative for outgoing sales/corrections
+  transactionType: { type: String, required: true }, // Aligned to INVENTORY_TRANSACTION_TYPE matrix
+  referenceType: { type: String, required: true },   // Aligned to INVENTORY_REFERENCE_TYPE matrix     
+  referenceId: { type: Schema.Types.ObjectId, required: true, index: true }, // Multi-model polymorphic trace anchor
   unitCost: { type: Schema.Types.Decimal128, required: true },
   batchNumber: { type: String },
   serialNumbers: [{ type: String }],

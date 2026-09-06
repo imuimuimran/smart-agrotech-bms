@@ -28,3 +28,15 @@ export const INVENTORY_REFERENCE_TYPE = {
   PURCHASE_EXCHANGE: "PURCHASE_EXCHANGE",
   SALES_EXCHANGE: "SALES_EXCHANGE",
 };
+
+export const INVENTORY_MESSAGES = {
+  PRODUCT_NOT_FOUND: "Product not found.",
+  WAREHOUSE_NOT_FOUND: "Warehouse not found.",
+  WAREHOUSE_INACTIVE: "Warehouse is inactive.",
+  STOCK_NOT_FOUND: "Warehouse stock record not found.",
+  INSUFFICIENT_STOCK: "Insufficient available stock for this inventory operation.",
+  INVALID_QUANTITY: "Inventory quantity must be greater than zero.",
+  INVALID_STOCK_STATE: "Invalid inventory stock state.",
+  STOCK_UPDATED: "Inventory stock updated successfully.",
+  STOCK_ADJUSTED: "Inventory stock adjusted successfully.",
+};
