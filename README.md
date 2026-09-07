@@ -42,6 +42,6 @@ The Smart AgroTech Business Management System (BMS) is a full-stack web applicat
 
 ## Project Status
 
-Planning Phase - Done
-Backend Part - Done
-Core Modules - Authentication, Activity Logs, User, Product, Category, Supplier, Purchase, Customer Management are done. Now sales & Inventory Management modules are running. 
+- Planning Phase - Done
+- Backend Part - Done
+- Core Modules - Authentication, Activity Logs, User, Product, Category, Supplier, Purchase, Customer Management are done. Now sales & Inventory Management modules are running. 
