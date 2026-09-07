@@ -189,6 +189,16 @@ const productSchema = new Schema(
     },
 
     // -------------------------
+    // Inventory Aggregate Cache (Added for Phase 11.5.3)
+    // -------------------------
+    currentStock: {
+      type: Number,
+      required: true,
+      min: 0,
+      default: 0,
+    },
+
+    // -------------------------
     // Media Attachments
     // -------------------------
     images: {
