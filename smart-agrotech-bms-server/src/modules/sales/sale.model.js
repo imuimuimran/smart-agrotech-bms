@@ -1,10 +1,12 @@
 import mongoose from 'mongoose';
-import { SALE_STATUS } from './sale.constants.js';
+import { SALE_STATUS, PAYMENT_STATUS } from './sale.constants.js';
 
-const saleItemSchema = new mongoose.Schema(
+const { Schema, model } = mongoose;
+
+const saleItemSchema = new Schema(
   {
     productId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: 'Product',
       required: true,
     },
@@ -32,26 +34,37 @@ const saleItemSchema = new mongoose.Schema(
       required: true,
       min: [0, 'Unit price cannot be negative'],
     },
-    discount: {
+    unitCost: {
+      type: Number,
+      required: true,
+      min: [0, "Unit cost-basis snapshot cannot be negative."],
+    },
+    discountAmount: {
       type: Number,
       default: 0,
       min: [0, 'Item discount cannot be negative'],
     },
-    lineTotal: {
+    taxAmount: {
+      type: Number,
+      default: 0,
+      min: [0, "Line tax cannot be negative."],
+    },
+    subtotal: {
       type: Number,
       required: true,
-      min: [0, 'Line total cannot be negative'],
+      min: [0, "Line net total cannot be negative."],
     },
   },
-  { _id: true }
+  { _id: false }
 );
 
-const saleSchema = new mongoose.Schema(
+const saleSchema = new Schema(
   {
     publicId: {
       type: String,
       required: true,
       unique: true,
+      index: true,
       trim: true,
     },
     invoiceNumber: {
@@ -61,12 +74,13 @@ const saleSchema = new mongoose.Schema(
       trim: true,
     },
     customerId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: 'Customer',
       required: true,
+      index: true,
     },
     warehouseId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: 'Warehouse',
       required: true,
       index: true
@@ -85,16 +99,27 @@ const saleSchema = new mongoose.Schema(
       required: true,
       min: [0, 'Subtotal cannot be negative'],
     },
-    discount: {
+    discountAmount: {
       type: Number,
       default: 0,
-      min: [0, 'Total discount cannot be negative'],
+      min: [0, "Global invoice discount cannot be negative."],
     },
-    totalAmount: {
+    taxAmount: {
+      type: Number,
+      default: 0,
+      min: [0, "Global invoice tax cannot be negative."],
+    },
+    shippingCost: {
+      type: Number,
+      default: 0,
+      min: [0, "Shipping fees cannot be negative."],
+    },
+    grandTotal: {
       type: Number,
       required: true,
-      min: [0, 'Total amount cannot be negative'],
+      min: [0, "Grand total cannot be negative."],
     },
+    
     paidAmount: {
       type: Number,
       required: true,
@@ -104,40 +129,61 @@ const saleSchema = new mongoose.Schema(
     dueAmount: {
       type: Number,
       required: true,
+      default: 0,
       min: [0, 'Due amount cannot be negative'],
     },
     saleDate: {
       type: Date,
       required: true,
       default: Date.now,
+      index: true,
+    },
+    items: [saleItemSchema],
+    itemCount: {
+      type: Number,
+      default: 0,
+    },
+    totalQuantity: {
+      type: Number,
+      default: 0,
+    },
+    paymentStatus: {
+      type: String,
+      enum: Object.values(PAYMENT_STATUS),
+      default: PAYMENT_STATUS.UNPAID,
+      index: true,
     },
     status: {
       type: String,
       enum: Object.values(SALE_STATUS),
       default: SALE_STATUS.CONFIRMED,
+      index: true,
     },
-    remarks: {
+    notes: {
       type: String,
+      default: "",
       trim: true,
     },
     createdBy: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
     },
     updatedBy: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: 'User',
+      default: null,
     },
     isDeleted: {
       type: Boolean,
       default: false,
+      index: true,
     },
     deletedAt: {
       type: Date,
     },
     deletedBy: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: 'User',
     },
   },
@@ -147,20 +193,31 @@ const saleSchema = new mongoose.Schema(
   }
 );
 
-// Indexes
-saleSchema.index({ invoiceNumber: 1 });
-saleSchema.index({ customerId: 1 });
-saleSchema.index({ saleDate: -1 });
-saleSchema.index({ status: 1 });
-saleSchema.index({ isDeleted: 1 });
+// Soft Delete Middleware Engine Layer
+saleSchema.query.withDeleted = function () {
+  return this.setOptions({ withDeleted: true });
+};
 
-// Soft-delete middleware query filter
-saleSchema.pre(/^find/, function (next) {
-  if (this.getOptions().includeDeleted) {
-    return next();
+saleSchema.pre(/^find/, function () {
+  if (!this.getOptions().withDeleted) {
+    this.where({ isDeleted: false });
   }
-  this.where({ isDeleted: { $ne: true } });
-  next();
 });
 
-export const Sale = mongoose.model('Sale', saleSchema);
+// Indexes
+saleSchema.index({ invoiceNumber: 1 });
+saleSchema.index({ customerId: 1, paymentStatus: 1 });
+saleSchema.index({ warehouseId: 1, status: 1 });
+saleSchema.index({ saleDate: -1 });
+saleSchema.index({ isDeleted: 1 });
+
+// // Soft-delete middleware query filter
+// saleSchema.pre(/^find/, function (next) {
+//   if (this.getOptions().includeDeleted) {
+//     return next();
+//   }
+//   this.where({ isDeleted: { $ne: true } });
+//   next();
+// });
+
+export const Sale = model('Sale', saleSchema);

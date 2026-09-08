@@ -19,10 +19,16 @@ const objectIdSchema = z
  *
  * Money cannot be negative.
  */
-const moneySchema = z
+const positiveMoney = z
   .number()
-  .finite("Amount must be a valid number.")
-  .min(0, "Amount cannot be negative.");
+  .finite()
+  .min(0, "Monetary calculations cannot hold negative values.");
+
+
+// const moneySchema = z
+//   .number()
+//   .finite("Amount must be a valid number.")
+//   .min(0, "Amount cannot be negative.");
 
 /**
  * Sale quantity.
@@ -48,6 +54,18 @@ const saleItemSchema = z.object({
   discount: moneySchema
     .optional()
     .default(0),
+});
+
+
+const saleItemInputSchema = z.object({
+  productId: objectIdSchema,
+  quantity: z
+    .number()
+    .int("Item breakdown tracking counts must be whole integers.")
+    .min(1, "Purchased entity items count must be at least 1."),
+  unitPrice: positiveMoney,
+  discountAmount: positiveMoney.optional().default(0),
+  taxAmount: positiveMoney.optional().default(0),
 });
 
 /**
@@ -215,4 +233,41 @@ export const salePublicIdParamSchema = z.object({
       1,
       "Sale public ID is required."
     ),
+});
+
+export const createSaleValidationSchema = z
+  .object({
+    customerId: objectIdSchema,
+    warehouseId: objectIdSchema,
+    saleDate: z
+      .preprocess(
+        (val) => (val ? new Date(val) : new Date()),
+        z.date()
+      )
+      .optional(),
+    items: z
+      .array(saleItemInputSchema)
+      .min(1, "An invoice breakdown require at least 1 product row entry."),
+    discountAmount: positiveMoney.optional().default(0),
+    taxAmount: positiveMoney.optional().default(0),
+    shippingCost: positiveMoney.optional().default(0),
+    paidAmount: positiveMoney.optional().default(0),
+    notes: z.string().trim().max(1000).optional().default(""),
+  })
+  .superRefine((data, ctx) => {
+    // Prevent duplicate lines of identical products inside one transaction payload
+    const activeMappingRows = data.items.map((item) => item.productId.toString());
+    const filterDuplicates = new Set(activeMappingRows);
+    
+    if (filterDuplicates.size !== activeMappingRows.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Duplicate product line rows detected. Combine item metrics into a flat configuration.",
+        path: ["items"],
+      });
+    }
+  });
+
+export const updateSaleNotesValidationSchema = z.object({
+  notes: z.string().trim().max(1000).min(1, "Notes placeholder context string cannot be empty."),
 });
