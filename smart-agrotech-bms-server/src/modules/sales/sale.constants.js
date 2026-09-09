@@ -53,7 +53,7 @@ export const SALE_FILTERABLE_FIELDS = [
 export const SALE_SORTABLE_FIELDS = [
   "saleDate",
   "invoiceNumber",
-  "grandTotal",
+  "totalAmount",
   "paidAmount",
   "dueAmount",
   "createdAt",
@@ -66,10 +66,17 @@ export const INVENTORY_MOVEMENT_TYPES = {
 export const SALE_DEFAULT_SORT = "-createdAt";
 
 export const SALE_MESSAGES = {
-  CREATED: "Sale registered successfully.",
-  NOT_FOUND: "Sale record not found.",
-  INSUFFICIENT_STOCK: "Fulfillment blocked: Insufficient available stock in specified warehouse.",
-  OVERPAYMENT: "Financial violation: Paid amount cannot exceed grand total.",
-  CANCELLED: "Sale transaction successfully voided and inventory returned.",
+  CREATE_SUCCESS: "Sale created successfully.",
+  FETCH_SUCCESS: "Sales fetched successfully.",
+  FETCH_SINGLE_SUCCESS: "Sale fetched successfully.",
+  PAYMENT_SUCCESS: "Sale payment recorded successfully.",
+  NOT_FOUND: "Sale not found.",
+  CUSTOMER_NOT_FOUND: "Customer not found.",
+  WAREHOUSE_NOT_FOUND: "Warehouse not found.",
+  PRODUCT_NOT_FOUND: "Product not found.",
+  INSUFFICIENT_STOCK: "Insufficient stock.",
+  CANCELLED_SALE: "Cancelled sales cannot be modified.",
+  NO_DUE: "This sale has no outstanding due amount.",
+  PAYMENT_EXCEEDS_DUE: "Payment amount cannot exceed the outstanding due amount.",
 };
 

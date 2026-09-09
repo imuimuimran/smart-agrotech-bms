@@ -25,10 +25,10 @@ const positiveMoney = z
   .min(0, "Monetary calculations cannot hold negative values.");
 
 
-// const moneySchema = z
-//   .number()
-//   .finite("Amount must be a valid number.")
-//   .min(0, "Amount cannot be negative.");
+const moneySchema = z
+  .number()
+  .finite("Amount must be a valid number.")
+  .min(0, "Amount cannot be negative.");
 
 /**
  * Sale quantity.
