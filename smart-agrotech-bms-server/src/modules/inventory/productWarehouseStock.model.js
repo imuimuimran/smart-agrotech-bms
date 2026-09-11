@@ -83,20 +83,26 @@ const productWarehouseStockSchema = new Schema(
     physicalOnHand: {
       type: Number,
       required: true,
-      min: 0,
+      min: [0, "Physical stock cannot drop below zero."],
       default: 0,
     },
     reservedStock: {
       type: Number,
       required: true,
-      min: 0,
+      min: [0, "Reserved stock cannot drop below zero."],
       default: 0,
     },
     availableStock: {
       type: Number,
       required: true,
-      min: 0,
+      min: [0, "Available stock cannot drop below zero."],
       default: 0,
+    },
+    averageUnitCost: {
+      type: Schema.Types.Decimal128,
+      required: true,
+      min: [0, "Weighted average unit cost cannot be negative."],
+      default: mongoose.Types.Decimal128.fromString("0.00"),
     },
   },
   {
