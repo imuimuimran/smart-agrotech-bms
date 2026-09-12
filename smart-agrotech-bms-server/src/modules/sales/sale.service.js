@@ -3,12 +3,22 @@ import ApiError from "../../shared/ApiError.js";
 import HTTP_STATUS from "../../constants/httpStatus.js"; 
 import { Sale } from './sale.model.js';
 import { SalePayment } from './salePayment.model.js';
-import { SALE_STATUS } from './sale.constants.js';
+import { 
+  SALE_STATUS,
+  PAYMENT_METHODS, 
+} from './sale.constants.js';
 import {
   calculateSaleFinancials,
   buildSaleItemSnapshot,
   calculatePaymentBalance,
+  roundMoney,
 } from './sale.utils.js';
+import {
+  INVENTORY_REFERENCE_TYPE,
+  INVENTORY_TRANSACTION_TYPE,
+  INVENTORY_LOG_TYPE,
+} from "../inventory/inventory.constants.js";
+import generatePublicId from "../../utils/generatePublicId.js";
 import Customer from '../customers/customer.model.js';
 import Product from '../products/product.model.js';
 import { InventoryLog } from '../inventory/inventoryLog.model.js';
@@ -16,11 +26,23 @@ import { InventoryTransaction } from '../purchases/inventoryTransaction.model.js
 import { ActivityLog } from '../activity-logs/activityLog.model.js';
 import { Warehouse } from '../warehouses/warehouse.model.js';
 import { getNextSequence } from '../../utils/sequence.util.js';
-import generatePublicId from '../../utils/generatePublicId.js';
 import QueryBuilder from '../../builder/QueryBuilder.js';
 import { InventoryService } from "../inventory/inventory.service.js";
 import { ActivityLogService } from "../activity-logs/activityLog.service.js";
 
+
+/**
+ * Generates human-readable sequential invoice numbers using an atomic counter index.
+ */
+const generateSaleInvoiceNumber = async (session) => {
+  const currentYear = new Date().getFullYear();
+  const counter = await Counter.findOneAndUpdate(
+    { key: `sale-invoice-${currentYear}` },
+    { $inc: { sequence: 1 } },
+    { new: true, upsert: true, setDefaultsOnInsert: true, session }
+  );
+  return `INV-${currentYear}-${String(counter.sequence).padStart(6, "0")}`;
+};
 
 /**
  * Validates request user token context and returns external public identifier footprint.
@@ -184,44 +206,218 @@ const generateInvoiceNumber = async () => {
 };
 
 
+// /**
+//  * Create a new customer sale transaction document within strict session bounds.
+//  */
+// export const createSale = async (payload, reqUser) => {
+//   const actorPublicId = getActorPublicId(reqUser);
+//   const session = await mongoose.startSession();
+//   session.startTransaction();
+
+//   try {
+//     // Structural Rule Check: Initial creation operations cannot override payments directly
+//     if (Number(payload.paidAmount || 0) > 0) {
+//       throw new ApiError(
+//         HTTP_STATUS.BAD_REQUEST,
+//         "Initial payment must be recorded explicitly through the subsequent recordSalePayment workflow."
+//       );
+//     }
+
+//     const customer = await getActiveCustomer(payload.customerId, session);
+//     const warehouse = await getActiveWarehouse(payload.warehouseId, session);
+//     const saleItems = await prepareSaleItems(payload.products, session);
+
+//     // Verify stock availability layers across location mappings
+//     await validateSaleStock({
+//       warehouseId: warehouse._id,
+//       saleItems,
+//       session,
+//     });
+
+//     const financials = calculateSaleFinancials({
+//       items: saleItems,
+//       saleDiscount: payload.discount || 0,
+//       paidAmount: 0, // Enforced baseline value setup
+//     });
+
+//     const invoiceNumber = await generateInvoiceNumber();
+//     const publicId = generatePublicId("SALE");
+
+//     // Instantiation matching your original Phase 11.2 schema mappings
+//     const sale = new Sale({
+//       publicId,
+//       invoiceNumber,
+//       customerId: customer._id,
+//       warehouseId: warehouse._id,
+//       products: saleItems,
+//       subtotal: financials.subtotal,
+//       discount: financials.discount,
+//       totalAmount: financials.totalAmount,
+//       paidAmount: 0,
+//       dueAmount: financials.dueAmount,
+//       saleDate: payload.saleDate || new Date(),
+//       status: SALE_STATUS.CONFIRMED,
+//       remarks: payload.remarks || "",
+//       createdBy: reqUser._id,
+//       updatedBy: reqUser._id,
+//     });
+
+//     await sale.save({ session });
+
+//     // Deduct warehouse balances atomically using centralized Inventory Service
+//     for (const item of saleItems) {
+//       await InventoryService.decreaseStock({
+//         productId: item.productId,
+//         warehouseId: warehouse._id,
+//         quantity: item.quantity,
+//         transactionType: "SALE",
+//         referenceType: "SALE",
+//         referenceId: sale._id,
+//         unitCost: item.unitCost, // Pass accurate cost-basis for COGS accounting logs
+//         postedBy: reqUser._id,
+//         remarks: `Stock issued out for transaction invoice ${sale.invoiceNumber}`,
+//         session,
+//       });
+//     }
+
+//     // Synchronize customer credit liabilities balance metrics
+//     await Customer.findByIdAndUpdate(
+//       customer._id,
+//       {
+//         $inc: {
+//           currentBalance: financials.dueAmount,
+//           totalOrders: 1,
+//           totalPurchases: financials.totalAmount,
+//         },
+//       },
+//       { session, new: true }
+//     );
+
+//     // Log tracking accountability trail
+//     await ActivityLogService.logActivity({
+//       user: reqUser._id,
+//       action: "CREATE",
+//       module: "SALES",
+//       entityId: sale._id,
+//       description: `Sale invoice ${sale.invoiceNumber} successfully created and stock issued.`,
+//       metadata: {
+//         salePublicId: sale.publicId,
+//         customerId: customer.publicId,
+//         warehouseId: warehouse.publicId,
+//         totalAmount: financials.totalAmount,
+//         dueAmount: financials.dueAmount,
+//       },
+//       session,
+//     });
+
+//     await session.commitTransaction();
+//     return sale;
+//   } catch (error) {
+//     await session.abortTransaction();
+//     throw error;
+//   } finally {
+//     await session.endSession();
+//   }
+// };
+
+
 /**
- * Create a new customer sale transaction document within strict session bounds.
+ * Creates an authoritative sale transaction, executing all stock, client, and balance updates.
  */
 export const createSale = async (payload, reqUser) => {
-  const actorPublicId = getActorPublicId(reqUser);
   const session = await mongoose.startSession();
-  session.startTransaction();
+  session.startTransaction(); // Atomic transaction boundaries initialized
 
   try {
-    // Structural Rule Check: Initial creation operations cannot override payments directly
-    if (Number(payload.paidAmount || 0) > 0) {
-      throw new ApiError(
-        HTTP_STATUS.BAD_REQUEST,
-        "Initial payment must be recorded explicitly through the subsequent recordSalePayment workflow."
-      );
+    // 1. Customer Verification Block
+    const customer = await Customer.findOne({
+      _id: payload.customerId,
+      isDeleted: false,
+    }).session(session);
+
+    if (!customer) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Customer record not found.");
+    }
+    if (customer.status !== "ACTIVE") {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Inactive customer accounts cannot process orders.");
     }
 
-    const customer = await getActiveCustomer(payload.customerId, session);
-    const warehouse = await getActiveWarehouse(payload.warehouseId, session);
-    const saleItems = await prepareSaleItems(payload.products, session);
+    // 2. Warehouse Location Verification Block
+    const warehouse = await Warehouse.findOne({
+      _id: payload.warehouseId,
+      isDeleted: false,
+    }).session(session);
 
-    // Verify stock availability layers across location mappings
-    await validateSaleStock({
-      warehouseId: warehouse._id,
-      saleItems,
-      session,
+    if (!warehouse) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Target warehouse location not found.");
+    }
+    if (warehouse.status !== "ACTIVE") {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, " Fulfillments cannot route through an inactive warehouse.");
+    }
+
+    // 3. Duplicate Prevention Checking Layer
+    const productIds = payload.products.map((item) => item.productId);
+    const uniqueProductIds = new Set(productIds.map((id) => id.toString()));
+    if (uniqueProductIds.size !== productIds.length) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Duplicate product line rows detected. Consolidate entry quantities.");
+    }
+
+    // 4. Load Products Master Data in a Single Fetch Query
+    const products = await Product.find({
+      _id: { $in: productIds },
+      isDeleted: false,
+    }).session(session);
+
+    if (products.length !== productIds.length) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "One or more requested product items are invalid or deleted.");
+    }
+
+    const productMap = new Map(products.map((p) => [p._id.toString(), p]));
+
+    // 5. Compose Server-Authoritative Line Subdocument Snapshots
+    const saleItems = payload.products.map((item) => {
+      const product = productMap.get(item.productId.toString());
+      
+      if (product.status === "ARCHIVED" || product.status === "DISCONTINUED") {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, `Fulfillment blocked: "${product.productName}" is discontinued.`);
+      }
+      if (product.inventoryConfig?.trackInventory === false) {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, `Inventory tracking is disabled for "${product.productName}".`);
+      }
+
+      // Enforce server values: Client cannot inject artificial pricing variables
+      const sellingPrice = Number(product.pricing?.sellingPrice);
+      if (!Number.isFinite(sellingPrice) || sellingPrice < 0) {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, `Pricing setups are unconfigured for "${product.productName}".`);
+      }
+
+      return buildSaleItemSnapshot({
+        product,
+        quantity: item.quantity,
+        unitPrice: sellingPrice, // Bound server price
+        discount: item.discount || 0,
+      });
     });
 
+    // 6. Mathematical and Integrity Financial Computations
     const financials = calculateSaleFinancials({
       items: saleItems,
       saleDiscount: payload.discount || 0,
-      paidAmount: 0, // Enforced baseline value setup
+      paidAmount: payload.paidAmount || 0,
     });
 
-    const invoiceNumber = await generateInvoiceNumber();
+    if (financials.paidAmount > financials.totalAmount) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Initial collected payment cannot exceed invoice total values.");
+    }
+    if (roundMoney(financials.paidAmount + financials.dueAmount) !== financials.totalAmount) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Critical Error: Financial arithmetic balance invariants collapsed.");
+    }
+
+    const invoiceNumber = await generateSaleInvoiceNumber(session);
     const publicId = generatePublicId("SALE");
 
-    // Instantiation matching your original Phase 11.2 schema mappings
+    // 7. Instantiate Invoicing Parent Record
+    // Uses reqUser._id for audit matching exactly to Mongoose relational ObjectId specs
     const sale = new Sale({
       publicId,
       invoiceNumber,
@@ -231,7 +427,7 @@ export const createSale = async (payload, reqUser) => {
       subtotal: financials.subtotal,
       discount: financials.discount,
       totalAmount: financials.totalAmount,
-      paidAmount: 0,
+      paidAmount: financials.paidAmount,
       dueAmount: financials.dueAmount,
       saleDate: payload.saleDate || new Date(),
       status: SALE_STATUS.CONFIRMED,
@@ -240,61 +436,76 @@ export const createSale = async (payload, reqUser) => {
       updatedBy: reqUser._id,
     });
 
-    await sale.save({ session });
+    await sale.save({ session }); // Saved first so its _id acts as referential traceability anchor
 
-    // Deduct warehouse balances atomically using centralized Inventory Service
+    // 8. Deduct Stock via Centralized Concurrency-Safe Service Engine
     for (const item of saleItems) {
       await InventoryService.decreaseStock({
         productId: item.productId,
         warehouseId: warehouse._id,
         quantity: item.quantity,
-        transactionType: "SALE",
-        referenceType: "SALE",
-        referenceId: sale._id,
-        unitCost: item.unitCost, // Pass accurate cost-basis for COGS accounting logs
+        referenceType: INVENTORY_REFERENCE_TYPE.SALE,
+        referenceId: sale._id, // Tracing link injected
         postedBy: reqUser._id,
-        remarks: `Stock issued out for transaction invoice ${sale.invoiceNumber}`,
+        transactionType: INVENTORY_TRANSACTION_TYPE.SALE,
+        logType: INVENTORY_LOG_TYPE.SALE,
+        remarks: `Stock issued out for invoice transaction ${invoiceNumber}.`,
         session,
       });
     }
 
-    // Synchronize customer credit liabilities balance metrics
-    await Customer.findByIdAndUpdate(
-      customer._id,
-      {
-        $inc: {
-          currentBalance: financials.dueAmount,
-          totalOrders: 1,
-          totalPurchases: financials.totalAmount,
-        },
-      },
-      { session, new: true }
-    );
+    // 9. Process Downpayment Event Records if paidAmount > 0
+    if (financials.paidAmount > 0) {
+      const payment = new SalePayment({
+        publicId: generatePublicId("SPAY"),
+        saleId: sale._id,
+        customerId: customer._id,
+        amount: financials.paidAmount,
+        paymentMethod: payload.paymentMethod || PAYMENT_METHODS.CASH,
+        reference: payload.reference || "",
+        comment: payload.paymentComment || "Downpayment processed during order registry.",
+        createdBy: reqUser._id,
+      });
+      await payment.save({ session });
+    }
 
-    // Log tracking accountability trail
-    await ActivityLogService.logActivity({
+    // 10. Update Customer Credit Liabilities Parameters
+    // Increments customer totalPurchases by total transaction volume, but only adds dueAmount to currentBalance
+    customer.currentBalance = roundMoney(Number(customer.currentBalance || 0) + financials.dueAmount);
+    customer.totalOrders = Number(customer.totalOrders || 0) + 1;
+    customer.totalPurchases = roundMoney(Number(customer.totalPurchases || 0) + financials.totalAmount);
+    
+    if (financials.paidAmount > 0) {
+      customer.totalPaid = roundMoney(Number(customer.totalPaid || 0) + financials.paidAmount);
+      customer.lastPaymentDate = new Date();
+    }
+    await customer.save({ session });
+
+    // 11. Dispatch Activity Log Accountability Trace
+    await logActivity({
       user: reqUser._id,
       action: "CREATE",
       module: "SALES",
       entityId: sale._id,
-      description: `Sale invoice ${sale.invoiceNumber} successfully created and stock issued.`,
+      description: `Sale invoice ${invoiceNumber} created successfully. Outstanding due: ৳${financials.dueAmount}.`,
       metadata: {
-        salePublicId: sale.publicId,
-        customerId: customer.publicId,
-        warehouseId: warehouse.publicId,
+        invoiceNumber,
+        customerId: customer._id,
+        warehouseId: warehouse._id,
         totalAmount: financials.totalAmount,
+        paidAmount: financials.paidAmount,
         dueAmount: financials.dueAmount,
       },
       session,
     });
 
-    await session.commitTransaction();
+    await session.commitTransaction(); // Everything commits atomically
     return sale;
   } catch (error) {
-    await session.abortTransaction();
+    await session.abortTransaction(); // Error triggers full rollback loop
     throw error;
   } finally {
-    await session.endSession();
+    session.endSession();
   }
 };
 

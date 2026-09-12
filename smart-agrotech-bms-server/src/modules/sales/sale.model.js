@@ -246,7 +246,7 @@ const saleSchema = new mongoose.Schema(
     publicId: { type: String, required: true, unique: true, trim: true },
     invoiceNumber: { type: String, required: true, unique: true, trim: true },
     customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true },
-    warehouseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Warehouse', required: true }, // Added link
+    warehouseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Warehouse', required: true, index: true }, // Added link
     products: [saleItemSchema], // Restored from original named array structure
     subtotal: { type: Number, required: true, min: 0 },
     discount: { type: Number, default: 0, min: 0 },
@@ -262,6 +262,11 @@ const saleSchema = new mongoose.Schema(
   },
   { timestamps: true, versionKey: false }
 );
+
+saleSchema.index({ warehouseId: 1 });
+// Compound reporting index for optimized multi-warehouse query performance tracking
+saleSchema.index({ warehouseId: 1, saleDate: -1 });
+
 
 export const Sale = mongoose.model('Sale', saleSchema);
 
