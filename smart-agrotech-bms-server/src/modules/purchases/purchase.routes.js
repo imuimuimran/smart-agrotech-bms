@@ -8,13 +8,6 @@ import * as discrepancyController from './purchase.controller.js';
 import * as purchaseController from './purchase.controller.js';
 import * as invoiceController from './purchase.controller.js'; // Aligned command boundary import (Page 2)
 import { createPurchaseInvoiceSchema } from './purchase.validation.js';
-// Replace with the project's exact current authentication modules:
-// import { protectRoute, restrictTo } from '../../middlewares/auth.middleware.js'; 
-// Replace with your project's active security middleware modules
-// import { authenticateToken, checkRBAC } from '../../middlewares/auth.middleware.js';
-
-// Import active system shared security middleware layers (Page 3)
-// Modify these import targets if your core app files reside in a different folder:
 import verifyToken from '../../middlewares/auth.middleware.js';
 import authorize from '../../middlewares/authorize.middleware.js';
 import validateRequest from '../../middlewares/validate.middleware.js';
@@ -72,14 +65,6 @@ router.post(
   validateRequest(createPurchaseInvoiceSchema),       // 3. Reusable structural data filter (Page 4)
   invoiceController.handleCreatePurchaseInvoice       // 4. Invokes endpoint execution handler
 );
-
-// // Expose command-isolated action path matching your endpoint mapping principles (Page 10)
-// router.post(
-//   '/purchase-invoices/:id/match',
-//   verifyToken,
-//   authorize(ROLES.ADMIN, ROLES.FINANCE_MANAGER),
-//   purchaseController.handleExecuteInvoiceMatching
-// );
 
 router.post(
   '/purchase-invoices/:id/match',
