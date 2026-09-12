@@ -139,38 +139,20 @@ export const calculateDueAmount = (
 };
 
 /**
- * Calculate complete sale financial summary.
- *
- * This helper gives the service one consistent calculation
- * point instead of duplicating formulas throughout the module.
+ * Calculates a complete sale transaction financial breakdown.
  */
-export const calculateSaleFinancials = ({
-  items = [],
-  saleDiscount = 0,
-  paidAmount = 0,
-}) => {
-  const subtotal =
-    calculateSaleSubtotal(items);
-  const lineDiscountTotal =
-    calculateLineDiscountTotal(items);
-  const normalizedSaleDiscount =
-    roundMoney(saleDiscount);
-  const totalAmount =
-    calculateSaleTotal(
-      items,
-      normalizedSaleDiscount
-    );
-  const normalizedPaidAmount =
-    roundMoney(paidAmount);
-  const dueAmount =
-    calculateDueAmount(
-      totalAmount,
-      normalizedPaidAmount
-    );
+export const calculateSaleFinancials = ({ items = [], saleDiscount = 0, paidAmount = 0 }) => {
+  const subtotal = roundMoney(
+    items.reduce((total, item) => total + Number(item.lineTotal || 0), 0)
+  );
+  const normalizedDiscount = roundMoney(saleDiscount);
+  const totalAmount = roundMoney(Math.max(0, subtotal - normalizedDiscount));
+  const normalizedPaidAmount = roundMoney(paidAmount);
+  const dueAmount = roundMoney(Math.max(0, totalAmount - normalizedPaidAmount));
+
   return {
     subtotal,
-    lineDiscountTotal,
-    discount: normalizedSaleDiscount,
+    discount: normalizedDiscount,
     totalAmount,
     paidAmount: normalizedPaidAmount,
     dueAmount,
@@ -191,10 +173,7 @@ export const calculatePaymentBalance = ({
   return {
     previousDue: due,
     paymentAmount: payment,
-    remainingDue: calculateDueAmount(
-      due,
-      payment
-    ),
+    remainingDue: roundMoney(Math.max(0, due - payment)),
   };
 };
 
@@ -237,11 +216,9 @@ export const buildSaleItemSnapshot = ({
   );
   const normalizedDiscount =
     roundMoney(discount);
-  const lineTotal = calculateLineTotal({
-    quantity: normalizedQuantity,
-    unitPrice: normalizedUnitPrice,
-    discount: normalizedDiscount,
-  });
+  const lineTotal = roundMoney(
+    Math.max(0, (normalizedQuantity * normalizedUnitPrice) - normalizedDiscount)
+  );
   return {
     productId: product._id,
     productName: product.productName,

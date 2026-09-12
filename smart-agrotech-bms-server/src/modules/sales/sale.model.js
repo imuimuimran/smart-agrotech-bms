@@ -37,7 +37,7 @@ const saleSchema = new mongoose.Schema(
   { timestamps: true, versionKey: false }
 );
 
-saleSchema.index({ warehouseId: 1 });
+// saleSchema.index({ warehouseId: 1 });
 // Compound reporting index for optimized multi-warehouse query performance tracking
 saleSchema.index({ warehouseId: 1, saleDate: -1 });
 
