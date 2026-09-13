@@ -1,12 +1,14 @@
 import express from "express";
-import validate from "../../middlewares/validate.middleware.js";
+import validateRequest from "../../middlewares/validate.middleware.js";
+import ROLES from "../../constants/roles.js";
+import { SaleController } from "./sale.controller.js";
 
 import verifyToken from "../../middlewares/auth.middleware.js";
+import authorize from "../../middlewares/authorize.middleware.js";
 
 import ApiError from "../../shared/ApiError.js";
 import HTTP_STATUS from "../../constants/httpStatus.js";
 
-import { SaleController } from "./sale.controller.js";
 import {
   createSaleSchema,
   recordSalePaymentSchema,
@@ -68,7 +70,8 @@ router.post(
   "/",
   verifyToken,
   allowAdminAndModerator,
-  validate(createSaleValidationSchema),
+  authorize(ROLES.ADMIN, ROLES.MODERATOR),
+  validateRequest(createSaleValidationSchema, createSaleSchema),
   SaleController.createSale
 );
 
@@ -80,6 +83,7 @@ router.get(
   "/",
   verifyToken,
   allowAdminAndModerator,
+  authorize(ROLES.ADMIN, ROLES.MODERATOR, ROLES.SALES),
   SaleController.getSales
 );
 
@@ -91,7 +95,8 @@ router.get(
   "/:publicId",
   verifyToken,
   allowAdminAndModerator,
-  validate(salePublicIdParamSchema),
+  authorize(ROLES.ADMIN, ROLES.MODERATOR, ROLES.SALES),
+  validateRequest(salePublicIdParamSchema),
   SaleController.getSaleByPublicId
 );
 
@@ -103,7 +108,8 @@ router.post(
   "/:publicId/payments",
   verifyToken,
   allowAdminOnly,
-  validate(recordSalePaymentSchema),
+  authorize(ROLES.ADMIN),
+  validateRequest(recordSalePaymentSchema),
   SaleController.recordSalePayment
 );
 
