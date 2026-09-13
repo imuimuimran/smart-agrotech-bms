@@ -1,4 +1,4 @@
-import httpStatus from "../../constants/httpStatus.js";
+import HTTP_STATUS from "../../constants/httpStatus.js";
 import catchAsync from "../../shared/catchAsync.js";
 import sendResponse from "../../shared/sendResponse.js";
 import { BRAND_MESSAGES } from "./brand.constants.js";
@@ -9,7 +9,7 @@ const createBrand = catchAsync(async (req, res) => {
 
   sendResponse({
     res,
-    statusCode: httpStatus.CREATED,
+    statusCode: HTTP_STATUS.CREATED,
     success: true,
     message: BRAND_MESSAGES.CREATED_SUCCESS,
     data: result,
@@ -21,7 +21,7 @@ const getBrands = catchAsync(async (req, res) => {
 
   sendResponse({
     res,
-    statusCode: httpStatus.OK,
+    statusCode: HTTP_STATUS.OK,
     success: true,
     message: BRAND_MESSAGES.FETCH_ALL_SUCCESS,
     meta: result.meta,
@@ -34,7 +34,7 @@ const getBrand = catchAsync(async (req, res) => {
 
   sendResponse({
     res,
-    statusCode: httpStatus.OK,
+    statusCode: HTTP_STATUS.OK,
     success: true,
     message: BRAND_MESSAGES.FETCH_ONE_SUCCESS,
     data: result,
@@ -50,7 +50,7 @@ const updateBrand = catchAsync(async (req, res) => {
 
   sendResponse({
     res,
-    statusCode: httpStatus.OK,
+    statusCode: HTTP_STATUS.OK,
     success: true,
     message: BRAND_MESSAGES.UPDATED_SUCCESS,
     data: result,
@@ -62,7 +62,7 @@ const deleteBrand = catchAsync(async (req, res) => {
 
   sendResponse({
     res,
-    statusCode: httpStatus.OK,
+    statusCode: HTTP_STATUS.OK,
     success: true,
     message: BRAND_MESSAGES.DELETED_SUCCESS,
     data: null,
@@ -77,7 +77,7 @@ const restoreBrand = catchAsync(async (req, res) => {
 
   sendResponse({
     res,
-    statusCode: httpStatus.OK,
+    statusCode: HTTP_STATUS.OK,
     success: true,
     message: BRAND_MESSAGES.RESTORED_SUCCESS,
     data: result,

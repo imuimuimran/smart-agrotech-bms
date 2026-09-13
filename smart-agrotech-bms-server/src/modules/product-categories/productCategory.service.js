@@ -1,4 +1,4 @@
-import httpStatus from "../../constants/httpStatus.js";
+import HTTP_STATUS from "../../constants/httpStatus.js";
 import ApiError from "../../shared/ApiError.js";
 import QueryBuilder from "../../builder/QueryBuilder.js";
 import ProductCategory from "./productCategory.model.js";
@@ -21,7 +21,7 @@ const createProductCategory = async (payload, reqUser) => {
 
   if (nameExists) {
     throw new ApiError(
-      httpStatus.CONFLICT,
+      HTTP_STATUS.CONFLICT,
       PRODUCT_CATEGORY_MESSAGES.CATEGORY_NAME_ALREADY_EXISTS
     );
   }
@@ -33,7 +33,7 @@ const createProductCategory = async (payload, reqUser) => {
 
   if (codeExists) {
     throw new ApiError(
-      httpStatus.CONFLICT,
+      HTTP_STATUS.CONFLICT,
       PRODUCT_CATEGORY_MESSAGES.CATEGORY_CODE_ALREADY_EXISTS
     );
   }
@@ -46,7 +46,7 @@ const createProductCategory = async (payload, reqUser) => {
 
     if (!parentExists) {
       throw new ApiError(
-        httpStatus.NOT_FOUND,
+        HTTP_STATUS.NOT_FOUND,
         PRODUCT_CATEGORY_MESSAGES.PARENT_CATEGORY_NOT_FOUND
       );
     }
@@ -93,7 +93,7 @@ const getProductCategory = async (publicId) => {
 
   if (!category) {
     throw new ApiError(
-      httpStatus.NOT_FOUND,
+      HTTP_STATUS.NOT_FOUND,
       PRODUCT_CATEGORY_MESSAGES.CATEGORY_NOT_FOUND
     );
   }
@@ -106,7 +106,7 @@ const updateProductCategory = async (publicId, payload, reqUser) => {
 
   if (!category) {
     throw new ApiError(
-      httpStatus.NOT_FOUND,
+      HTTP_STATUS.NOT_FOUND,
       PRODUCT_CATEGORY_MESSAGES.CATEGORY_NOT_FOUND
     );
   }
@@ -120,7 +120,7 @@ const updateProductCategory = async (publicId, payload, reqUser) => {
 
     if (nameExists) {
       throw new ApiError(
-        httpStatus.CONFLICT,
+        HTTP_STATUS.CONFLICT,
         PRODUCT_CATEGORY_MESSAGES.CATEGORY_NAME_ALREADY_EXISTS
       );
     }
@@ -135,7 +135,7 @@ const updateProductCategory = async (publicId, payload, reqUser) => {
 
     if (codeExists) {
       throw new ApiError(
-        httpStatus.CONFLICT,
+        HTTP_STATUS.CONFLICT,
         PRODUCT_CATEGORY_MESSAGES.CATEGORY_CODE_ALREADY_EXISTS
       );
     }
@@ -147,21 +147,21 @@ const updateProductCategory = async (publicId, payload, reqUser) => {
 
     if (!parent) {
       throw new ApiError(
-        httpStatus.NOT_FOUND,
+        HTTP_STATUS.NOT_FOUND,
         PRODUCT_CATEGORY_MESSAGES.PARENT_CATEGORY_NOT_FOUND
       );
     }
 
     if (parent.publicId === publicId) {
       throw new ApiError(
-        httpStatus.BAD_REQUEST,
+        HTTP_STATUS.BAD_REQUEST,
         PRODUCT_CATEGORY_MESSAGES.INVALID_PARENT_CATEGORY
       );
     }
 
     const circular = await isCircularHierarchy(category._id, payload.parentCategory);
     if (circular) {
-      throw new ApiError(httpStatus.BAD_REQUEST, PRODUCT_CATEGORY_MESSAGES.CIRCULAR_CATEGORY_HIERARCHY);
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, PRODUCT_CATEGORY_MESSAGES.CIRCULAR_CATEGORY_HIERARCHY);
     }
 
     // Automatically calculate nesting tier height
@@ -193,7 +193,7 @@ const deleteProductCategory = async (publicId, reqUser) => {
 
   if (!category) {
     throw new ApiError(
-      httpStatus.NOT_FOUND,
+      HTTP_STATUS.NOT_FOUND,
       PRODUCT_CATEGORY_MESSAGES.CATEGORY_NOT_FOUND
     );
   }
@@ -201,7 +201,7 @@ const deleteProductCategory = async (publicId, reqUser) => {
   // Already Deleted Check
   if (category.isDeleted) {
     throw new ApiError(
-      httpStatus.BAD_REQUEST,
+      HTTP_STATUS.BAD_REQUEST,
       PRODUCT_CATEGORY_MESSAGES.CATEGORY_ALREADY_DELETED
     );
   }
@@ -214,7 +214,7 @@ const deleteProductCategory = async (publicId, reqUser) => {
 
   if (childExists) {
     throw new ApiError(
-      httpStatus.BAD_REQUEST,
+      HTTP_STATUS.BAD_REQUEST,
       PRODUCT_CATEGORY_MESSAGES.CATEGORY_HAS_CHILDREN
     );
   }
@@ -233,17 +233,17 @@ const restoreProductCategory = async (publicId, reqUser) => {
   const category = await ProductCategory.findOne({ publicId }).withDeleted();
 
   if (!category) {
-    throw new ApiError(httpStatus.NOT_FOUND, PRODUCT_CATEGORY_MESSAGES.CATEGORY_NOT_FOUND);
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, PRODUCT_CATEGORY_MESSAGES.CATEGORY_NOT_FOUND);
   }
   if (!category.isDeleted) {
-    throw new ApiError(httpStatus.BAD_REQUEST, PRODUCT_CATEGORY_MESSAGES.CATEGORY_NOT_DELETED);
+    throw new ApiError(HTTP_STATUS.BAD_REQUEST, PRODUCT_CATEGORY_MESSAGES.CATEGORY_NOT_DELETED);
   }
 
   if (category.parentCategory) {
     const parent = await ProductCategory.findOne({ _id: category.parentCategory }).withDeleted();
-    if (!parent) throw new ApiError(httpStatus.NOT_FOUND, PRODUCT_CATEGORY_MESSAGES.PARENT_CATEGORY_NOT_FOUND);
-    if (parent.isDeleted) throw new ApiError(httpStatus.BAD_REQUEST, PRODUCT_CATEGORY_MESSAGES.PARENT_CATEGORY_DELETED);
-    if (parent.status !== "active") throw new ApiError(httpStatus.BAD_REQUEST, PRODUCT_CATEGORY_MESSAGES.PARENT_CATEGORY_INACTIVE);
+    if (!parent) throw new ApiError(HTTP_STATUS.NOT_FOUND, PRODUCT_CATEGORY_MESSAGES.PARENT_CATEGORY_NOT_FOUND);
+    if (parent.isDeleted) throw new ApiError(HTTP_STATUS.BAD_REQUEST, PRODUCT_CATEGORY_MESSAGES.PARENT_CATEGORY_DELETED);
+    if (parent.status !== "active") throw new ApiError(HTTP_STATUS.BAD_REQUEST, PRODUCT_CATEGORY_MESSAGES.PARENT_CATEGORY_INACTIVE);
   }
 
   category.isDeleted = false;

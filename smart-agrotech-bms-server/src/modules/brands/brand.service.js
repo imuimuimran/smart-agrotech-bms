@@ -1,4 +1,4 @@
-import httpStatus from "../../constants/httpStatus.js";
+import HTTP_STATUS from "../../constants/httpStatus.js";
 import Brand from "./brand.model.js";
 import ApiError from "../../shared/ApiError.js";
 import QueryBuilder from "../../builder/QueryBuilder.js";
@@ -27,7 +27,7 @@ const createBrand = async (payload, reqUser) => {
 
   if (nameExists) {
     throw new ApiError(
-      httpStatus.CONFLICT,
+      HTTP_STATUS.CONFLICT,
       BRAND_MESSAGES.BRAND_NAME_ALREADY_EXISTS
     );
   }
@@ -43,7 +43,7 @@ const createBrand = async (payload, reqUser) => {
 
   if (codeExists) {
     throw new ApiError(
-      httpStatus.CONFLICT,
+      HTTP_STATUS.CONFLICT,
       BRAND_MESSAGES.BRAND_CODE_ALREADY_EXISTS
     );
   }
@@ -95,7 +95,7 @@ const getBrand = async (publicId) => {
 
   if (!brand) {
     throw new ApiError(
-      httpStatus.NOT_FOUND,
+      HTTP_STATUS.NOT_FOUND,
       BRAND_MESSAGES.BRAND_NOT_FOUND
     );
   }
@@ -113,7 +113,7 @@ const updateBrand = async (publicId, payload, reqUser) => {
 
   if (!brand) {
     throw new ApiError(
-      httpStatus.NOT_FOUND,
+      HTTP_STATUS.NOT_FOUND,
       BRAND_MESSAGES.BRAND_NOT_FOUND
     );
   }
@@ -140,7 +140,7 @@ const updateBrand = async (publicId, payload, reqUser) => {
 
     if (existingName) {
       throw new ApiError(
-        httpStatus.CONFLICT,
+        HTTP_STATUS.CONFLICT,
         BRAND_MESSAGES.BRAND_NAME_ALREADY_EXISTS
       );
     }
@@ -159,7 +159,7 @@ const updateBrand = async (publicId, payload, reqUser) => {
 
     if (existingCode) {
       throw new ApiError(
-        httpStatus.CONFLICT,
+        HTTP_STATUS.CONFLICT,
         BRAND_MESSAGES.BRAND_CODE_ALREADY_EXISTS
       );
     }
@@ -199,7 +199,7 @@ const deleteBrand = async (publicId, reqUser) => {
 
   if (!brand) {
     throw new ApiError(
-      httpStatus.NOT_FOUND,
+      HTTP_STATUS.NOT_FOUND,
       BRAND_MESSAGES.BRAND_NOT_FOUND
     );
   }
@@ -211,7 +211,7 @@ const deleteBrand = async (publicId, reqUser) => {
   */
   if (brand.isDeleted) {
     throw new ApiError(
-      httpStatus.BAD_REQUEST,
+      HTTP_STATUS.BAD_REQUEST,
       BRAND_MESSAGES.BRAND_ALREADY_DELETED
     );
   }
@@ -223,7 +223,7 @@ const deleteBrand = async (publicId, reqUser) => {
   Future integration hooks (Phase 8):
   const hasProducts = await Product.exists({ brandId: brand._id, isDeleted: false });
   if (hasProducts) {
-    throw new ApiError(httpStatus.BAD_REQUEST, BRAND_MESSAGES.BRAND_HAS_PRODUCTS);
+    throw new ApiError(HTTP_STATUS.BAD_REQUEST, BRAND_MESSAGES.BRAND_HAS_PRODUCTS);
   }
   */
 
@@ -251,7 +251,7 @@ const restoreBrand = async (publicId, reqUser) => {
 
   if (!brand) {
     throw new ApiError(
-      httpStatus.NOT_FOUND,
+      HTTP_STATUS.NOT_FOUND,
       BRAND_MESSAGES.BRAND_NOT_FOUND
     );
   }
@@ -263,7 +263,7 @@ const restoreBrand = async (publicId, reqUser) => {
   */
   if (!brand.isDeleted) {
     throw new ApiError(
-      httpStatus.BAD_REQUEST,
+      HTTP_STATUS.BAD_REQUEST,
       BRAND_MESSAGES.BRAND_NOT_DELETED
     );
   }

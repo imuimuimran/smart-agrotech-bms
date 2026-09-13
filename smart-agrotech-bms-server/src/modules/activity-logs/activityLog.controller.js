@@ -1,4 +1,4 @@
-import httpStatus from '../../constants/httpStatus.js';
+import HTTP_STATUS from '../../constants/httpStatus.js';
 import ApiError from '../../shared/ApiError.js';
 import { ActivityLogService } from './activityLog.service.js';
 
@@ -6,7 +6,7 @@ const getActivityLogs = async (req, res, next) => {
   try {
     const result = await ActivityLogService.getAllLogsFromDB(req.query);
     
-    res.status(httpStatus.OK).json({
+    res.status(HTTP_STATUS.OK).json({
       success: true,
       message: 'Audit trail history logs retrieved successfully.',
       meta: result.meta,
@@ -23,10 +23,10 @@ const getSingleActivityLog = async (req, res, next) => {
     const log = await ActivityLogService.getSingleLogFromDB(id);
 
     if (!log) {
-      throw new ApiError(httpStatus.NOT_FOUND, 'The requested activity log record could not be found.');
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, 'The requested activity log record could not be found.');
     }
 
-    res.status(httpStatus.OK).json({
+    res.status(HTTP_STATUS.OK).json({
       success: true,
       message: 'Detailed audit log event information resolved successfully.',
       data: log,

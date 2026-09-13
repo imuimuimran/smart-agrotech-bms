@@ -1,4 +1,4 @@
-import httpStatus from "../../constants/httpStatus.js";
+import HTTP_STATUS from "../../constants/httpStatus.js";
 import Product from "./product.model.js";
 import ApiError from "../../shared/ApiError.js";
 import ProductCategory from "../product-categories/productCategory.model.js"; 
@@ -32,7 +32,7 @@ const createProduct = async (payload, reqUser) => {
     status: "active",
   });
   if (!category) {
-    throw new ApiError(httpStatus.NOT_FOUND, PRODUCT_MESSAGES.CATEGORY_NOT_FOUND);
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, PRODUCT_MESSAGES.CATEGORY_NOT_FOUND);
   }
 
   // Active Parent Brand Entity Verification
@@ -42,7 +42,7 @@ const createProduct = async (payload, reqUser) => {
     status: "active",
   });
   if (!brand) {
-    throw new ApiError(httpStatus.NOT_FOUND, PRODUCT_MESSAGES.BRAND_NOT_FOUND);
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, PRODUCT_MESSAGES.BRAND_NOT_FOUND);
   }
 
   // Duplicate SKU Logical Pre-check
@@ -51,7 +51,7 @@ const createProduct = async (payload, reqUser) => {
     isDeleted: false,
   });
   if (existingSku) {
-    throw new ApiError(httpStatus.CONFLICT, PRODUCT_MESSAGES.SKU_ALREADY_EXISTS);
+    throw new ApiError(HTTP_STATUS.CONFLICT, PRODUCT_MESSAGES.SKU_ALREADY_EXISTS);
   }
 
   // Duplicate Product Code Logical Pre-check
@@ -60,7 +60,7 @@ const createProduct = async (payload, reqUser) => {
     isDeleted: false,
   });
   if (existingProductCode) {
-    throw new ApiError(httpStatus.CONFLICT, PRODUCT_MESSAGES.PRODUCT_CODE_ALREADY_EXISTS);
+    throw new ApiError(HTTP_STATUS.CONFLICT, PRODUCT_MESSAGES.PRODUCT_CODE_ALREADY_EXISTS);
   }
 
   // Duplicate Optional Barcode Logical Pre-check
@@ -70,7 +70,7 @@ const createProduct = async (payload, reqUser) => {
       isDeleted: false,
     });
     if (existingBarcode) {
-      throw new ApiError(httpStatus.CONFLICT, PRODUCT_MESSAGES.BARCODE_ALREADY_EXISTS);
+      throw new ApiError(HTTP_STATUS.CONFLICT, PRODUCT_MESSAGES.BARCODE_ALREADY_EXISTS);
     }
   }
 
@@ -156,7 +156,7 @@ const getProductById = async (productId) => {
 
   if (!product) {
     throw new ApiError(
-      httpStatus.NOT_FOUND,
+      HTTP_STATUS.NOT_FOUND,
       PRODUCT_MESSAGES.NOT_FOUND
     );
   }
@@ -175,7 +175,7 @@ const updateProduct = async (productId, updateData, reqUser) => {
   });
 
   if (!product) {
-    throw new ApiError(httpStatus.NOT_FOUND, PRODUCT_MESSAGES.NOT_FOUND);
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, PRODUCT_MESSAGES.NOT_FOUND);
   }
 
   // Defensive Multi-Field Allowlist Mapping Strategy (Rule 8.8.11)
@@ -211,7 +211,7 @@ const updateProduct = async (productId, updateData, reqUser) => {
 
     if (nextSellingPrice < nextMinimumSellingPrice) {
       throw new ApiError(
-        httpStatus.BAD_REQUEST,
+        HTTP_STATUS.BAD_REQUEST,
         "Selling price cannot be lower than minimum selling price."
       );
     }
@@ -287,7 +287,7 @@ const deleteProduct = async (productId, reqUser) => {
   });
 
   if (!product) {
-    throw new ApiError(httpStatus.NOT_FOUND, PRODUCT_MESSAGES.NOT_FOUND);
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, PRODUCT_MESSAGES.NOT_FOUND);
   }
 
   // Fetch structural usage mapping blocks across historical collections (Rule 8.9.6)
@@ -297,7 +297,7 @@ const deleteProduct = async (productId, reqUser) => {
   // Enforce relational blocking integrity protections (Rule 8.9.11)
   if (hasHistory) {
     throw new ApiError(
-      httpStatus.CONFLICT, // 409 Conflict represents state clashes appropriately
+      HTTP_STATUS.CONFLICT, // 409 Conflict represents state clashes appropriately
       "Product cannot be deleted because it has business history. Discontinue the product instead."
     );
   }

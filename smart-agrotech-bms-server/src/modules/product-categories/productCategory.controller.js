@@ -1,4 +1,4 @@
-import httpStatus from "../../constants/httpStatus.js";
+import HTTP_STATUS from "../../constants/httpStatus.js";
 import catchAsync from "../../shared/catchAsync.js";
 import sendResponse from "../../shared/sendResponse.js";
 import { ProductCategoryService } from "./productCategory.service.js";
@@ -18,7 +18,7 @@ const createProductCategory = catchAsync(async (req, res) => {
 
   sendResponse({
     res,
-    statusCode: httpStatus.CREATED,
+    statusCode: HTTP_STATUS.CREATED,
     success: true,
     message: PRODUCT_CATEGORY_MESSAGES.CREATED_SUCCESS,
     data: result,
@@ -31,7 +31,7 @@ const getProductCategories = catchAsync(async (req, res) => {
 
   sendResponse({
     res,
-    statusCode: httpStatus.OK,
+    statusCode: HTTP_STATUS.OK,
     success: true,
     message: PRODUCT_CATEGORY_MESSAGES.FETCH_ALL_SUCCESS,
     meta: result.meta,
@@ -49,7 +49,7 @@ const getProductCategory = catchAsync(async (req, res) => {
 
   sendResponse({
     res,
-    statusCode: httpStatus.OK,
+    statusCode: HTTP_STATUS.OK,
     success: true,
     message: PRODUCT_CATEGORY_MESSAGES.FETCH_ONE_SUCCESS,
     data: result,
@@ -65,7 +65,7 @@ const updateProductCategory = catchAsync(async (req, res) => {
 
   sendResponse({
     res,
-    statusCode: httpStatus.OK,
+    statusCode: HTTP_STATUS.OK,
     success: true,
     message: PRODUCT_CATEGORY_MESSAGES.UPDATED_SUCCESS,
     data: result,
@@ -80,7 +80,7 @@ const deleteProductCategory = catchAsync(async (req, res) => {
 
   sendResponse({
     res,
-    statusCode: httpStatus.OK,
+    statusCode: HTTP_STATUS.OK,
     success: true,
     message: PRODUCT_CATEGORY_MESSAGES.DELETED_SUCCESS,
     data: null,
@@ -90,7 +90,7 @@ const deleteProductCategory = catchAsync(async (req, res) => {
 // Controller Function for Restore Route
 const restoreProductCategory = catchAsync(async (req, res) => {
   const result = await ImportedService.restoreProductCategory(req.params.publicId, req.user);
-  sendResponse({ res, statusCode: httpStatus.OK, success: true, message: PRODUCT_CATEGORY_MESSAGES.RESTORED_SUCCESS, data: result });
+  sendResponse({ res, statusCode: HTTP_STATUS.OK, success: true, message: PRODUCT_CATEGORY_MESSAGES.RESTORED_SUCCESS, data: result });
 });
 
 export const ProductCategoryController = {

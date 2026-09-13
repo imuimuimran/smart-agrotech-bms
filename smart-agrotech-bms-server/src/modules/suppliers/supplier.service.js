@@ -1,7 +1,7 @@
 import Supplier from './supplier.model.js';
 import QueryBuilder from "../../builder/QueryBuilder.js";
 import ApiError from "../../shared/ApiError.js";
-import httpStatus from "../../constants/httpStatus.js";
+import HTTP_STATUS from "../../constants/httpStatus.js";
 import { 
   generateSupplierPublicId, 
   sanitizeSupplier 
@@ -55,7 +55,7 @@ const getSupplier = async (
 
   if (!supplier) {
     throw new ApiError(
-      httpStatus.NOT_FOUND,
+      HTTP_STATUS.NOT_FOUND,
       SUPPLIER_MESSAGES.SUPPLIER_NOT_FOUND
     );
   }
@@ -79,7 +79,7 @@ const updateSupplier = async (
 
   if (!supplier) {
     throw new ApiError(
-      httpStatus.NOT_FOUND,
+      HTTP_STATUS.NOT_FOUND,
       SUPPLIER_MESSAGES.SUPPLIER_NOT_FOUND
     );
   }
@@ -104,7 +104,7 @@ const updateSupplier = async (
     if (emailExists) {
 
       throw new ApiError(
-        httpStatus.CONFLICT,
+        HTTP_STATUS.CONFLICT,
         SUPPLIER_MESSAGES.EMAIL_ALREADY_EXISTS
       );
 
@@ -132,7 +132,7 @@ const updateSupplier = async (
     if (phoneExists) {
 
       throw new ApiError(
-        httpStatus.CONFLICT,
+        HTTP_STATUS.CONFLICT,
         SUPPLIER_MESSAGES.PHONE_ALREADY_EXISTS
       );
 
@@ -179,7 +179,7 @@ const deleteSupplier = async (
     if (!supplier) {
 
         throw new ApiError(
-            httpStatus.NOT_FOUND,
+            HTTP_STATUS.NOT_FOUND,
             SUPPLIER_MESSAGES.SUPPLIER_NOT_FOUND
         );
 
@@ -196,7 +196,7 @@ const deleteSupplier = async (
     ) {
 
         throw new ApiError(
-            httpStatus.BAD_REQUEST,
+            HTTP_STATUS.BAD_REQUEST,
             SUPPLIER_MESSAGES.SUPPLIER_HAS_OUTSTANDING_PAYABLE
         );
 

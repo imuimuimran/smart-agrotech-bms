@@ -1,4 +1,4 @@
-import httpStatus from "../../constants/httpStatus.js";
+import HTTP_STATUS from "../../constants/httpStatus.js";
 import catchAsync from "../../shared/catchAsync.js";
 import sendResponse from "../../shared/sendResponse.js";
 import { ProductService } from "./product.service.js";
@@ -9,7 +9,7 @@ const createProduct = catchAsync(async (req, res) => {
 
   sendResponse({
     res,
-    statusCode: httpStatus.CREATED,
+    statusCode: HTTP_STATUS.CREATED,
     success: true,
     message: PRODUCT_MESSAGES.CREATED,
     data: result,
@@ -21,7 +21,7 @@ const getProducts = catchAsync(async (req, res) => {
 
   sendResponse({
     res,
-    statusCode: httpStatus.OK,
+    statusCode: HTTP_STATUS.OK,
     success: true,
     message: PRODUCT_MESSAGES.FETCHED,
     data: result.products,
@@ -34,7 +34,7 @@ const getProductById = catchAsync(async (req, res) => {
 
   sendResponse({
     res,
-    statusCode: httpStatus.OK,
+    statusCode: HTTP_STATUS.OK,
     success: true,
     message: PRODUCT_MESSAGES.FETCHED,
     data: result,
@@ -50,7 +50,7 @@ const updateProduct = catchAsync(async (req, res) => {
 
   sendResponse({
     res,
-    statusCode: httpStatus.OK,
+    statusCode: HTTP_STATUS.OK,
     success: true,
     message: PRODUCT_MESSAGES.UPDATED,
     data: result,
@@ -63,7 +63,7 @@ const deleteProduct = catchAsync(async (req, res) => {
 
   sendResponse({
     res,
-    statusCode: httpStatus.OK,
+    statusCode: HTTP_STATUS.OK,
     success: true,
     message: PRODUCT_MESSAGES.DELETED, // Clean return envelope optimization
   });
