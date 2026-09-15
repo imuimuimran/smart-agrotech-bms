@@ -13,6 +13,7 @@ import {
   createSaleSchema,
   recordSalePaymentSchema,
   createSaleValidationSchema,
+  salePublicIdParamSchema,
 } from "./sale.validation.js";
 
 const router = express.Router();
@@ -23,40 +24,40 @@ const router = express.Router();
  * Instead of inventing global middleware functions that don't exist,
  * we handle role authorization elegantly inline based on req.user.role.
  */
-const allowAdminAndModerator = (req, res, next) => {
-  const allowedRoles = ["admin", "moderator"];
-  if (!allowedRoles.includes(req.user?.role)) {
-    return next(
-      new ApiError(
-        HTTP_STATUS.FORBIDDEN,
-        "Access Denied: Admin or Moderator rank required."
-      )
-    );
-  }
-  next();
-};
+// const allowAdminAndModerator = (req, res, next) => {
+//   const allowedRoles = ["admin", "moderator"];
+//   if (!allowedRoles.includes(req.user?.role)) {
+//     return next(
+//       new ApiError(
+//         HTTP_STATUS.FORBIDDEN,
+//         "Access Denied: Admin or Moderator rank required."
+//       )
+//     );
+//   }
+//   next();
+// };
 
-const allowAdminOnly = (req, res, next) => {
-  if (req.user?.role !== "admin") {
-    return next(
-      new ApiError(
-        HTTP_STATUS.FORBIDDEN,
-        "Access Denied: Strict Admin privileges required."
-      )
-    );
-  }
-  next();
-};
+// const allowAdminOnly = (req, res, next) => {
+//   if (req.user?.role !== "admin") {
+//     return next(
+//       new ApiError(
+//         HTTP_STATUS.FORBIDDEN,
+//         "Access Denied: Strict Admin privileges required."
+//       )
+//     );
+//   }
+//   next();
+// };
 
 /**
  * Route Parameters Validation Schema
  * Inline schema definition for publicId param validation to guarantee 
  * route safety without guessing separate file boundaries.
  */
-import { z } from "zod";
-const salePublicIdParamSchema = z.object({
-  publicId: z.string().trim().min(1, "Sale public ID parameter is required."),
-});
+// import { z } from "zod";
+// const salePublicIdParamSchema = z.object({
+//   publicId: z.string().trim().min(1, "Sale public ID parameter is required."),
+// });
 
 // ==========================================
 // OPERATIONAL SALES ENDPOINTS
@@ -69,9 +70,9 @@ const salePublicIdParamSchema = z.object({
 router.post(
   "/",
   verifyToken,
-  allowAdminAndModerator,
+  // allowAdminAndModerator,
   authorize(ROLES.ADMIN, ROLES.MODERATOR),
-  validateRequest(createSaleValidationSchema, createSaleSchema),
+  validateRequest(createSaleSchema),
   SaleController.createSale
 );
 
@@ -82,7 +83,7 @@ router.post(
 router.get(
   "/",
   verifyToken,
-  allowAdminAndModerator,
+  // allowAdminAndModerator,
   authorize(ROLES.ADMIN, ROLES.MODERATOR, ROLES.SALES),
   SaleController.getSales
 );
@@ -94,8 +95,8 @@ router.get(
 router.get(
   "/:publicId",
   verifyToken,
-  allowAdminAndModerator,
-  authorize(ROLES.ADMIN, ROLES.MODERATOR, ROLES.SALES),
+  // allowAdminAndModerator,
+  authorize(ROLES.ADMIN, ROLES.MODERATOR),
   validateRequest(salePublicIdParamSchema),
   SaleController.getSaleByPublicId
 );
@@ -107,10 +108,11 @@ router.get(
 router.post(
   "/:publicId/payments",
   verifyToken,
-  allowAdminOnly,
+  // allowAdminOnly,
   authorize(ROLES.ADMIN),
   validateRequest(recordSalePaymentSchema),
   SaleController.recordSalePayment
 );
 
-export default router;
+// export default router;
+export const saleRoutes = router;

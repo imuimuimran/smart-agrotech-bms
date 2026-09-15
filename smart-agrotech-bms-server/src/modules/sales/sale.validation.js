@@ -72,35 +72,48 @@ const saleItemInputSchema = z.object({
 });
 
 
-export const createSaleSchema = z
-  .object({
-    customerId: objectIdSchema,
-    warehouseId: objectIdSchema, // Mandatory warehouse allocation key
-    products: z
-      .array(saleItemSchema)
-      .min(1, "A sale invoice must contain at least 1 line row."),
-    discount: moneySchema.optional().default(0),
-    paidAmount: moneySchema.optional().default(0),
-    paymentMethod: z.enum(PAYMENT_METHOD_LIST).optional(),
-    reference: z.string().trim().optional(),
-    paymentComment: z.string().trim().optional(),
-    saleDate: z
-      .preprocess(
-        (value) => (value ? new Date(value) : undefined),
-        z.date().optional()
-      ),
-    remarks: z.string().trim().max(1000).optional(),
-  })
-  .superRefine((data, ctx) => {
-    // Structural Rule: Enforce payment fields validation constraints if paidAmount > 0
-    if (data.paidAmount > 0 && !data.paymentMethod) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Payment method is mandatory when an initial downpayment is supplied.",
-        path: ["paymentMethod"],
-      });
-    }
-  });
+export const createSaleSchema = z.object({
+  body: z
+    .object({
+      customerId: objectIdSchema,
+      warehouseId: objectIdSchema,
+      products: z
+        .array(saleItemSchema)
+        .min(1, "A sale invoice must contain at least 1 product line row."),
+      discount: moneySchema.optional().default(0),
+      paidAmount: moneySchema.optional().default(0),
+      paymentMethod: z.enum(PAYMENT_METHOD_LIST).optional(),
+      reference: z.string().trim().optional(),
+      paymentComment: z.string().trim().optional(),
+      saleDate: z
+        .preprocess(
+          (value) => (value ? new Date(value) : undefined),
+          z.date().optional()
+        ),
+      remarks: z.string().trim().max(1000).optional().default(""),
+    })
+    .superRefine((data, ctx) => {
+      // 1. Prevent duplicate product rows from causing inventory transaction drift
+      const productIds = data.products.map((item) => item.productId.toString());
+      const uniqueProductIds = new Set(productIds);
+      if (uniqueProductIds.size !== productIds.length) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Duplicate product items identified. Combine metrics into a flat row configuration.",
+          path: ["products"],
+        });
+      }
+
+      // 2. Financial Settlement Boundary: Force payment channels validation if downpayment is present
+      if (data.paidAmount > 0 && !data.paymentMethod) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Payment method channel is mandatory when an initial downpayment is provided.",
+          path: ["paymentMethod"],
+        });
+      }
+    }),
+});
 
 /**
  * Update Sale
@@ -123,23 +136,29 @@ export const updateSaleSchema = z
 
 
 export const recordSalePaymentSchema = z.object({
-  amount: z.number().finite().positive("Payment collection must be greater than zero."),
-  paymentMethod: z.enum(PAYMENT_METHOD_LIST),
-  reference: z.string().trim().optional(),
-  comment: z.string().trim().optional(),
+  body: z.object({
+    amount: z
+      .number()
+      .finite()
+      .positive("Payment balance collection must be greater than zero."),
+    paymentMethod: z.enum(PAYMENT_METHOD_LIST, {
+      errorMap: () => ({ message: "Invalid payment method channel selection." }),
+    }),
+    reference: z.string().trim().optional().default(""),
+    comment: z.string().trim().optional().default(""),
+  }),
 });
 
 /**
- * Sale publicId parameter validation.
+ * Parameter Trace Verification Schema Contract
  */
 export const salePublicIdParamSchema = z.object({
-  publicId: z
-    .string()
-    .trim()
-    .min(
-      1,
-      "Public business trace identifier parameter is required."
-    ),
+  params: z.object({
+    publicId: z
+      .string()
+      .trim()
+      .min(1, "Public business trace identifier parameter is required."),
+  }),
 });
 
 export const createSaleValidationSchema = z

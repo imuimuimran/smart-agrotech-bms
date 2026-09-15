@@ -14,7 +14,7 @@ import brandRoutes from "../modules/brands/brand.routes.js";
 
 import productRoutes from "../modules/products/product.routes.js";
 
-import saleRoutes from "../modules/sales/sale.routes.js";
+import { saleRoutes } from "../modules/sales/sale.routes.js";
 
 const router = Router();
 
