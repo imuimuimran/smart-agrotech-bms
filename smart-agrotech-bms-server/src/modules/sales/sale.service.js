@@ -32,7 +32,7 @@ import { InventoryService } from "../inventory/inventory.service.js";
 import { ActivityLogService } from "../activity-logs/activityLog.service.js";
 
 /**
- * Safely generates sequential invoice identifiers using an atomic structure.
+ * Safely evaluates consecutive invoice serialized identifiers using atomicity.
  */
 const generateSaleInvoiceNumber = async (session) => {
   const currentYear = new Date().getFullYear();
@@ -51,7 +51,7 @@ const generateSaleInvoiceNumber = async (session) => {
 const getActorPublicId = (reqUser) => {
   if (!reqUser?.publicId) {
     throw new ApiError(
-      HTTP_STATUS.UNAUTHORIZED,
+      HTTP_STATUS .UNAUTHORIZED,
       "Authenticated user identity is required."
     );
   }
@@ -97,7 +97,7 @@ const getActiveWarehouse = async (warehouseId, session) => {
 };
 
 /**
- * Pulls product data within the session, resolving commercial price and inventory cost server-side.
+ * Hydrates and validates product data in a single optimized lookup query.
  */
 const prepareSaleItems = async (productsInput, session) => {
   const productIds = productsInput.map((item) => item.productId);
@@ -108,64 +108,37 @@ const prepareSaleItems = async (productsInput, session) => {
   }).session(session);
 
   if (dbProducts.length !== productIds.length) {
-    throw new ApiError(
-      HTTP_STATUS.NOT_FOUND,
-      "One or more products were not found or are inactive."
-    );
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, "One or more selected products were not found.");
   }
 
-  const productMap = new Map(
-    dbProducts.map((product) => [product._id.toString(), product])
-  );
+  const productMap = new Map(dbProducts.map((p) => [p._id.toString(), p]));
 
   return productsInput.map((item) => {
     const product = productMap.get(item.productId.toString());
-    if (!product) {
-      throw new ApiError(
-        HTTP_STATUS.NOT_FOUND,
-        `Product reference mapping missing for ID ${item.productId}.`
-      );
+    
+    if (product.status === "ARCHIVED" || product.status === "DISCONTINUED") {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, `Product "${product.productName}" cannot be sold.`);
     }
-    if (product.productType !== "physical") {
-      throw new ApiError(
-        HTTP_STATUS.BAD_REQUEST,
-        `Product "${product.productName}" is not a physical inventory item.`
-      );
-    }
-    if (!product.inventoryConfig?.trackInventory) {
-      throw new ApiError(
-        HTTP_STATUS.BAD_REQUEST,
-        `Inventory tracking is disabled for "${product.productName}".`
-      );
+    if (product.inventoryConfig?.trackInventory === false) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, `Inventory tracking is disabled for "${product.productName}".`);
     }
 
-    const authoritativeSellingPrice = Number(product.pricing?.sellingPrice);
+    const sellingPrice = Number(product.pricing?.sellingPrice);
     const authoritativeCostBasis = Number(product.pricing?.purchasePrice);
 
-    if (!Number.isFinite(authoritativeSellingPrice) || !Number.isFinite(authoritativeCostBasis)) {
+    if (!Number.isFinite(sellingPrice) || !Number.isFinite(authoritativeCostBasis)) {
       throw new ApiError(
         HTTP_STATUS.INTERNAL_SERVER_ERROR,
-        `Pricing or valuation structures are corrupted for "${product.productName}".`
+        `Pricing configurations are corrupted for "${product.productName}".`
       );
     }
 
-    const itemSnapshot = buildSaleItemSnapshot({
+    return buildSaleItemSnapshot({
       product,
       quantity: item.quantity,
-      unitPrice: authoritativeSellingPrice,
+      unitPrice: sellingPrice,
       discount: item.discount || 0,
     });
-
-    return {
-      productId: itemSnapshot.productId,
-      productName: itemSnapshot.productName,
-      sku: itemSnapshot.sku,
-      quantity: itemSnapshot.quantity,
-      unitPrice: itemSnapshot.unitPrice,
-      unitCost: authoritativeCostBasis,
-      discount: itemSnapshot.discount,
-      lineTotal: itemSnapshot.lineTotal,
-    };
   });
 };
 
@@ -223,10 +196,29 @@ export const createSale = async (payload, reqUser) => {
     const productIds = payload.products.map((item) => item.productId);
     const uniqueProductIds = new Set(productIds.map((id) => id.toString()));
     if (uniqueProductIds.size !== productIds.length) {
-      throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Duplicate product line rows detected.");
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Duplicate product items identified.");
     }
 
     const saleItems = await prepareSaleItems(payload.products, session);
+
+    // Enforce pre-save stock checks through centralized service layer
+    for (const item of saleItems) {
+      const stock = await InventoryService.getWarehouseStock({
+        productId: item.productId,
+        warehouseId: warehouse._id,
+        session,
+      });
+
+      if (!stock) {
+        throw new ApiError(HTTP_STATUS.BAD_REQUEST, `Warehouse stock record not found.`);
+      }
+      if (stock.availableStock < item.quantity) {
+        throw new ApiError(
+          HTTP_STATUS.BAD_REQUEST,
+          `Insufficient stock for product ${item.productName}. Available: ${stock.availableStock}, requested: ${item.quantity}.`
+        );
+      }
+    }
 
     const financials = calculateSaleFinancials({
       items: saleItems,
@@ -241,7 +233,7 @@ export const createSale = async (payload, reqUser) => {
     const invoiceNumber = await generateSaleInvoiceNumber(session);
     const publicId = generatePublicId("SALE");
 
-    // Phase 11.5.7.6-A Correction: mapped using reqUser.id matching auth criteria [Page 6]
+    // Instantiation exactly matching the SALE_STATUS.CONFIRMED contract [Page 1]
     const sale = new Sale({
       publicId,
       invoiceNumber,
@@ -254,15 +246,14 @@ export const createSale = async (payload, reqUser) => {
       paidAmount: financials.paidAmount,
       dueAmount: financials.dueAmount,
       saleDate: payload.saleDate || new Date(),
-      status: SALE_STATUS.CONFIRMED,
+      status: SALE_STATUS.CONFIRMED, // Securely locked by backend logic [Page 1]
       remarks: payload.remarks || "",
-      createdBy: reqUser.id, // Fixed mapping footprint [Page 6]
-      updatedBy: reqUser.id, // Fixed mapping footprint [Page 6]
+      createdBy: reqUser.id,
+      updatedBy: reqUser.id,
     });
 
     await sale.save({ session }); 
 
-    // Deduct stock via centralized concurrency-safe Inventory Service
     for (const item of saleItems) {
       await InventoryService.decreaseStock({
         productId: item.productId,
@@ -270,8 +261,8 @@ export const createSale = async (payload, reqUser) => {
         quantity: item.quantity,
         referenceType: "SALE",
         referenceId: sale._id,
-        postedBy: reqUser.id, // Fixed mapping footprint [Page 6]
-        remarks: `Stock issued out for transaction invoice ${sale.invoiceNumber}`,
+        postedBy: reqUser.id,
+        remarks: `Stock deducted for sale ${invoiceNumber}.`,
         session,
       });
     }
@@ -285,7 +276,7 @@ export const createSale = async (payload, reqUser) => {
         paymentMethod: payload.paymentMethod || "CASH",
         reference: payload.reference || "",
         comment: payload.paymentComment || "Downpayment processed during order registry.",
-        createdBy: reqUser.id, // Fixed mapping footprint [Page 7]
+        createdBy: reqUser.id,
       });
       await payment.save({ session });
     }
@@ -300,9 +291,8 @@ export const createSale = async (payload, reqUser) => {
     }
     await customer.save({ session });
 
-    // Activity logging mapping update
     await ActivityLogService.logActivity({
-      user: reqUser.id, // Fixed mapping footprint [Page 6]
+      user: reqUser.id,
       action: "CREATE",
       module: "SALES",
       entityId: sale._id,
@@ -329,9 +319,9 @@ export const createSale = async (payload, reqUser) => {
 };
 
 
-
 /**
- * Processes subsequent collection ledger payments via thread-safe atomic decrements.
+ * Phase 11.5.7.6-D Correction Layer: Processes subsequent collection ledger payments 
+ * without modifying commercial lifecycle states or inventing state string flags [Page 1, 3].
  */
 export const recordSalePayment = async (salePublicId, payload, reqUser) => {
   const session = await mongoose.startSession();
@@ -344,7 +334,7 @@ export const recordSalePayment = async (salePublicId, payload, reqUser) => {
     }).session(session);
 
     if (!sale) {
-      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Sale not found.");
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Sale record not found.");
     }
     if (sale.status === "cancelled") {
       throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Payment cannot be recorded against a cancelled sale.");
@@ -357,16 +347,18 @@ export const recordSalePayment = async (salePublicId, payload, reqUser) => {
     if (!Number.isFinite(paymentAmount) || paymentAmount <= 0) {
       throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Payment allocation must be greater than zero.");
     }
-
     if (paymentAmount > Number(sale.dueAmount)) {
       throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Payment amount cannot exceed the outstanding due amount.");
     }
 
     const previousDue = roundMoney(sale.dueAmount);
     const paymentBalance = calculatePaymentBalance({
-      currentDue: previousDue,paymentAmount,
+      currentDue: previousDue,
+      paymentAmount,
     });
 
+    // Concurrency Shield: Atomic parent document decrement check
+    // Updates ONLY financial tracking parameters while leaving status intact [Page 1, 3]
     const updatedSale = await Sale.findOneAndUpdate(
       {
         _id: sale._id,
@@ -379,16 +371,17 @@ export const recordSalePayment = async (salePublicId, payload, reqUser) => {
           dueAmount: -paymentAmount,
         },
         $set: {
-          status: paymentBalance.remainingDue === 0 ? "paid" : "partial_paid",
-          updatedBy: reqUser.id, // Fixed mapping footprint [Page 7]
+          updatedBy: reqUser.id, // Status mutation string injection omitted [Page 1, 3]
         },
       },
       { new: true, session }
     );
+
     if (!updatedSale) {
-      throw new ApiError(HTTP_STATUS.CONFLICT, "Transaction conflict encountered.");
+      throw new ApiError(HTTP_STATUS.CONFLICT, "Transaction conflict: The invoice balance has shifted. Please reload.");
     }
 
+    // Concurrency Shield: Atomic Customer outstanding balance decrement
     const updatedCustomer = await Customer.findOneAndUpdate(
       {
         _id: sale.customerId,
@@ -400,60 +393,60 @@ export const recordSalePayment = async (salePublicId, payload, reqUser) => {
           currentBalance: -paymentAmount,
           totalPaid: paymentAmount,
         },
-        $set: {
-          lastPaymentDate: new Date(),
+        $set: {lastPaymentDate: new Date(),
         },
       },
-      { new: true, session });
+      { new: true, session }
+    );
 
-      if (!updatedCustomer) {
-        throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Customer balance update failed.");
-      }
+    if (!updatedCustomer) {
+      throw new ApiError(HTTP_STATUS.BAD_REQUEST, "Transaction conflict: Customer balance state validation failed.");
+    }
 
-      const payment = new SalePayment({
-        publicId: generatePublicId("SPAY"),
-        saleId: sale._id,
-        customerId: sale.customerId,
+    const payment = new SalePayment({
+      publicId: generatePublicId("SPAY"),
+      saleId: sale._id,
+      customerId: sale.customerId,
+      amount: paymentAmount,
+      paymentMethod: payload.paymentMethod,
+      reference: payload.reference || "",
+      comment: payload.comment || "",
+      createdBy: reqUser.id,
+    });
+    await payment.save({ session });
+
+    await ActivityLogService.logActivity({
+      user: reqUser.id,
+      action: "PAYMENT_RECORDED",
+      module: "SALES",
+      entityId: sale._id,
+      description: `Payment recorded for sale ${sale.invoiceNumber}.`,
+      metadata: {
+        salePublicId: sale.publicId,
+        invoiceNumber: sale.invoiceNumber,
+        paymentPublicId: payment.publicId,
         amount: paymentAmount,
+        previousDue,
+        remainingDue: updatedSale.dueAmount,
         paymentMethod: payload.paymentMethod,
-        reference: payload.reference || "",
-        comment: payload.comment || "",
-        createdBy: reqUser.id, // Fixed mapping footprint [Page 7]
-        });
-        await payment.save({ session });
+      },
+      session,
+    });
 
-        await ActivityLogService.logActivity({
-          user: reqUser.id, // Fixed mapping footprint [Page 6]
-          action: "PAYMENT_RECORDED",
-          module: "SALES",
-          entityId: sale._id,
-          description: `Payment recorded for sale ${sale.invoiceNumber}.`,
-          metadata: {
-            salePublicId: sale.publicId,
-            invoiceNumber: sale.invoiceNumber,
-            paymentPublicId: payment.publicId,
-            amount: paymentAmount,
-            previousDue,
-            remainingDue: updatedSale.dueAmount,
-            paymentMethod: payload.paymentMethod,
-          },
-          session,
-        });
+    await session.commitTransaction();
 
-        await session.commitTransaction();
-
-        return {
-          sale: updatedSale,
-          payment,
-          customerBalance: updatedCustomer.currentBalance,
-        };
-      } catch (error) {
-        await session.abortTransaction();
-        throw error;
-      } finally {
-        session.endSession();
-      }
+    return {
+      sale: updatedSale,
+      payment,
+      customerBalance: updatedCustomer.currentBalance,
     };
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
 
 
 
@@ -461,7 +454,7 @@ export const recordSalePayment = async (salePublicId, payload, reqUser) => {
   High-Throughput Read Pipeline using QueryBuilder.
 */
 export const getSales = async (queryParameters) => {
-  const queryInstance = new QueryBuilder(
+  const queryInstance = new mongoose.QueryBuilder(
     Sale.find({ isDeleted: false })
     .populate("customerId", "publicId name phone email")
     .populate("warehouseId", "publicId warehouseName warehouseCode"),
