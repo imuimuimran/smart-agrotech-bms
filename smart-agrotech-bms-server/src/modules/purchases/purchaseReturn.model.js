@@ -1,41 +1,46 @@
 import mongoose from "mongoose";
-import { PURCHASE_RETURN_TYPE, PURCHASE_RETURN_STATUS } from "./purchaseReturn.constants.js";
 
 const { Schema, model } = mongoose;
 
-const returnItemSnapshotSchema = new Schema(
+/**
+ * 12.2-A Outbound Defective Item Snapshot Schema
+ * Captures historical context tracing back to origin lines.
+ */
+const PurchaseReturnItemSchema = new Schema(
   {
     productId: {
       type: Schema.Types.ObjectId,
       ref: "Product",
       required: true,
     },
-    productName: {
+    productNameSnapshot: {
       type: String,
       required: true,
-      trim: true,
     },
-    sku: {
+    skuSnapshot: {
       type: String,
       required: true,
-      trim: true,
     },
     purchaseItemId: {
-      type: Schema.Types.ObjectId, // Direct line trace back to origin item row [Page 3]
+      type: Schema.Types.ObjectId, // Link to specific item row inside Purchase document
+      required: true,
+    },
+    goodsReceiptItemId: {
+      type: Schema.Types.ObjectId, // Link to specific item row inside GoodsReceipt document
       required: true,
     },
     receivedQuantity: {
       type: Number,
       required: true,
-      min: [0, "Received lot quantity snapshots cannot be negative."],
+      min: [1, "Received quantity snapshot must be at least 1."],
     },
     returnQuantity: {
       type: Number,
       required: true,
-      min: [1, "Return item quantities must be at least 1."],
+      min: [1, "Return quantity must be at least 1."],
     },
     unitCost: {
-      type: Schema.Types.Decimal128, // Matches Decimal128 procurement ledger standard [Page 7]
+      type: Schema.Types.Decimal128, // Matches Decimal128 procurement standard
       required: true,
     },
     lineTotal: {
@@ -47,31 +52,43 @@ const returnItemSnapshotSchema = new Schema(
       required: true,
       trim: true,
     },
+    batchNumber: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    serialNumbers: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
   },
-  { _id: true }
+  { _id: false }
 );
 
-const replacementItemSnapshotSchema = new Schema(
+/**
+ * 12.2-A Inbound Replacement Item Snapshot Schema (EXCHANGE only)
+ */
+const ReplacementItemSchema = new Schema(
   {
     productId: {
       type: Schema.Types.ObjectId,
       ref: "Product",
       required: true,
     },
-    productName: {
+    productNameSnapshot: {
       type: String,
       required: true,
-      trim: true,
     },
-    sku: {
+    skuSnapshot: {
       type: String,
       required: true,
-      trim: true,
     },
     quantity: {
       type: Number,
       required: true,
-      min: [1, "Replacement item quantities must be at least 1."],
+      min: [1, "Replacement quantity must be at least 1."],
     },
     unitCost: {
       type: Schema.Types.Decimal128,
@@ -81,11 +98,25 @@ const replacementItemSnapshotSchema = new Schema(
       type: Schema.Types.Decimal128,
       required: true,
     },
+    batchNumber: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    serialNumbers: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
   },
-  { _id: true }
+  { _id: false }
 );
 
-const purchaseReturnSchema = new Schema(
+/**
+ * Main PurchaseReturn Collection Schema
+ */
+const PurchaseReturnSchema = new Schema(
   {
     publicId: {
       type: String,
@@ -99,7 +130,7 @@ const purchaseReturnSchema = new Schema(
       required: true,
       unique: true,
       trim: true,
-      index: true, // e.g., PR-2026-000001 [Page 2, 9]
+      index: true, // e.g., PRRET-2026-000001 or PREXCH-2026-000001
     },
     supplierId: {
       type: Schema.Types.ObjectId,
@@ -109,24 +140,46 @@ const purchaseReturnSchema = new Schema(
     },
     purchaseId: {
       type: Schema.Types.ObjectId,
-      ref: "PurchaseOrder", // Linked back to origin procurement row [Page 2]
+      ref: "PurchaseOrder",
       required: true,
       index: true,
     },
     goodsReceiptId: {
       type: Schema.Types.ObjectId,
-      ref: "GoodsReceipt", // Linked back to origin material receipt row [Page 2, 3]
+      ref: "GoodsReceipt",
+      required: true,
+      index: true,
+    },
+    discrepancyId: {
+      type: Schema.Types.ObjectId,
+      ref: "PurchaseReceivingDiscrepancy",
+      default: null,
+      index: true,
+    },
+    warehouseId: {
+      type: Schema.Types.ObjectId,
+      ref: "Warehouse",
       required: true,
       index: true,
     },
     returnType: {
       type: String,
-      enum: Object.values(PURCHASE_RETURN_TYPE),
+      enum: ["RETURN", "EXCHANGE"],
       required: true,
       index: true,
     },
-    items: [returnItemSnapshotSchema], // Outbound defective items snapshots [Page 8]
-    replacementItems: [replacementItemSnapshotSchema], // Inbound replacement items snapshots [Page 5, 8]
+    items: {
+      type: [PurchaseReturnItemSchema],
+      required: true,
+      validate: {
+        validator: (items) => items && items.length > 0,
+        message: "At least one return item is required.",
+      },
+    },
+    replacementItems: {
+      type: [ReplacementItemSchema],
+      default: [],
+    },
     reason: {
       type: String,
       required: true,
@@ -140,7 +193,7 @@ const purchaseReturnSchema = new Schema(
     totalQuantity: {
       type: Number,
       required: true,
-      min: [1, "Total return count must be greater than zero."],
+      min: [1, "Total quantity must be at least 1."],
     },
     totalAmount: {
       type: Schema.Types.Decimal128,
@@ -148,11 +201,18 @@ const purchaseReturnSchema = new Schema(
     },
     status: {
       type: String,
-      enum: Object.values(PURCHASE_RETURN_STATUS),
-      default: PURCHASE_RETURN_STATUS.DRAFT,
+      enum: [
+        "DRAFT",
+        "PENDING_APPROVAL",
+        "APPROVED",
+        "REJECTED",
+        "PROCESSING",
+        "COMPLETED",
+        "CANCELLED",
+      ],
+      default: "DRAFT",
       index: true,
     },
-    // Multi-Stage Authorization Tracking Fields [Page 2, 9]
     approvedBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -171,7 +231,6 @@ const purchaseReturnSchema = new Schema(
       type: Date,
       default: null,
     },
-    // User Audit Fields [Page 2, 9]
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -203,20 +262,24 @@ const purchaseReturnSchema = new Schema(
   }
 );
 
-// Soft Delete Middleware Engine Layer Integration [Page 9]
-purchaseReturnSchema.query.withDeleted = function () {
+// Soft Delete Query Helper Middleware
+PurchaseReturnSchema.query.withDeleted = function () {
   return this.setOptions({ withDeleted: true });
 };
 
-purchaseReturnSchema.pre(/^find/, function () {
-  if (!this.getOptions().withDeleted) {
-    this.where({ isDeleted: false });
+PurchaseReturnSchema.pre(/^find/, function (next) {
+  if (this.getOptions().withDeleted) {
+    return next();
   }
+  this.where({ isDeleted: false });
+  next();
 });
 
-// Structural High-Performance Compound Indexes [Page 9]
-purchaseReturnSchema.index({ supplierId: 1, createdAt: -1 });
-purchaseReturnSchema.index({ purchaseId: 1, createdAt: -1 });
-purchaseReturnSchema.index({ status: 1, createdAt: -1 });
+// 12.2-C Operational Query Compound Indexes
+PurchaseReturnSchema.index({ supplierId: 1, createdAt: -1 });
+PurchaseReturnSchema.index({ purchaseId: 1, createdAt: -1 });
+PurchaseReturnSchema.index({ goodsReceiptId: 1, createdAt: -1 });
+PurchaseReturnSchema.index({ status: 1, createdAt: -1 });
+PurchaseReturnSchema.index({ returnType: 1, createdAt: -1 });
 
-export const PurchaseReturn = model("PurchaseReturn", purchaseReturnSchema);
+export const PurchaseReturn = model("PurchaseReturn", PurchaseReturnSchema);
