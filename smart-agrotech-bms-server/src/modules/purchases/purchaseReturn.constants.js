@@ -6,6 +6,10 @@ export const PURCHASE_RETURN_TYPE = Object.freeze({
   EXCHANGE: "EXCHANGE",
 });
 
+export const PURCHASE_RETURN_TYPE_LIST = Object.values(
+  PURCHASE_RETURN_TYPE
+);
+
 export const PURCHASE_RETURN_STATUS = Object.freeze({
   DRAFT: "DRAFT",
   PENDING_APPROVAL: "PENDING_APPROVAL",
@@ -16,18 +20,24 @@ export const PURCHASE_RETURN_STATUS = Object.freeze({
   CANCELLED: "CANCELLED",
 });
 
+export const PURCHASE_RETURN_STATUS_LIST = Object.values(
+  PURCHASE_RETURN_STATUS
+);
+
 /**
  * Phase 12.3.2 - QueryBuilder Pagination Optimization Fields
  */
-export const PURCHASE_RETURN_SEARCHABLE_FIELDS = ["returnNumber", "reason", "remarks"];
+export const PURCHASE_RETURN_SEARCHABLE_FIELDS = [
+  "returnNumber",
+];
 
 export const PURCHASE_RETURN_FILTERABLE_FIELDS = [
   "supplierId",
   "purchaseId",
   "goodsReceiptId",
   "warehouseId",
-  "status",
   "returnType",
+  "status",
 ];
 
 export const PURCHASE_RETURN_SORTABLE_FIELDS = [
@@ -35,6 +45,7 @@ export const PURCHASE_RETURN_SORTABLE_FIELDS = [
   "totalQuantity",
   "totalAmount",
   "createdAt",
+  "updatedAt",
 ];
 
 export const PURCHASE_RETURN_DEFAULT_SORT = "-createdAt";
