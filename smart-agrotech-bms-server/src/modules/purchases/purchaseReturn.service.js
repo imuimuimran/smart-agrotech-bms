@@ -2,6 +2,7 @@ import ApiError from "../../shared/ApiError.js";
 import HTTP_STATUS from "../../constants/httpStatus.js";
 import Purchase from "./purchase.model.js"; 
 import GoodsReceipt from "./goodsReceipt.model.js";
+import Product from "../products/product.model.js";
 import { PurchaseReturn } from "./purchaseReturn.model.js";
 import { getNextSequence } from "../../utils/sequence.util.js";
 
@@ -19,9 +20,7 @@ const generatePurchaseReturnNumber = async (session) => {
  */
 const getValidPurchase = async (purchaseId, supplierId, session = null) => {
   const query = Purchase.findById(purchaseId);
-  if (session) {
-    query.session(session);
-  }
+  if (session) query.session(session);
   
   const purchase = await query;
   if (!purchase) {
@@ -39,9 +38,7 @@ const getValidPurchase = async (purchaseId, supplierId, session = null) => {
  */
 const getValidGoodsReceipt = async (goodsReceiptId, purchaseId, supplierId, warehouseId, session = null) => {
   const query = GoodsReceipt.findById(goodsReceiptId);
-  if (session) {
-    query.session(session);
-  }
+  if (session) query.session(session);
 
   const goodsReceipt = await query;
   if (!goodsReceipt) {
@@ -73,7 +70,7 @@ const getEligibleReturnQuantity = async ({
     purchaseId,
     goodsReceiptId,
     isDeleted: false,
-    status: "COMPLETED", // Only completed entries consume eligibility limits
+    status: "COMPLETED",
     "items.purchaseItemId": purchaseItemId,
     "items.goodsReceiptItemId": goodsReceiptItemId,
   }).select("items");
@@ -121,14 +118,88 @@ const calculateRemainingEligibleQuantity = async ({
   const previouslyReturnedQuantity = await getEligibleReturnQuantity({
     purchaseId,
     goodsReceiptId,
-    purchaseItemId: goodsReceiptItem.purchaseItemId,
+    purchaseItemId: goodsReceiptItem.purchaseItemId || goodsReceiptItem._id, // Fallback safe link if explicit purchaseItemId is unmapped
     goodsReceiptItemId: goodsReceiptItem._id,
   });
 
-  // Safe read bounds check relies on accepted inventory
   const receivedQuantity = Number(goodsReceiptItem.acceptedQuantity ?? 0);
   const remainingQuantity = receivedQuantity - previouslyReturnedQuantity;
   return Math.max(remainingQuantity, 0);
+};
+
+/**
+ * Phase 12.4.5 Core Process Target - Authoritative Items Validation Builder
+ * Evaluates individual product rows, verifies entity relationships, rejects over-returns, 
+ * and hydrates snapshots using trusted backend costs.
+ */
+const prepareAuthoritativeReturnItems = async ({
+  requestedItems,
+  purchaseId,
+  goodsReceipt,
+}) => {
+  const verifiedSnapshots = [];
+
+  for (const requestedItem of requestedItems) {
+    // 1. Verify that the referenced master product exists and is active
+    const product = await Product.findOne({
+      _id: requestedItem.productId,
+      isDeleted: false,
+    });
+
+    if (!product) {
+      throw new ApiError(
+        HTTP_STATUS.NOT_FOUND,
+        `Master product record not found for ID ${requestedItem.productId}.`
+      );
+    }
+
+    // 2. Isolate the target row from the embedded GoodsReceipt subdocument array
+    const goodsReceiptItem = findGoodsReceiptItem(goodsReceipt, requestedItem.goodsReceiptItemId);
+
+    // 3. Structural Integrity: Confirm the receipt line belongs to the same product entity
+    if (String(goodsReceiptItem.productId) !== String(requestedItem.productId)) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        `Mismatched identity: Goods receipt line item product does not match product ${product.productName}.`
+      );
+    }
+
+    // 4. Invariant Boundary: Calculate limits and reject over-returns
+    const remainingEligible = await calculateRemainingEligibleQuantity({
+      purchaseId,
+      goodsReceiptId: goodsReceipt._id,
+      goodsReceiptItem,
+    });
+
+    if (requestedItem.returnQuantity > remainingEligible) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        `Fulfillment violation: Return quantity for "${product.productName}" exceeds remaining eligible volume of ${remainingEligible}.`
+      );
+    }
+
+    // 5. Authoritative Pricing Hook: Pull cost values from database ledger records, ignoring client inputs
+    const authoritativeUnitCost = Number(goodsReceiptItem.unitCost);
+    const calculatedLineTotal = requestedItem.returnQuantity * authoritativeUnitCost;
+
+    // Compose immutable, audited history subdocument snapshot row
+    verifiedSnapshots.push({
+      productId: product._id,
+      productNameSnapshot: product.productName,
+      skuSnapshot: product.sku,
+      purchaseItemId: goodsReceiptItem.purchaseItemId || requestedItem.purchaseItemId, // Fallback handling trace
+      goodsReceiptItemId: goodsReceiptItem._id,
+      receivedQuantity: Number(goodsReceiptItem.acceptedQuantity ?? 0),
+      returnQuantity: requestedItem.returnQuantity,
+      unitCost: authoritativeUnitCost,
+      lineTotal: calculatedLineTotal,
+      reason: requestedItem.reason || "Damaged/Defective lot lot returned.",
+      batchNumber: goodsReceiptItem.batchNumber || null,
+      serialNumbers: goodsReceiptItem.serialNumbers || [],
+    });
+  }
+
+  return verifiedSnapshots;
 };
 
 /**
