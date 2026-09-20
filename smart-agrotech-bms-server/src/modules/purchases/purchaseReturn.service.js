@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import ApiError from "../../shared/ApiError.js";
 import HTTP_STATUS from "../../constants/httpStatus.js";
 import Purchase from "./purchase.model.js"; 
@@ -6,10 +7,11 @@ import Product from "../products/product.model.js";
 import { PurchaseReturn } from "./purchaseReturn.model.js";
 import { getNextSequence } from "../../utils/sequence.util.js";
 import generatePublicId from "../../utils/generatePublicId.js"; 
-import { logActivity } from "../activityLogs/activityLog.service.js"; 
+import { logActivity } from "../activityLogs/activityLog.service.js";  
 
 /**
- * Phase 12.4.2 - Consecutive Return Number Generation Engine
+ * Phase 12.4.2 — Consecutive Return Number Generation Engine
+ * Generates unique document numbers sequentially on final document creation.
  */
 const generatePurchaseReturnNumber = async (session) => {
   const sequence = await getNextSequence("purchase_return", session);
@@ -17,8 +19,8 @@ const generatePurchaseReturnNumber = async (session) => {
 };
 
 /**
- * Phase 12.4.3.2 - Purchase Order Validation Helper
- * Verifies the PO exists and matches the specified supplier parameter.
+ * Phase 12.4.3.2 — Purchase Order Validation Helper
+ * Confirms PO exists and belongs to the specified vendor parameter.
  */
 const getValidPurchase = async (purchaseId, supplierId, session = null) => {
   const query = Purchase.findById(purchaseId);
@@ -26,16 +28,16 @@ const getValidPurchase = async (purchaseId, supplierId, session = null) => {
   
   const purchase = await query;
   if (!purchase) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Original purchase order record not found.");
+    throw new ApiError(httpStatus.NOT_FOUND, "Original purchase order record not found.");
   }
   if (String(purchase.supplierId) !== String(supplierId)) {
-    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "The selected purchase order does not belong to the specified supplier.");
+    throw new ApiError(httpStatus.BAD_REQUEST, "The selected purchase order does not belong to the specified supplier.");
   }
   return purchase;
 };
 
 /**
- * Phase 12.4.3.3 - Goods Receipt Note (GRN) Validation Helper
+ * Phase 12.4.3.3 — Goods Receipt Note (GRN) Validation Helper
  * Enforces strict multi-entity referential matching constraints across the chain.
  */
 const getValidGoodsReceipt = async (goodsReceiptId, purchaseId, supplierId, warehouseId, session = null) => {
@@ -44,23 +46,23 @@ const getValidGoodsReceipt = async (goodsReceiptId, purchaseId, supplierId, ware
 
   const goodsReceipt = await query;
   if (!goodsReceipt) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Goods receipt note not found.");
+    throw new ApiError(httpStatus.NOT_FOUND, "Goods receipt note not found.");
   }
   if (String(goodsReceipt.purchaseId) !== String(purchaseId)) {
-    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "The goods receipt note does not belong to the specified purchase order.");
+    throw new ApiError(httpStatus.BAD_REQUEST, "The goods receipt note does not belong to the specified purchase order.");
   }
   if (String(goodsReceipt.supplierId) !== String(supplierId)) {
-    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "The goods receipt note does not belong to the specified supplier.");
+    throw new ApiError(httpStatus.BAD_REQUEST, "The goods receipt note does not belong to the specified supplier.");
   }
   if (String(goodsReceipt.warehouseId) !== String(warehouseId)) {
-    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "The goods receipt note does not match the designated inventory warehouse.");
+    throw new ApiError(httpStatus.BAD_REQUEST, "The goods receipt note does not match the designated inventory warehouse.");
   }
   return goodsReceipt;
 };
 
 /**
- * Phase 12.4.4.2 - Get Eligible Return Quantity Helper
- * Queries past completed purchase returns to sum up items already processed.
+ * Phase 12.4.4.2 — Get Eligible Return Quantity Helper
+ * Computes historical quantities already returned under completed vouchers.
  */
 const getEligibleReturnQuantity = async ({
   purchaseId,
@@ -92,8 +94,7 @@ const getEligibleReturnQuantity = async ({
 };
 
 /**
- * Phase 12.4.4.3 - Determine Authoritative Received Quantity Helper
- * Isolates the correct embedded GRN item row to pull trusted stock metrics.
+ * Phase 12.4.4.3 — Determine Authoritative Received Quantity Helper
  */
 const findGoodsReceiptItem = (goodsReceipt, goodsReceiptItemId) => {
   const item = goodsReceipt.items.find(
@@ -101,7 +102,7 @@ const findGoodsReceiptItem = (goodsReceipt, goodsReceiptItemId) => {
   );
   if (!item) {
     throw new ApiError(
-      HTTP_STATUS.BAD_REQUEST,
+      httpStatus.BAD_REQUEST,
       "Goods receipt item does not belong to the specified goods receipt"
     );
   }
@@ -109,8 +110,7 @@ const findGoodsReceiptItem = (goodsReceipt, goodsReceiptItemId) => {
 };
 
 /**
- * Phase 12.4.4.4 - Calculate Remaining Eligible Quantity Helper
- * Subtracts past returns from the server-authoritative accepted quantity.
+ * Phase 12.4.4.4 — Calculate Remaining Eligible Quantity Helper
  */
 const calculateRemainingEligibleQuantity = async ({
   purchaseId,
@@ -120,7 +120,7 @@ const calculateRemainingEligibleQuantity = async ({
   const previouslyReturnedQuantity = await getEligibleReturnQuantity({
     purchaseId,
     goodsReceiptId,
-    purchaseItemId: goodsReceiptItem.purchaseItemId || goodsReceiptItem._id, // Fallback safe link if explicit purchaseItemId is unmapped
+    purchaseItemId: goodsReceiptItem.purchaseItemId || goodsReceiptItem._id, 
     goodsReceiptItemId: goodsReceiptItem._id,
   });
 
@@ -130,9 +130,8 @@ const calculateRemainingEligibleQuantity = async ({
 };
 
 /**
- * Phase 12.4.5 Core Process Target - Authoritative Items Validation Builder
- * Evaluates individual product rows, verifies entity relationships, rejects over-returns, 
- * and hydrates snapshots using trusted backend costs.
+ * Phase 12.4.5 — Return Item Eligibility Validation
+ * Builds item-level snapshots authoritatively while rejecting over-return entries.
  */
 const prepareAuthoritativeReturnItems = async ({
   requestedItems,
@@ -142,7 +141,6 @@ const prepareAuthoritativeReturnItems = async ({
   const verifiedSnapshots = [];
 
   for (const requestedItem of requestedItems) {
-    // 1. Verify that the referenced master product exists and is active
     const product = await Product.findOne({
       _id: requestedItem.productId,
       isDeleted: false,
@@ -150,23 +148,20 @@ const prepareAuthoritativeReturnItems = async ({
 
     if (!product) {
       throw new ApiError(
-        HTTP_STATUS.NOT_FOUND,
+        httpStatus.NOT_FOUND,
         `Master product record not found for ID ${requestedItem.productId}.`
       );
     }
 
-    // 2. Isolate the target row from the embedded GoodsReceipt subdocument array
     const goodsReceiptItem = findGoodsReceiptItem(goodsReceipt, requestedItem.goodsReceiptItemId);
 
-    // 3. Structural Integrity: Confirm the receipt line belongs to the same product entity
     if (String(goodsReceiptItem.productId) !== String(requestedItem.productId)) {
       throw new ApiError(
-        HTTP_STATUS.BAD_REQUEST,
+        httpStatus.BAD_REQUEST,
         `Mismatched identity: Goods receipt line item product does not match product ${product.productName}.`
       );
     }
 
-    // 4. Invariant Boundary: Calculate limits and reject over-returns
     const remainingEligible = await calculateRemainingEligibleQuantity({
       purchaseId,
       goodsReceiptId: goodsReceipt._id,
@@ -175,27 +170,25 @@ const prepareAuthoritativeReturnItems = async ({
 
     if (requestedItem.returnQuantity > remainingEligible) {
       throw new ApiError(
-        HTTP_STATUS.BAD_REQUEST,
+        httpStatus.BAD_REQUEST,
         `Fulfillment violation: Return quantity for "${product.productName}" exceeds remaining eligible volume of ${remainingEligible}.`
       );
     }
 
-    // 5. Authoritative Pricing Hook: Pull cost values from database ledger records, ignoring client inputs
     const authoritativeUnitCost = Number(goodsReceiptItem.unitCost);
     const calculatedLineTotal = requestedItem.returnQuantity * authoritativeUnitCost;
 
-    // Compose immutable, audited history subdocument snapshot row
     verifiedSnapshots.push({
       productId: product._id,
       productNameSnapshot: product.productName,
       skuSnapshot: product.sku,
-      purchaseItemId: goodsReceiptItem.purchaseItemId || requestedItem.purchaseItemId, // Fallback handling trace
+      purchaseItemId: goodsReceiptItem.purchaseItemId || requestedItem.purchaseItemId, 
       goodsReceiptItemId: goodsReceiptItem._id,
       receivedQuantity: Number(goodsReceiptItem.acceptedQuantity ?? 0),
       returnQuantity: requestedItem.returnQuantity,
-      unitCost: authoritativeUnitCost,
-      lineTotal: calculatedLineTotal,
-      reason: requestedItem.reason || "Damaged/Defective lot lot returned.",
+      unitCost: mongoose.Types.Decimal128.fromString(authoritativeUnitCost.toFixed(2)),
+      lineTotal: mongoose.Types.Decimal128.fromString(calculatedLineTotal.toFixed(2)),
+      reason: requestedItem.reason || "Damaged/Defective lot returned.",
       batchNumber: goodsReceiptItem.batchNumber || null,
       serialNumbers: goodsReceiptItem.serialNumbers || [],
     });
@@ -204,10 +197,8 @@ const prepareAuthoritativeReturnItems = async ({
   return verifiedSnapshots;
 };
 
-
 /**
  * Phase 12.4.6 — Authoritative Financial & Quantity Aggregate Calculation
- * Disregards client inputs and mathematically calculates totals from the verified items array.
  */
 const calculateReturnTotals = (verifiedReturnItems) => {
   let totalQuantity = 0;
@@ -215,7 +206,6 @@ const calculateReturnTotals = (verifiedReturnItems) => {
 
   for (const item of verifiedReturnItems) {
     totalQuantity += item.returnQuantity;
-    // Extract numerical value from Decimal128 property safely for internal calculation
     totalAmountAccumulator += Number(item.lineTotal.toString());
   }
 
@@ -227,7 +217,7 @@ const calculateReturnTotals = (verifiedReturnItems) => {
 
 /**
  * Phase 12.4.7 — Replacement Item Validation for Exchanges
- * Enforces business logic safety checks on inbound replacement parameters.
+ * Builds server-side snapshots for incoming exchange variants using authoritative costs.
  */
 const prepareAuthoritativeReplacementItems = async (replacementItemsInput, returnType) => {
   if (returnType === "RETURN") {
@@ -267,7 +257,6 @@ const prepareAuthoritativeReplacementItems = async (replacementItemsInput, retur
       );
     }
 
-    // Authoritative unit cost snapshot derived server-side from product configuration
     const authoritativeCostBasis = Number(product.pricing?.purchasePrice || 0);
     const calculatedLineTotal = item.quantity * authoritativeCostBasis;
 
@@ -287,16 +276,22 @@ const prepareAuthoritativeReplacementItems = async (replacementItemsInput, retur
 };
 
 /**
- * Phase 12.4.7 Master Pipeline Core - Create Purchase Return / Exchange Request
- * Orchestrates cross-referencing lookups, validates eligibility, evaluates balances, 
- * generates sequence markers, and saves records cleanly inside a transaction boundary.
+ * Phase 12.4.8 — Build the Authoritative Purchase Return Document
+ * Master creation pipeline orchestrating deep procurement validations and persisting 
+ * the draft voucher transaction cleanly inside a managed session.
  */
 const createPurchaseReturn = async (payload, reqUser) => {
+  // Ensure requesting identity presence exists before transaction starts
+  if (!reqUser?.id) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, "Authenticated user identity context is required.");
+  }
+
   const session = await mongoose.startSession();
+
   session.startTransaction();
 
   try {
-    // 1. Cross-reference top-level entity maps
+    // 1. Cross-reference top-level procurement entities
     await getValidPurchase(payload.purchaseId, payload.supplierId, session);
     const goodsReceipt = await getValidGoodsReceipt(
       payload.goodsReceiptId,
@@ -306,25 +301,25 @@ const createPurchaseReturn = async (payload, reqUser) => {
       session
     );
 
-    // 2. Hydrate outbound defective snapshots and enforce eligibility constraints
+    // 2. Build authoritative item maps and verify return ceilings
     const verifiedReturnItems = await prepareAuthoritativeReturnItems({
       requestedItems: payload.items,
       purchaseId: payload.purchaseId,
       goodsReceipt,
     });
 
-    // 3. Hydrate exchange replacement snap vectors dynamically
+    // 3. Process exchange replacement fields if applicable
     const verifiedReplacementItems = await prepareAuthoritativeReplacementItems(
       payload.replacementItems,
       payload.returnType
     );
 
-    // 4. Calculate final values on server side
+    // 4. Calculate final quantities and aggregate costs server-side
     const totals = calculateReturnTotals(verifiedReturnItems);
     const returnNumber = await generatePurchaseReturnNumber(session);
     const publicId = generatePublicId("PR");
 
-    // 5. Instantiate database record
+    // 5. Construct and save the authoritative PurchaseReturn document [Page 1]
     const purchaseReturn = new PurchaseReturn({
       publicId,
       returnNumber,
@@ -336,27 +331,29 @@ const createPurchaseReturn = async (payload, reqUser) => {
       returnType: payload.returnType,
       items: verifiedReturnItems,
       replacementItems: verifiedReplacementItems,
-      reason: payload.reason,remarks: payload.remarks || "",
+      reason: payload.reason,
+      remarks: payload.remarks || "",
       totalQuantity: totals.totalQuantity,
       totalAmount: totals.totalAmount,
-      status: "DRAFT", // Safe baseline creation state
+      status: "DRAFT", // Secure baseline initialization state [Page 1]
       createdBy: reqUser.id,
       updatedBy: reqUser.id,
     });
-
+    
     await purchaseReturn.save({ session });
 
-    // 6. Append audit history trail record cleanly inside session
+    // 6. Create systemic audit trail integration footprint [Page 1]
     await logActivity({
       user: reqUser.id,
       action: "CREATE",
       module: "PURCHASES",
       entityId: purchaseReturn._id,
-      description: `Purchase return record ${returnNumber} (${payload.returnType}) successfully initialized as DRAFT.`,
+      description: `Purchase return record ${returnNumber} (${payload.returnType}) successfully created in DRAFT state.`,
       metadata: {
         returnNumber,
         returnType: payload.returnType,
         totalQuantity: totals.totalQuantity,
+        totalAmount: totals.totalAmount.toString(),
       },
       session,
     });
@@ -371,36 +368,7 @@ const createPurchaseReturn = async (payload, reqUser) => {
   }
 };
 
-/**
- * Phase 12.4.4.5 - Validate Requested Return Quantity
- * Core gate check throws an execution error if thresholds are breached.
- */
-const validateReturnQuantity = async ({
-  purchaseId,
-  goodsReceiptId,
-  goodsReceiptItem,
-  requestedQuantity,
-}) => {
-  const eligibleQuantity = await calculateRemainingEligibleQuantity({
-    purchaseId,
-    goodsReceiptId,
-    goodsReceiptItem,
-  });
-
-  if (requestedQuantity > eligibleQuantity) {
-    throw new ApiError(
-      HTTP_STATUS.BAD_REQUEST,
-      `Return quantity cannot exceed the eligible quantity of ${eligibleQuantity}`
-    );
-  }
-
-  return {
-    eligibleQuantity,
-    requestedQuantity,
-  };
-};
-
-// Exporting service orchestration methods block
 export const PurchaseReturnService = {
   createPurchaseReturn,
 };
+
