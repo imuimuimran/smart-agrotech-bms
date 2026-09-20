@@ -5,6 +5,8 @@ import GoodsReceipt from "./goodsReceipt.model.js";
 import Product from "../products/product.model.js";
 import { PurchaseReturn } from "./purchaseReturn.model.js";
 import { getNextSequence } from "../../utils/sequence.util.js";
+import generatePublicId from "../../utils/generatePublicId.js"; 
+import { logActivity } from "../activityLogs/activityLog.service.js"; 
 
 /**
  * Phase 12.4.2 - Consecutive Return Number Generation Engine
@@ -223,14 +225,28 @@ const calculateReturnTotals = (verifiedReturnItems) => {
   };
 };
 
-
 /**
- * Phase 12.4.6 — Replacement Product Verification Helper (EXCHANGE type only)
- * Authoritatively populates replacement fields from Product database records.
+ * Phase 12.4.7 — Replacement Item Validation for Exchanges
+ * Enforces business logic safety checks on inbound replacement parameters.
  */
-const prepareAuthoritativeReplacementItems = async (replacementItemsInput) => {
-  if (!replacementItemsInput || replacementItemsInput.length === 0) {
+const prepareAuthoritativeReplacementItems = async (replacementItemsInput, returnType) => {
+  if (returnType === "RETURN") {
+    if (replacementItemsInput && replacementItemsInput.length > 0) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        "Replacement items are not allowed for a standard RETURN."
+      );
+    }
     return [];
+  }
+
+  if (returnType === "EXCHANGE") {
+    if (!replacementItemsInput || replacementItemsInput.length === 0) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        "Replacement items are required for an EXCHANGE workflow."
+      );
+    }
   }
 
   const replacementSnapshots = [];
@@ -239,12 +255,19 @@ const prepareAuthoritativeReplacementItems = async (replacementItemsInput) => {
     const product = await Product.findOne({ _id: item.productId, isDeleted: false });
     if (!product) {
       throw new ApiError(
-        HTTP_STATUS.NOT_FOUND,
+        httpStatus.NOT_FOUND,
         `Replacement master product record not found for ID ${item.productId}.`
       );
     }
 
-    // Authoritative unit cost derived strictly from the product's purchase price
+    if (product.status !== "ACTIVE") {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        `Replacement product "${product.productName}" is not eligible for inventory operations.`
+      );
+    }
+
+    // Authoritative unit cost snapshot derived server-side from product configuration
     const authoritativeCostBasis = Number(product.pricing?.purchasePrice || 0);
     const calculatedLineTotal = item.quantity * authoritativeCostBasis;
 
@@ -261,6 +284,91 @@ const prepareAuthoritativeReplacementItems = async (replacementItemsInput) => {
   }
 
   return replacementSnapshots;
+};
+
+/**
+ * Phase 12.4.7 Master Pipeline Core - Create Purchase Return / Exchange Request
+ * Orchestrates cross-referencing lookups, validates eligibility, evaluates balances, 
+ * generates sequence markers, and saves records cleanly inside a transaction boundary.
+ */
+const createPurchaseReturn = async (payload, reqUser) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // 1. Cross-reference top-level entity maps
+    await getValidPurchase(payload.purchaseId, payload.supplierId, session);
+    const goodsReceipt = await getValidGoodsReceipt(
+      payload.goodsReceiptId,
+      payload.purchaseId,
+      payload.supplierId,
+      payload.warehouseId,
+      session
+    );
+
+    // 2. Hydrate outbound defective snapshots and enforce eligibility constraints
+    const verifiedReturnItems = await prepareAuthoritativeReturnItems({
+      requestedItems: payload.items,
+      purchaseId: payload.purchaseId,
+      goodsReceipt,
+    });
+
+    // 3. Hydrate exchange replacement snap vectors dynamically
+    const verifiedReplacementItems = await prepareAuthoritativeReplacementItems(
+      payload.replacementItems,
+      payload.returnType
+    );
+
+    // 4. Calculate final values on server side
+    const totals = calculateReturnTotals(verifiedReturnItems);
+    const returnNumber = await generatePurchaseReturnNumber(session);
+    const publicId = generatePublicId("PR");
+
+    // 5. Instantiate database record
+    const purchaseReturn = new PurchaseReturn({
+      publicId,
+      returnNumber,
+      supplierId: payload.supplierId,
+      purchaseId: payload.purchaseId,
+      goodsReceiptId: payload.goodsReceiptId,
+      discrepancyId: payload.discrepancyId || null,
+      warehouseId: payload.warehouseId,
+      returnType: payload.returnType,
+      items: verifiedReturnItems,
+      replacementItems: verifiedReplacementItems,
+      reason: payload.reason,remarks: payload.remarks || "",
+      totalQuantity: totals.totalQuantity,
+      totalAmount: totals.totalAmount,
+      status: "DRAFT", // Safe baseline creation state
+      createdBy: reqUser.id,
+      updatedBy: reqUser.id,
+    });
+
+    await purchaseReturn.save({ session });
+
+    // 6. Append audit history trail record cleanly inside session
+    await logActivity({
+      user: reqUser.id,
+      action: "CREATE",
+      module: "PURCHASES",
+      entityId: purchaseReturn._id,
+      description: `Purchase return record ${returnNumber} (${payload.returnType}) successfully initialized as DRAFT.`,
+      metadata: {
+        returnNumber,
+        returnType: payload.returnType,
+        totalQuantity: totals.totalQuantity,
+      },
+      session,
+    });
+
+    await session.commitTransaction();
+    return purchaseReturn;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
 };
 
 /**
@@ -294,5 +402,5 @@ const validateReturnQuantity = async ({
 
 // Exporting service orchestration methods block
 export const PurchaseReturnService = {
-  // Master routines will be populated as we progress
+  createPurchaseReturn,
 };
