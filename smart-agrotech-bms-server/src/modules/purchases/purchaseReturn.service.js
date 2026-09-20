@@ -202,6 +202,67 @@ const prepareAuthoritativeReturnItems = async ({
   return verifiedSnapshots;
 };
 
+
+/**
+ * Phase 12.4.6 — Authoritative Financial & Quantity Aggregate Calculation
+ * Disregards client inputs and mathematically calculates totals from the verified items array.
+ */
+const calculateReturnTotals = (verifiedReturnItems) => {
+  let totalQuantity = 0;
+  let totalAmountAccumulator = 0;
+
+  for (const item of verifiedReturnItems) {
+    totalQuantity += item.returnQuantity;
+    // Extract numerical value from Decimal128 property safely for internal calculation
+    totalAmountAccumulator += Number(item.lineTotal.toString());
+  }
+
+  return {
+    totalQuantity,
+    totalAmount: mongoose.Types.Decimal128.fromString(totalAmountAccumulator.toFixed(2)),
+  };
+};
+
+
+/**
+ * Phase 12.4.6 — Replacement Product Verification Helper (EXCHANGE type only)
+ * Authoritatively populates replacement fields from Product database records.
+ */
+const prepareAuthoritativeReplacementItems = async (replacementItemsInput) => {
+  if (!replacementItemsInput || replacementItemsInput.length === 0) {
+    return [];
+  }
+
+  const replacementSnapshots = [];
+
+  for (const item of replacementItemsInput) {
+    const product = await Product.findOne({ _id: item.productId, isDeleted: false });
+    if (!product) {
+      throw new ApiError(
+        HTTP_STATUS.NOT_FOUND,
+        `Replacement master product record not found for ID ${item.productId}.`
+      );
+    }
+
+    // Authoritative unit cost derived strictly from the product's purchase price
+    const authoritativeCostBasis = Number(product.pricing?.purchasePrice || 0);
+    const calculatedLineTotal = item.quantity * authoritativeCostBasis;
+
+    replacementSnapshots.push({
+      productId: product._id,
+      productNameSnapshot: product.productName,
+      skuSnapshot: product.sku,
+      quantity: item.quantity,
+      unitCost: mongoose.Types.Decimal128.fromString(authoritativeCostBasis.toFixed(2)),
+      lineTotal: mongoose.Types.Decimal128.fromString(calculatedLineTotal.toFixed(2)),
+      batchNumber: item.batchNumber || null,
+      serialNumbers: item.serialNumbers || [],
+    });
+  }
+
+  return replacementSnapshots;
+};
+
 /**
  * Phase 12.4.4.5 - Validate Requested Return Quantity
  * Core gate check throws an execution error if thresholds are breached.
