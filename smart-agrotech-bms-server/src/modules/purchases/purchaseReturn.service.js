@@ -1,13 +1,13 @@
 import mongoose from "mongoose";
 import ApiError from "../../shared/ApiError.js";
 import HTTP_STATUS from "../../constants/httpStatus.js";
-import Purchase from "./purchase.model.js"; 
-import GoodsReceipt from "./goodsReceipt.model.js";
+import { Purchase } from "./purchase.model.js"; 
+import { GoodsReceipt } from "./goodsReceipt.model.js";
 import Product from "../products/product.model.js";
 import { PurchaseReturn } from "./purchaseReturn.model.js";
 import { getNextSequence } from "../../utils/sequence.util.js";
 import generatePublicId from "../../utils/generatePublicId.js"; 
-import { logActivity } from "../activityLogs/activityLog.service.js";  
+import { ActivityLogService } from "../activity-logs/activityLog.service.js";
 
 /**
  * Phase 12.4.2 — Consecutive Return Number Generation Engine
@@ -28,10 +28,10 @@ const getValidPurchase = async (purchaseId, supplierId, session = null) => {
   
   const purchase = await query;
   if (!purchase) {
-    throw new ApiError(httpStatus.NOT_FOUND, "Original purchase order record not found.");
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Original purchase order record not found.");
   }
   if (String(purchase.supplierId) !== String(supplierId)) {
-    throw new ApiError(httpStatus.BAD_REQUEST, "The selected purchase order does not belong to the specified supplier.");
+    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "The selected purchase order does not belong to the specified supplier.");
   }
   return purchase;
 };
@@ -46,16 +46,16 @@ const getValidGoodsReceipt = async (goodsReceiptId, purchaseId, supplierId, ware
 
   const goodsReceipt = await query;
   if (!goodsReceipt) {
-    throw new ApiError(httpStatus.NOT_FOUND, "Goods receipt note not found.");
+    throw new ApiError(HTTP_STATUS.NOT_FOUND, "Goods receipt note not found.");
   }
   if (String(goodsReceipt.purchaseId) !== String(purchaseId)) {
-    throw new ApiError(httpStatus.BAD_REQUEST, "The goods receipt note does not belong to the specified purchase order.");
+    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "The goods receipt note does not belong to the specified purchase order.");
   }
   if (String(goodsReceipt.supplierId) !== String(supplierId)) {
-    throw new ApiError(httpStatus.BAD_REQUEST, "The goods receipt note does not belong to the specified supplier.");
+    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "The goods receipt note does not belong to the specified supplier.");
   }
   if (String(goodsReceipt.warehouseId) !== String(warehouseId)) {
-    throw new ApiError(httpStatus.BAD_REQUEST, "The goods receipt note does not match the designated inventory warehouse.");
+    throw new ApiError(HTTP_STATUS.BAD_REQUEST, "The goods receipt note does not match the designated inventory warehouse.");
   }
   return goodsReceipt;
 };
@@ -102,7 +102,7 @@ const findGoodsReceiptItem = (goodsReceipt, goodsReceiptItemId) => {
   );
   if (!item) {
     throw new ApiError(
-      httpStatus.BAD_REQUEST,
+      HTTP_STATUS.BAD_REQUEST,
       "Goods receipt item does not belong to the specified goods receipt"
     );
   }
@@ -148,7 +148,7 @@ const prepareAuthoritativeReturnItems = async ({
 
     if (!product) {
       throw new ApiError(
-        httpStatus.NOT_FOUND,
+        HTTP_STATUS.NOT_FOUND,
         `Master product record not found for ID ${requestedItem.productId}.`
       );
     }
@@ -157,7 +157,7 @@ const prepareAuthoritativeReturnItems = async ({
 
     if (String(goodsReceiptItem.productId) !== String(requestedItem.productId)) {
       throw new ApiError(
-        httpStatus.BAD_REQUEST,
+        HTTP_STATUS.BAD_REQUEST,
         `Mismatched identity: Goods receipt line item product does not match product ${product.productName}.`
       );
     }
@@ -170,7 +170,7 @@ const prepareAuthoritativeReturnItems = async ({
 
     if (requestedItem.returnQuantity > remainingEligible) {
       throw new ApiError(
-        httpStatus.BAD_REQUEST,
+        HTTP_STATUS.BAD_REQUEST,
         `Fulfillment violation: Return quantity for "${product.productName}" exceeds remaining eligible volume of ${remainingEligible}.`
       );
     }
@@ -223,7 +223,7 @@ const prepareAuthoritativeReplacementItems = async (replacementItemsInput, retur
   if (returnType === "RETURN") {
     if (replacementItemsInput && replacementItemsInput.length > 0) {
       throw new ApiError(
-        httpStatus.BAD_REQUEST,
+        HTTP_STATUS.BAD_REQUEST,
         "Replacement items are not allowed for a standard RETURN."
       );
     }
@@ -233,7 +233,7 @@ const prepareAuthoritativeReplacementItems = async (replacementItemsInput, retur
   if (returnType === "EXCHANGE") {
     if (!replacementItemsInput || replacementItemsInput.length === 0) {
       throw new ApiError(
-        httpStatus.BAD_REQUEST,
+        HTTP_STATUS.BAD_REQUEST,
         "Replacement items are required for an EXCHANGE workflow."
       );
     }
@@ -245,14 +245,14 @@ const prepareAuthoritativeReplacementItems = async (replacementItemsInput, retur
     const product = await Product.findOne({ _id: item.productId, isDeleted: false });
     if (!product) {
       throw new ApiError(
-        httpStatus.NOT_FOUND,
+        HTTP_STATUS.NOT_FOUND,
         `Replacement master product record not found for ID ${item.productId}.`
       );
     }
 
     if (product.status !== "ACTIVE") {
       throw new ApiError(
-        httpStatus.BAD_REQUEST,
+        HTTP_STATUS.BAD_REQUEST,
         `Replacement product "${product.productName}" is not eligible for inventory operations.`
       );
     }
@@ -283,7 +283,7 @@ const prepareAuthoritativeReplacementItems = async (replacementItemsInput, retur
 const createPurchaseReturn = async (payload, reqUser) => {
   // Ensure requesting identity presence exists before transaction starts
   if (!reqUser?.id) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, "Authenticated user identity context is required.");
+    throw new ApiError(HTTP_STATUS.UNAUTHORIZED, "Authenticated user identity context is required.");
   }
 
   const session = await mongoose.startSession();
@@ -343,7 +343,7 @@ const createPurchaseReturn = async (payload, reqUser) => {
     await purchaseReturn.save({ session });
 
     // 6. Create systemic audit trail integration footprint [Page 1]
-    await logActivity({
+    await ActivityLogService.logActivity({
       user: reqUser.id,
       action: "CREATE",
       module: "PURCHASES",

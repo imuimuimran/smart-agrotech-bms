@@ -1,5 +1,11 @@
 import mongoose from 'mongoose';
-import { PO_STATUS, PURCHASE_STATUS, PAYMENT_STATUS, PAYMENT_METHODS } from './purchase.constants.js';
+import { 
+  PO_STATUS, 
+  PURCHASE_STATUS, 
+  PAYMENT_STATUS, 
+  PAYMENT_METHODS,
+  SUPPLIER_RESPONSE_TYPES, 
+} from './purchase.constants.js';
 
 const Schema = mongoose.Schema;
 
