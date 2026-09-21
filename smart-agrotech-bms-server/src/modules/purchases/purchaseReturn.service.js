@@ -9,6 +9,11 @@ import { getNextSequence } from "../../utils/sequence.util.js";
 import generatePublicId from "../../utils/generatePublicId.js"; 
 import { ActivityLogService } from "../activity-logs/activityLog.service.js";
 
+import { 
+  PURCHASE_RETURN_STATUS, 
+  isPurchaseReturnTransitionAllowed 
+} from "./purchaseReturn.constants.js";
+
 /**
  * Phase 12.4.2 — Consecutive Return Number Generation Engine
  * Generates unique document numbers sequentially on final document creation.
@@ -368,7 +373,96 @@ const createPurchaseReturn = async (payload, reqUser) => {
   }
 };
 
-export const PurchaseReturnService = {
-  createPurchaseReturn,
+
+/**
+ * Phase 12.5.2 — Controlled Purchase Return Workflow Service
+ * Orchestrates document state transitions following strict business boundaries.
+ * Blocks random status tampering, enforces audit parameters, and logs activity traces.
+ * 
+ * @param {string} returnPublicId - Unique public business trace identifier
+ * @param {string} nextStatus - Targeted status destination enum value
+ * @param {Object} reqUser - Request user context token data object
+ * @returns {Promise<Object>} The updated PurchaseReturn document
+ */
+export const transitionPurchaseReturnStatus = async (returnPublicId, nextStatus, reqUser) => {
+  // Ensure requesting user identity footprint exists before execution
+  if (!reqUser?.id) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, "Authenticated user identity context is required.");
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // 1. Fetch document and reject missing or soft-deleted records
+    const purchaseReturn = await PurchaseReturn.findOne({
+      publicId: returnPublicId,
+      isDeleted: false,
+    }).session(session);
+
+    if (!purchaseReturn) {
+      throw new ApiError(httpStatus.NOT_FOUND, "Purchase return record not found.");
+    }
+
+    const currentStatus = purchaseReturn.status;
+
+    // 2. Validate requested status change using the 12.5.1 state transition matrix
+    const isAllowed = isPurchaseReturnTransitionAllowed(currentStatus, nextStatus);
+    if (!isAllowed) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        `Workflow Violation: Transition from current state "${currentStatus}" to requested state "${nextStatus}" is not permitted.`
+      );
+    }
+
+    // 3. Apply state-specific modifications safely
+    purchaseReturn.status = nextStatus;
+    purchaseReturn.updatedBy = reqUser.id;
+
+    // PENDING_APPROVAL → APPROVED: Stamp audit context
+    if (currentStatus === PURCHASE_RETURN_STATUS.PENDING_APPROVAL && nextStatus === PURCHASE_RETURN_STATUS.APPROVED) {
+      purchaseReturn.approvedBy = reqUser.id;
+      purchaseReturn.approvedAt = new Date();
+    }
+
+    // PROCESSING → COMPLETED: Strict rule guard check
+    if (nextStatus === PURCHASE_RETURN_STATUS.COMPLETED) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        "Workflow Guard Exception: Direct status jump to COMPLETED is blocked. Completion must be triggered after physical inventory transactions succeed."
+      );
+    }
+
+    // 4. Persist updated status
+    await purchaseReturn.save({ session });
+
+    // 5. Record state transition through the existing system log helper
+    await ActivityLogService.logActivity({
+      user: reqUser.id,
+      action: "UPDATE",
+      module: "PURCHASES",
+      entityId: purchaseReturn._id,
+      description: `Purchase return ${purchaseReturn.returnNumber} workflow advanced from "${currentStatus}" to "${nextStatus}".`,
+      metadata: {
+        returnNumber: purchaseReturn.returnNumber,
+        previousStatus: currentStatus,
+        newStatus: nextStatus,
+      },
+      session,
+    });
+
+    await session.commitTransaction();
+    return purchaseReturn;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
 };
 
+// Update your exported service object block at the bottom
+export const PurchaseReturnService = {
+  createPurchaseReturn,
+  transitionPurchaseReturnStatus, // Export added cleanly for Phase 12.5.2
+};
