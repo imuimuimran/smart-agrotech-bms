@@ -159,14 +159,34 @@ export const createPurchaseReturnSchema = z
     }
   });
 
-// /**
-//  * Parameter Route Verification Schema Contract
-//  */
-// export const purchaseReturnPublicIdParamSchema = z.object({
-//   params: z.object({
-//     publicId: z
-//       .string()
-//       .trim()
-//       .min(1, "Public business trace identifier parameter is required."),
-//   }),
-// });
+
+/**
+ * Phase 12.5.4 — Workflow Parameter Tracing Validation Schema
+ */
+export const purchaseReturnPublicIdParamSchema = z.object({
+  params: z.object({
+    publicId: z
+      .string()
+      .trim()
+      .min(1, "Public purchase return ID parameter is required."),
+  }),
+});
+
+/**
+ * Phase 12.5.4 — Request Validation Schema for Rejections
+ */
+export const rejectPurchaseReturnSchema = z.object({
+  params: z.object({
+    publicId: z
+      .string()
+      .trim()
+      .min(1, "Public purchase return ID parameter is required."),
+  }),
+  body: z.object({
+    reason: z
+      .string()
+      .trim()
+      .min(5, "An explicit rejection reason of at least 5 characters is required."),
+  }),
+});
+

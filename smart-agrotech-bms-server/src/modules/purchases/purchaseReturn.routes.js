@@ -5,6 +5,10 @@ import authorize from "../../middlewares/authorize.middleware.js";
 import ROLES from "../../constants/roles.js";
 import { PurchaseReturnController } from "./purchaseReturn.controller.js";
 import { createPurchaseReturnSchema } from "./purchaseReturn.validation.js";
+import {
+  purchaseReturnPublicIdParamSchema,
+  rejectPurchaseReturnSchema,
+} from "./purchaseReturn.validation.js";
 
 const router = express.Router();
 
@@ -19,6 +23,54 @@ router.post(
   authorize(ROLES.ADMIN, ROLES.MODERATOR),
   validateRequest(createPurchaseReturnSchema),
   PurchaseReturnController.createPurchaseReturn
+);
+
+/**
+ * Submit for Approval (DRAFT → PENDING_APPROVAL)
+ * Permissions: Admin, Moderator
+ */
+router.post(
+  "/returns/:publicId/submit",
+  verifyToken,
+  authorize(ROLES.ADMIN, ROLES.MODERATOR),
+  validateRequest(purchaseReturnPublicIdParamSchema),
+  PurchaseReturnController.submitPurchaseReturn
+);
+
+/**
+ * Approve Return Request (PENDING_APPROVAL → APPROVED)
+ * Permissions: Admin Only (Sensitive Business Discretion Isolation)
+ */
+router.post(
+  "/returns/:publicId/approve",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  validateRequest(purchaseReturnPublicIdParamSchema),
+  PurchaseReturnController.approvePurchaseReturn
+);
+
+/**
+ * Reject Return Request (PENDING_APPROVAL → REJECTED)
+ * Permissions: Admin Only
+ */
+router.post(
+  "/returns/:publicId/reject",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  validateRequest(rejectPurchaseReturnSchema),
+  PurchaseReturnController.rejectPurchaseReturn
+);
+
+/**
+ * Cancel Return Request (DRAFT / PENDING_APPROVAL → CANCELLED)
+ * Permissions: Admin, Moderator
+ */
+router.post(
+  "/returns/:publicId/cancel",
+  verifyToken,
+  authorize(ROLES.ADMIN, ROLES.MODERATOR),
+  validateRequest(purchaseReturnPublicIdParamSchema),
+  PurchaseReturnController.cancelPurchaseReturn
 );
 
 export const purchaseReturnRoutes = router;
