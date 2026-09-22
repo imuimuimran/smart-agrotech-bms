@@ -8,7 +8,7 @@ import { PurchaseReturn } from "./purchaseReturn.model.js";
 import { getNextSequence } from "../../utils/sequence.util.js";
 import generatePublicId from "../../utils/generatePublicId.js"; 
 import { ActivityLogService } from "../activity-logs/activityLog.service.js";
-
+import ROLES from "../../constants/roles.js";
 import { 
   PURCHASE_RETURN_STATUS, 
   isPurchaseReturnTransitionAllowed 
@@ -375,17 +375,10 @@ const createPurchaseReturn = async (payload, reqUser) => {
 
 
 /**
- * Phase 12.5.2 — Controlled Purchase Return Workflow Service
- * Orchestrates document state transitions following strict business boundaries.
- * Blocks random status tampering, enforces audit parameters, and logs activity traces.
- * 
- * @param {string} returnPublicId - Unique public business trace identifier
- * @param {string} nextStatus - Targeted status destination enum value
- * @param {Object} reqUser - Request user context token data object
- * @returns {Promise<Object>} The updated PurchaseReturn document
+ * Phase 12.5.5 — Enhanced Controlled Purchase Return Workflow Service
+ * Multi-layer defense: Validates roles, checks transition matrix, and prevents state bypassing.
  */
 export const transitionPurchaseReturnStatus = async (returnPublicId, nextStatus, reqUser) => {
-  // Ensure requesting user identity footprint exists before execution
   if (!reqUser?.id) {
     throw new ApiError(httpStatus.UNAUTHORIZED, "Authenticated user identity context is required.");
   }
@@ -394,7 +387,6 @@ export const transitionPurchaseReturnStatus = async (returnPublicId, nextStatus,
   session.startTransaction();
 
   try {
-    // 1. Fetch document and reject missing or soft-deleted records
     const purchaseReturn = await PurchaseReturn.findOne({
       publicId: returnPublicId,
       isDeleted: false,
@@ -406,26 +398,47 @@ export const transitionPurchaseReturnStatus = async (returnPublicId, nextStatus,
 
     const currentStatus = purchaseReturn.status;
 
-    // 2. Validate requested status change using the 12.5.1 state transition matrix
+    // 1. Phase 12.5.5 Service-Level Security Boundary: Enforce strict role authorization
+    const actorRole = reqUser.role;
+
+    // Administrative Transitions: Approval and Rejection are isolated to ADMIN only
+    if (nextStatus === PURCHASE_RETURN_STATUS.APPROVED || nextStatus === PURCHASE_RETURN_STATUS.REJECTED) {
+      if (actorRole !== ROLES.ADMIN) {
+        throw new ApiError(
+          httpStatus.FORBIDDEN,
+          "Access Denied: Strict Admin privileges are required to approve or reject purchase returns."
+        );
+      }
+    }
+
+    // Operational Transitions: Submission and Cancellation are open to ADMIN and MODERATOR
+    if (nextStatus === PURCHASE_RETURN_STATUS.PENDING_APPROVAL || nextStatus === PURCHASE_RETURN_STATUS.CANCELLED) {
+      if (actorRole !== ROLES.ADMIN && actorRole !== ROLES.MODERATOR) {
+        throw new ApiError(
+          httpStatus.FORBIDDEN,
+          "Access Denied: You do not hold the required procurement permissions to execute this action."
+        );
+      }
+    }
+
+    // 2. Validate the requested transition using the 12.5.1 state transition matrix
     const isAllowed = isPurchaseReturnTransitionAllowed(currentStatus, nextStatus);
     if (!isAllowed) {
       throw new ApiError(
         httpStatus.BAD_REQUEST,
-        `Workflow Violation: Transition from current state "${currentStatus}" to requested state "${nextStatus}" is not permitted.`
+        `Workflow Violation: Direct state bypass from "${currentStatus}" to "${nextStatus}" is completely blocked.`
       );
     }
 
-    // 3. Apply state-specific modifications safely
+    // 3. Apply state-specific modifications authoritatively (Server-controlled metadata)
     purchaseReturn.status = nextStatus;
     purchaseReturn.updatedBy = reqUser.id;
 
-    // PENDING_APPROVAL → APPROVED: Stamp audit context
     if (currentStatus === PURCHASE_RETURN_STATUS.PENDING_APPROVAL && nextStatus === PURCHASE_RETURN_STATUS.APPROVED) {
       purchaseReturn.approvedBy = reqUser.id;
       purchaseReturn.approvedAt = new Date();
     }
 
-    // PROCESSING → COMPLETED: Strict rule guard check
     if (nextStatus === PURCHASE_RETURN_STATUS.COMPLETED) {
       throw new ApiError(
         httpStatus.BAD_REQUEST,
@@ -433,16 +446,15 @@ export const transitionPurchaseReturnStatus = async (returnPublicId, nextStatus,
       );
     }
 
-    // 4. Persist updated status
     await purchaseReturn.save({ session });
 
-    // 5. Record state transition through the existing system log helper
+    // 4. Record state transition through the existing system log helper
     await ActivityLogService.logActivity({
       user: reqUser.id,
       action: "UPDATE",
       module: "PURCHASES",
       entityId: purchaseReturn._id,
-      description: `Purchase return ${purchaseReturn.returnNumber} workflow advanced from "${currentStatus}" to "${nextStatus}".`,
+      description: `Purchase return ${purchaseReturn.returnNumber} advanced from "${currentStatus}" to "${nextStatus}" by user ${reqUser.name}.`,
       metadata: {
         returnNumber: purchaseReturn.returnNumber,
         previousStatus: currentStatus,
