@@ -461,8 +461,84 @@ export const transitionPurchaseReturnStatus = async (returnPublicId, nextStatus,
   }
 };
 
-// Update your exported service object block at the bottom
+/**
+ * Phase 12.5.3.1 — Submit Purchase Return For Approval
+ * Workflow Shift: DRAFT → PENDING_APPROVAL
+ */
+export const submitPurchaseReturnForApproval = async (returnPublicId, reqUser) => {
+  return await transitionPurchaseReturnStatus(
+    returnPublicId, 
+    PURCHASE_RETURN_STATUS.PENDING_APPROVAL, 
+    reqUser
+  );
+};
+
+/**
+ * Phase 12.5.3.2 — Approve Purchase Return Document
+ * Workflow Shift: PENDING_APPROVAL → APPROVED
+ * (The underlying transition engine automatically records approval timestamps and actor IDs)
+ */
+export const approvePurchaseReturn = async (returnPublicId, reqUser) => {
+  return await transitionPurchaseReturnStatus(
+    returnPublicId, 
+    PURCHASE_RETURN_STATUS.APPROVED, 
+    reqUser
+  );
+};
+
+/**
+ * Phase 12.5.3.3 — Reject Purchase Return Request
+ * Workflow Shift: PENDING_APPROVAL → REJECTED
+ * 
+ * Supports an optional payload update reason context mapped to the database 
+ * remarks key before executing status mutations.
+ */
+export const rejectPurchaseReturn = async (returnPublicId, payload, reqUser) => {
+  if (payload?.reason) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      // Append the explicit structural rejection reason to remarks field before transition
+      await PurchaseReturn.updateOne(
+        { publicId: returnPublicId, status: PURCHASE_RETURN_STATUS.PENDING_APPROVAL, isDeleted: false },
+        { $set: { remarks: `REJECTION REASON: ${payload.reason.trim()}` } },
+        { session }
+      );
+      await session.commitTransaction();
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  }
+
+  return await transitionPurchaseReturnStatus(
+    returnPublicId, 
+    PURCHASE_RETURN_STATUS.REJECTED, 
+    reqUser
+  );
+};
+
+/**
+ * Phase 12.5.3.4 — Cancel Purchase Return Order
+ * Workflow Shift: DRAFT → CANCELLED or PENDING_APPROVAL → CANCELLED
+ * (The 12.5.1 matrix automatically blocks cancellation from processing or completed states)
+ */
+export const cancelPurchaseReturn = async (returnPublicId, reqUser) => {
+  return await transitionPurchaseReturnStatus(
+    returnPublicId, 
+    PURCHASE_RETURN_STATUS.CANCELLED, 
+    reqUser
+  );
+};
+
+
 export const PurchaseReturnService = {
   createPurchaseReturn,
-  transitionPurchaseReturnStatus, // Export added cleanly for Phase 12.5.2
+  transitionPurchaseReturnStatus,
+  submitPurchaseReturnForApproval,
+  approvePurchaseReturn,
+  rejectPurchaseReturn,
+  cancelPurchaseReturn,
 };
