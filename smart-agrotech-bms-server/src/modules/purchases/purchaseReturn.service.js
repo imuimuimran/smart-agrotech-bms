@@ -546,6 +546,106 @@ export const cancelPurchaseReturn = async (returnPublicId, reqUser) => {
 };
 
 
+/**
+ * Phase 12.6.1 — Purchase Return Inventory Processing Boundary
+ * 
+ * Verifies document authorization, validates current operational states,
+ * and shifts the voucher context cleanly to PROCESSING state. This acts as 
+ * the thread-safe foundation before dispatching physical inventory adjustments.
+ * 
+ * @param {string} returnPublicId - Unique public business trace identifier
+ * @param {Object} reqUser - Request user context token data object
+ * @returns {Promise<Object>} The updated PurchaseReturn document
+ */
+export const processPurchaseReturn = async (returnPublicId, reqUser) => {
+  if (!reqUser?.id) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, "Authenticated user identity context is required.");
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // 1. Load document and check soft-delete status flags
+    const purchaseReturn = await PurchaseReturn.findOne({
+      publicId: returnPublicId,
+      isDeleted: false,
+    }).session(session);
+
+    if (!purchaseReturn) {
+      throw new ApiError(httpStatus.NOT_FOUND, "Purchase return record not found.");
+    }
+
+    // 2. Strict State Firewall Check: Mandate status APPROVED to execute
+    if (purchaseReturn.status !== "APPROVED") {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        `Inventory Boundary Error: Only returns holding status "APPROVED" can enter processing. Current status: "${purchaseReturn.status}".`
+      );
+    }
+
+    // 3. Revalidate the master database links to guarantee traceability integrity
+    const goodsReceipt = await getValidGoodsReceipt(
+      purchaseReturn.goodsReceiptId,
+      purchaseReturn.purchaseId,
+      purchaseReturn.supplierId,
+      purchaseReturn.warehouseId,
+      session
+    );
+
+    // 4. Revalidate item snapshots depth against live available procurement limits
+    for (const item of purchaseReturn.items) {
+      const goodsReceiptItem = findGoodsReceiptItem(goodsReceipt, item.goodsReceiptItemId);
+      
+      const remainingEligible = await calculateRemainingEligibleQuantity({
+        purchaseId: purchaseReturn.purchaseId,
+        goodsReceiptId: purchaseReturn.goodsReceiptId,
+        goodsReceiptItem,
+      });
+
+      // Guard check protects against overlapping processing drifts
+      if (item.returnQuantity > remainingEligible) {
+        throw new ApiError(
+          httpStatus.BAD_REQUEST,
+          `Fulfillment Conflict: Item "${item.productNameSnapshot}" return volume of ${item.returnQuantity} exceeds remaining available limit of ${remainingEligible}.`
+        );
+      }
+    }
+
+    // 5. Shift status to PROCESSING to establish the execution boundary
+    purchaseReturn.status = "PROCESSING";
+    purchaseReturn.processedBy = reqUser.id;
+    purchaseReturn.processedAt = new Date();
+    purchaseReturn.updatedBy = reqUser.id;
+
+    await purchaseReturn.save({ session });
+
+    // 6. Append audit history trail record cleanly inside transaction session
+    await ActivityLogService.logActivity({
+      user: reqUser.id,
+      action: "UPDATE",
+      module: "PURCHASES",
+      entityId: purchaseReturn._id,
+      description: `Purchase return ${purchaseReturn.returnNumber} workflow state advanced to PROCESSING. Prepared inventory instructions.`,
+      metadata: {
+        returnNumber: purchaseReturn.returnNumber,
+        status: "PROCESSING",
+        totalQuantity: purchaseReturn.totalQuantity,
+      },
+      session,
+    });
+
+    await session.commitTransaction();
+    return purchaseReturn;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
+
 export const PurchaseReturnService = {
   createPurchaseReturn,
   transitionPurchaseReturnStatus,
@@ -553,4 +653,5 @@ export const PurchaseReturnService = {
   approvePurchaseReturn,
   rejectPurchaseReturn,
   cancelPurchaseReturn,
+  processPurchaseReturn,
 };
