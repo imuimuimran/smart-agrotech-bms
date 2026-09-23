@@ -620,17 +620,28 @@ export const processPurchaseReturn = async (returnPublicId, reqUser) => {
 
     await purchaseReturn.save({ session });
 
+     // Phase 12.6.2: Build authoritative inventory movement payloads without executing them yet
+    const outboundInstructions = prepareOutboundStockInstructions(purchaseReturn, reqUser.id);
+    const inboundInstructions = prepareInboundStockInstructions(purchaseReturn, reqUser.id);
+
+    // 12.6.2 Verification Log Boundary Hook: Trace mapped counts in application logs
+    console.log(`[Phase 12.6.2 Instruction Matrix Built for Voucher: ${purchaseReturn.returnNumber}]`, {
+      outboundMovementsCount: outboundInstructions.length,
+      inboundMovementsCount: inboundInstructions.length,
+    });
+
     // 6. Append audit history trail record cleanly inside transaction session
     await ActivityLogService.logActivity({
       user: reqUser.id,
       action: "UPDATE",
       module: "PURCHASES",
       entityId: purchaseReturn._id,
-      description: `Purchase return ${purchaseReturn.returnNumber} workflow state advanced to PROCESSING. Prepared inventory instructions.`,
+      description: `Purchase return ${purchaseReturn.returnNumber} inventory movement mapping vectors verified and compiled.`,
       metadata: {
         returnNumber: purchaseReturn.returnNumber,
         status: "PROCESSING",
-        totalQuantity: purchaseReturn.totalQuantity,
+        outboundInstructionsCount: outboundInstructions.length,
+        inboundInstructionsCount: inboundInstructions.length,
       },
       session,
     });
@@ -643,6 +654,62 @@ export const processPurchaseReturn = async (returnPublicId, reqUser) => {
   } finally {
     session.endSession();
   }
+};
+
+
+/**
+ * Phase 12.6.2 — Prepare Outbound Inventory Movement Instructions
+ * Converts validated return subdocuments into authoritative STOCK OUT instructions.
+ * 
+ * @param {Object} purchaseReturn - The master PurchaseReturn document context
+ * @param {string} userId - The object identifier of the authenticated processing user
+ * @returns {Array<Object>} Array of explicit inventory OUT instruction configurations
+ */
+const prepareOutboundStockInstructions = (purchaseReturn, userId) => {
+  return purchaseReturn.items.map((item) => {
+    // Phase 12.6.2: Coerce Decimal128 values back to floats safely for the service inputs
+    const numericalCostBasis = Number(item.unitCost.toString());
+
+    return {
+      productId: item.productId,
+      warehouseId: purchaseReturn.warehouseId, // Tied strictly to origin receipt warehouse
+      quantity: item.returnQuantity, // Absolute positive value; decreaseStock handles direction
+      unitCost: numericalCostBasis,
+      referenceType: "PURCHASE_RETURN", // Traceable polymorphic reference hook mapping
+      referenceId: purchaseReturn._id,
+      postedBy: userId,
+      remarks: `Outbound procurement return shipment issued for voucher ${purchaseReturn.returnNumber}`,
+    };
+  });
+};
+
+/**
+ * Phase 12.6.2 — Prepare Inbound Inventory Movement Instructions (EXCHANGE only)
+ * Converts exchange replacement arrays into explicit STOCK IN instructions.
+ * 
+ * @param {Object} purchaseReturn - The master PurchaseReturn document context
+ * @param {string} userId - The object identifier of the authenticated processing user
+ * @returns {Array<Object>} Array of explicit inventory IN instruction configurations
+ */
+const prepareInboundStockInstructions = (purchaseReturn, userId) => {
+  if (purchaseReturn.returnType !== "EXCHANGE") {
+    return [];
+  }
+
+  return purchaseReturn.replacementItems.map((item) => {
+    const numericalCostBasis = Number(item.unitCost.toString());
+
+    return {
+      productId: item.productId,
+      warehouseId: purchaseReturn.warehouseId,
+      quantity: item.quantity,
+      unitCost: numericalCostBasis,
+      referenceType: "PURCHASE_RETURN",
+      referenceId: purchaseReturn._id,
+      postedBy: userId,
+      remarks: `Inbound procurement replacement lot received under voucher ${purchaseReturn.returnNumber}`,
+    };
+  });
 };
 
 
