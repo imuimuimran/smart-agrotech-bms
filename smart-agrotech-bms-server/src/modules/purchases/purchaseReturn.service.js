@@ -12,7 +12,8 @@ import { InventoryService } from "../inventory/inventory.service.js";
 import ROLES from "../../constants/roles.js";
 import { 
   PURCHASE_RETURN_STATUS, 
-  isPurchaseReturnTransitionAllowed 
+  isPurchaseReturnTransitionAllowed,
+  PURCHASE_RETURN_TYPE 
 } from "./purchaseReturn.constants.js";
 
 /**
@@ -549,21 +550,15 @@ export const cancelPurchaseReturn = async (returnPublicId, reqUser) => {
 
 
 /**
- * Phase 12.6.2 — Prepare Inbound Inventory Movement Instructions (EXCHANGE only)
- * Converts exchange replacement arrays into explicit STOCK IN instructions.
- * 
- * @param {Object} purchaseReturn - The master PurchaseReturn document context
- * @param {string} userId - The object identifier of the authenticated processing user
- * @returns {Array<Object>} Array of explicit inventory IN instruction configurations
+ * Phase 12.6.2 — Internal Helper: Prepare Inbound Inventory Movement Instructions (EXCHANGE only)
  */
 const prepareInboundStockInstructions = (purchaseReturn, userId) => {
-  if (purchaseReturn.returnType !== "EXCHANGE") {
+  if (purchaseReturn.returnType !== PURCHASE_RETURN_TYPE.EXCHANGE) {
     return [];
   }
 
   return purchaseReturn.replacementItems.map((item) => {
     const numericalCostBasis = Number(item.unitCost.toString());
-
     return {
       productId: item.productId,
       warehouseId: purchaseReturn.warehouseId,
@@ -589,7 +584,7 @@ const prepareOutboundStockInstructions = (purchaseReturn, userId) => {
       warehouseId: purchaseReturn.warehouseId,
       quantity: item.returnQuantity, 
       unitCost: numericalCostBasis,
-      referenceType: "PURCHASE_RETURN", // Identifies Purchase Return as the stock event [Page 1]
+      referenceType: "PURCHASE_RETURN", 
       referenceId: purchaseReturn._id,
       postedBy: userId,
       remarks: `Outbound procurement return shipment issued for voucher ${purchaseReturn.returnNumber}`,
@@ -598,13 +593,9 @@ const prepareOutboundStockInstructions = (purchaseReturn, userId) => {
 };
 
 /**
- * Phase 12.6.3 Master Pipeline Core — Execute Return Inventory Processing
- * Orchestrates status verification, loops over prepared instructions, dispatches 
- * stock deductions via InventoryService, and advances state cleanly to COMPLETED.
- * 
- * @param {string} returnPublicId - Unique public business trace identifier
- * @param {Object} reqUser - Request user context token data object
- * @returns {Promise<Object>} The updated PurchaseReturn document
+ * Phase 12.6.4 Master Pipeline Core — Execute Return & Exchange Inventory Processing
+ * Orchestrates status verification, processes outbound movements via decreaseStock, 
+ * dispatches inbound exchange movements via increaseStock, and advances state cleanly to COMPLETED.
  */
 export const processPurchaseReturn = async (returnPublicId, reqUser) => {
   if (!reqUser?.id) {
@@ -612,10 +603,10 @@ export const processPurchaseReturn = async (returnPublicId, reqUser) => {
   }
 
   const session = await mongoose.startSession();
-  session.startTransaction(); // Master transactional boundary initialized [Page 1]
+  session.startTransaction(); // Single transactional boundary shields both legs atomically [Page 1]
 
   try {
-    // 1. Fetch document and block duplicate executions against completed/terminal vouchers [Page 1]
+    // 1. Fetch document and block duplicate executions against completed/terminal vouchers
     const purchaseReturn = await PurchaseReturn.findOne({
       publicId: returnPublicId,
       isDeleted: false,
@@ -632,7 +623,7 @@ export const processPurchaseReturn = async (returnPublicId, reqUser) => {
       );
     }
 
-    // Strict State Firewall Check: Mandate status APPROVED to initiate processing [Page 1]
+    // Strict State Firewall Check: Mandate status APPROVED to initiate processing
     if (purchaseReturn.status !== "APPROVED") {
       throw new ApiError(
         httpStatus.BAD_REQUEST,
@@ -640,7 +631,7 @@ export const processPurchaseReturn = async (returnPublicId, reqUser) => {
       );
     }
 
-    // 2. Revalidate the master database links to guarantee traceability integrity [Page 1]
+    // 2. Revalidate the master database links to guarantee traceability integrity
     const goodsReceipt = await getValidGoodsReceipt(
       purchaseReturn.goodsReceiptId,
       purchaseReturn.purchaseId,
@@ -673,11 +664,11 @@ export const processPurchaseReturn = async (returnPublicId, reqUser) => {
     purchaseReturn.updatedBy = reqUser.id;
     await purchaseReturn.save({ session });
 
-    // 4. Build return inventory instructions from validated snapshot parameters [Page 1]
+    // 4. Build return and replacement inventory instructions from validated parameters [Page 1]
     const outboundInstructions = prepareOutboundStockInstructions(purchaseReturn, reqUser.id);
+    const inboundInstructions = prepareInboundStockInstructions(purchaseReturn, reqUser.id);
 
-    // 5. Execute Return Inventory OUT through the core project InventoryService [Page 1]
-    // Processes loops over array vectors, passing the active session down for rollback guards
+    // 5. Execution Leg 1: Execute Return Inventory OUT (Decrease Stock) [Page 1]
     for (const instruction of outboundInstructions) {
       await InventoryService.decreaseStock({
         productId: instruction.productId,
@@ -685,36 +676,57 @@ export const processPurchaseReturn = async (returnPublicId, reqUser) => {
         quantity: instruction.quantity,
         referenceType: instruction.referenceType,
         referenceId: instruction.referenceId,
-        unitCost: instruction.unitCost, // Accurate purchase price baseline cost passed
+        unitCost: instruction.unitCost, 
         postedBy: instruction.postedBy,
         remarks: instruction.remarks,
-        session, // Strict transactional binding prevents un-audited direct document updates
+        session, 
       });
     }
 
-    // 6. Transition state directly to COMPLETED only after inventory operation succeeds [Page 1]
+    // 6. Execution Leg 2 (Phase 12.6.4): Execute Replacement Inventory IN (Increase Stock) [Page 1]
+    // Only runs if the voucher returnType matches EXCHANGE [Page 1]
+    if (purchaseReturn.returnType === PURCHASE_RETURN_TYPE.EXCHANGE) {
+      for (const instruction of inboundInstructions) {
+        await InventoryService.increaseStock({
+          productId: instruction.productId,
+          warehouseId: instruction.warehouseId,
+          quantity: instruction.quantity,
+          referenceType: instruction.referenceType,
+          referenceId: instruction.referenceId,
+          unitCost: instruction.unitCost, // Authoritative server-side cost used [Page 1]
+          postedBy: instruction.postedBy,
+          remarks: instruction.remarks,
+          transactionType: "PURCHASE_RECEIPT", // Reuses standard project procurement receipt types
+          session, // Strictly bound to shared session to allow complete rollbacks on failure [Page 1]
+        });
+      }
+    }
+
+    // 7. Transition state directly to COMPLETED after both physical inventory operations succeed [Page 1]
     purchaseReturn.status = "COMPLETED";
     await purchaseReturn.save({ session });
 
-    // 7. Append audit accountability trail record cleanly inside transaction session [Page 1]
+    // 8. Append audit accountability trail record cleanly inside transaction session
     await ActivityLogService.logActivity({
       user: reqUser.id,
       action: "UPDATE",
       module: "PURCHASES",
       entityId: purchaseReturn._id,
-      description: `Purchase return ${purchaseReturn.returnNumber} successfully processed. Physical inventory OUT transactions executed.`,
+      description: `Purchase return ${purchaseReturn.returnNumber} (${purchaseReturn.returnType}) successfully processed. Outbound stock deductions and inbound replacements committed.`,
       metadata: {
         returnNumber: purchaseReturn.returnNumber,
+        returnType: purchaseReturn.returnType,
         status: "COMPLETED",
-        itemsProcessedCount: outboundInstructions.length,
+        itemsOutCount: outboundInstructions.length,
+        itemsInCount: inboundInstructions.length,
       },
       session,
     });
 
-    await session.commitTransaction(); // Everything commits atomically [Page 1]
+    await session.commitTransaction(); // Everything commits or rolls back atomically [Page 1]
     return purchaseReturn;
   } catch (error) {
-    await session.abortTransaction(); // Error triggers full rollback loop, erasing partial inventory mutations [Page 1]
+    await session.abortTransaction(); // Error on either leg triggers a full rollback, preventing data fragmentation [Page 1]
     throw error;
   } finally {
     session.endSession();
