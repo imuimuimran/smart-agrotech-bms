@@ -593,9 +593,13 @@ const prepareOutboundStockInstructions = (purchaseReturn, userId) => {
 };
 
 /**
- * Phase 12.6.4 Master Pipeline Core — Execute Return & Exchange Inventory Processing
- * Orchestrates status verification, processes outbound movements via decreaseStock, 
- * dispatches inbound exchange movements via increaseStock, and advances state cleanly to COMPLETED.
+ * Phase 12.6.5 Master Pipeline Core — Execute Return & Exchange Inventory Processing
+ * Idempotency Firewall: Rejects already processed, cancelled, or draft records, ensuring
+ * inventory movements are performed exactly once.
+ * 
+ * @param {string} returnPublicId - Unique public business trace identifier
+ * @param {Object} reqUser - Request user context token data object
+ * @returns {Promise<Object>} The updated PurchaseReturn document
  */
 export const processPurchaseReturn = async (returnPublicId, reqUser) => {
   if (!reqUser?.id) {
@@ -603,10 +607,10 @@ export const processPurchaseReturn = async (returnPublicId, reqUser) => {
   }
 
   const session = await mongoose.startSession();
-  session.startTransaction(); // Single transactional boundary shields both legs atomically [Page 1]
+  session.startTransaction(); // Master transactional boundary safeguards atomicity [INDEX]
 
   try {
-    // 1. Fetch document and block duplicate executions against completed/terminal vouchers
+    // 1. Fetch document and explicitly block duplicate processing on terminal or invalid states [INDEX]
     const purchaseReturn = await PurchaseReturn.findOne({
       publicId: returnPublicId,
       isDeleted: false,
@@ -616,22 +620,21 @@ export const processPurchaseReturn = async (returnPublicId, reqUser) => {
       throw new ApiError(httpStatus.NOT_FOUND, "Purchase return record not found.");
     }
 
-    if (purchaseReturn.status === "COMPLETED" || purchaseReturn.status === "CANCELLED" || purchaseReturn.status === "REJECTED") {
+    // Rule 1 & Rule 2 Protection: Block execution if return is COMPLETED, CANCELLED, REJECTED, or DRAFT [INDEX]
+    if (
+      purchaseReturn.status === PURCHASE_RETURN_STATUS.COMPLETED || 
+      purchaseReturn.status === PURCHASE_RETURN_STATUS.CANCELLED || 
+      purchaseReturn.status === PURCHASE_RETURN_STATUS.REJECTED ||
+      purchaseReturn.status === PURCHASE_RETURN_STATUS.DRAFT ||
+      purchaseReturn.status === PURCHASE_RETURN_STATUS.PENDING_APPROVAL
+    ) {
       throw new ApiError(
         httpStatus.BAD_REQUEST,
-        `Inventory Boundary Error: Vouchers in terminal state "${purchaseReturn.status}" cannot be processed again.`
+        `Idempotency Guard: Processing rejected. Only vouchers holding status "APPROVED" can be processed. Current status: "${purchaseReturn.status}".`
       );
     }
 
-    // Strict State Firewall Check: Mandate status APPROVED to initiate processing
-    if (purchaseReturn.status !== "APPROVED") {
-      throw new ApiError(
-        httpStatus.BAD_REQUEST,
-        `Inventory Boundary Error: Only returns holding status "APPROVED" can be processed. Current: "${purchaseReturn.status}".`
-      );
-    }
-
-    // 2. Revalidate the master database links to guarantee traceability integrity
+    // 2. Revalidate master database procurement links to ensure data consistency [INDEX]
     const goodsReceipt = await getValidGoodsReceipt(
       purchaseReturn.goodsReceiptId,
       purchaseReturn.purchaseId,
@@ -640,7 +643,7 @@ export const processPurchaseReturn = async (returnPublicId, reqUser) => {
       session
     );
 
-    // Revalidate item line ceilings against live available procurement limits
+    // Revalidate item thresholds against remaining eligible quantities to prevent over-returns
     for (const item of purchaseReturn.items) {
       const goodsReceiptItem = findGoodsReceiptItem(goodsReceipt, item.goodsReceiptItemId);
       const remainingEligible = await calculateRemainingEligibleQuantity({
@@ -652,30 +655,30 @@ export const processPurchaseReturn = async (returnPublicId, reqUser) => {
       if (item.returnQuantity > remainingEligible) {
         throw new ApiError(
           httpStatus.BAD_REQUEST,
-          `Fulfillment Conflict: Item "${item.productNameSnapshot}" return volume exceeds remaining available limit of ${remainingEligible}.`
+          `Fulfillment Conflict: Item "${item.productNameSnapshot}" return quantity exceeds available remaining limit of ${remainingEligible}.`
         );
       }
     }
 
-    // 3. Shift status to processing buffer stage [Page 1]
-    purchaseReturn.status = "PROCESSING";
-    purchaseReturn.processedBy = reqUser.id;
-    purchaseReturn.processedAt = new Date();
+    // 3. Shift status to processing buffer stage [INDEX]
+    purchaseReturn.status = PURCHASE_RETURN_STATUS.PROCESSING;
+    purchaseReturn.processedBy = reqUser.id; // Backend authoritative assignment [INDEX]
+    purchaseReturn.processedAt = new Date(); // Backend authoritative timestamp [INDEX]
     purchaseReturn.updatedBy = reqUser.id;
     await purchaseReturn.save({ session });
 
-    // 4. Build return and replacement inventory instructions from validated parameters [Page 1]
+    // 4. Compile server-authoritative inventory instruction blocks [INDEX]
     const outboundInstructions = prepareOutboundStockInstructions(purchaseReturn, reqUser.id);
     const inboundInstructions = prepareInboundStockInstructions(purchaseReturn, reqUser.id);
 
-    // 5. Execution Leg 1: Execute Return Inventory OUT (Decrease Stock) [Page 1]
+    // 5. Execution Leg 1: Outbound Stock Deductions [INDEX]
     for (const instruction of outboundInstructions) {
       await InventoryService.decreaseStock({
         productId: instruction.productId,
         warehouseId: instruction.warehouseId,
         quantity: instruction.quantity,
         referenceType: instruction.referenceType,
-        referenceId: instruction.referenceId,
+        referenceId: instruction.referenceId, // Tied authoritatively to PurchaseReturn._id [INDEX]
         unitCost: instruction.unitCost, 
         postedBy: instruction.postedBy,
         remarks: instruction.remarks,
@@ -683,8 +686,7 @@ export const processPurchaseReturn = async (returnPublicId, reqUser) => {
       });
     }
 
-    // 6. Execution Leg 2 (Phase 12.6.4): Execute Replacement Inventory IN (Increase Stock) [Page 1]
-    // Only runs if the voucher returnType matches EXCHANGE [Page 1]
+    // 6. Execution Leg 2: Inbound Replacement Receipts (EXCHANGE only) [INDEX]
     if (purchaseReturn.returnType === PURCHASE_RETURN_TYPE.EXCHANGE) {
       for (const instruction of inboundInstructions) {
         await InventoryService.increaseStock({
@@ -692,41 +694,41 @@ export const processPurchaseReturn = async (returnPublicId, reqUser) => {
           warehouseId: instruction.warehouseId,
           quantity: instruction.quantity,
           referenceType: instruction.referenceType,
-          referenceId: instruction.referenceId,
-          unitCost: instruction.unitCost, // Authoritative server-side cost used [Page 1]
+          referenceId: instruction.referenceId, // Traceable back to the same PurchaseReturn._id [INDEX]
+          unitCost: instruction.unitCost, 
           postedBy: instruction.postedBy,
           remarks: instruction.remarks,
-          transactionType: "PURCHASE_RECEIPT", // Reuses standard project procurement receipt types
-          session, // Strictly bound to shared session to allow complete rollbacks on failure [Page 1]
+          transactionType: "PURCHASE_RECEIPT",
+          session, // Shares transaction context to guarantee precise rollback states [INDEX]
         });
       }
     }
 
-    // 7. Transition state directly to COMPLETED after both physical inventory operations succeed [Page 1]
-    purchaseReturn.status = "COMPLETED";
+    // 7. Transition state to final COMPLETED only after both inventory operations succeed [INDEX]
+    purchaseReturn.status = PURCHASE_RETURN_STATUS.COMPLETED;
     await purchaseReturn.save({ session });
 
-    // 8. Append audit accountability trail record cleanly inside transaction session
+    // 8. Log accountability footprint
     await ActivityLogService.logActivity({
       user: reqUser.id,
       action: "UPDATE",
       module: "PURCHASES",
       entityId: purchaseReturn._id,
-      description: `Purchase return ${purchaseReturn.returnNumber} (${purchaseReturn.returnType}) successfully processed. Outbound stock deductions and inbound replacements committed.`,
+      description: `Purchase return ${purchaseReturn.returnNumber} (${purchaseReturn.returnType}) successfully completed. Inventory operations verified.`,
       metadata: {
         returnNumber: purchaseReturn.returnNumber,
         returnType: purchaseReturn.returnType,
-        status: "COMPLETED",
+        status: purchaseReturn.status,
         itemsOutCount: outboundInstructions.length,
         itemsInCount: inboundInstructions.length,
       },
       session,
     });
 
-    await session.commitTransaction(); // Everything commits or rolls back atomically [Page 1]
+    await session.commitTransaction(); // Atomic commit locked [INDEX]
     return purchaseReturn;
   } catch (error) {
-    await session.abortTransaction(); // Error on either leg triggers a full rollback, preventing data fragmentation [Page 1]
+    await session.abortTransaction(); // Full database rollback erases any partial movements if execution breaks [INDEX]
     throw error;
   } finally {
     session.endSession();
