@@ -73,4 +73,16 @@ router.post(
   PurchaseReturnController.cancelPurchaseReturn
 );
 
+// /**
+//  * Execute Physical Stock Movements (PROCESSING → COMPLETED)
+//  * Permissions: Admin Only (Strict Inventory Ledger Isolation Boundary)
+//  */
+// router.post(
+//   "/returns/:publicId/process",
+//   verifyToken,
+//   authorize(ROLES.ADMIN),
+//   validateRequest(purchaseReturnPublicIdParamSchema),
+//   PurchaseReturnController.processPurchaseReturn
+// );
+
 export const purchaseReturnRoutes = router;
