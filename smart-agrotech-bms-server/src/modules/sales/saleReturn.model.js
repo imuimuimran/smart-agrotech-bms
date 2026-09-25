@@ -1,10 +1,16 @@
 import mongoose from "mongoose";
+import {
+  SALE_RETURN_TYPE,
+  SALE_RETURN_STATUS,
+} from "./saleReturn.constants.js";
 
 const { Schema, model } = mongoose;
 
 /**
- * Phase 13.2 — Customer Return Item Snapshot Schema
- * Captures historical context tracing back to origin sale invoice lines.
+ * ============================================================
+ * SALES RETURN ITEM SCHEMA (Outbound Customer Returns)
+ * ============================================================
+ * Immutable historical snapshot traced to the exact original Sale Item line.
  */
 const SaleReturnItemSchema = new Schema(
   {
@@ -16,13 +22,15 @@ const SaleReturnItemSchema = new Schema(
     productNameSnapshot: {
       type: String,
       required: true,
+      trim: true,
     },
     skuSnapshot: {
       type: String,
       required: true,
+      trim: true,
     },
-    saleItemId: {
-      type: Schema.Types.ObjectId, // Direct line trace back to original Sale item row
+    originalSaleItemId: {
+      type: Schema.Types.ObjectId, // Maps precisely to the individual product subdocument row _id inside the Sale
       required: true,
     },
     soldQuantity: {
@@ -33,12 +41,17 @@ const SaleReturnItemSchema = new Schema(
     returnQuantity: {
       type: Number,
       required: true,
-      min: [1, "Return quantity must be at least 1."],
+      min: [1, "Customer return quantity must be at least 1."],
     },
     unitPrice: {
-      type: Number, // Commercial selling price snapshot from origin invoice
+      type: Number, // Historical commercial selling price from the original invoice line
       required: true,
       min: [0, "Unit price cannot be negative."],
+    },
+    unitCost: {
+      type: Number, // Historical cost-basis snapshot from the original invoice line (for future profit/margin audits)
+      required: true,
+      min: [0, "Unit cost cannot be negative."],
     },
     lineTotal: {
       type: Number,
@@ -66,7 +79,10 @@ const SaleReturnItemSchema = new Schema(
 );
 
 /**
- * Phase 13.2 — Exchange Replacement Item Snapshot Schema (EXCHANGE only)
+ * ============================================================
+ * SALES EXCHANGE REPLACEMENT ITEM SCHEMA (EXCHANGE Only)
+ * ============================================================
+ * Tracking parameters for incoming alternative items dispatched to the client.
  */
 const SaleReplacementItemSchema = new Schema(
   {
@@ -78,10 +94,12 @@ const SaleReplacementItemSchema = new Schema(
     productNameSnapshot: {
       type: String,
       required: true,
+      trim: true,
     },
     skuSnapshot: {
       type: String,
       required: true,
+      trim: true,
     },
     quantity: {
       type: Number,
@@ -89,9 +107,14 @@ const SaleReplacementItemSchema = new Schema(
       min: [1, "Replacement quantity must be at least 1."],
     },
     unitPrice: {
-      type: Number, // Current selling price of the replacement product
+      type: Number, // Base commercial selling price of the replacement product
       required: true,
       min: [0, "Replacement unit price cannot be negative."],
+    },
+    unitCost: {
+      type: Number, // Current purchase price cost-basis snapshot for financial balancing
+      required: true,
+      min: [0, "Replacement unit cost cannot be negative."],
     },
     lineTotal: {
       type: Number,
@@ -114,7 +137,9 @@ const SaleReplacementItemSchema = new Schema(
 );
 
 /**
- * Main SaleReturn Collection Schema
+ * ============================================================
+ * MAIN SALES RETURN / EXCHANGE DOCUMENT SCHEMA
+ * ============================================================
  */
 const SaleReturnSchema = new Schema(
   {
@@ -130,7 +155,7 @@ const SaleReturnSchema = new Schema(
       required: true,
       unique: true,
       trim: true,
-      index: true, // e.g., SRRET-2026-000001 or SREXCH-2026-000001
+      index: true, // e.g., SRET-000001
     },
     customerId: {
       type: Schema.Types.ObjectId,
@@ -140,19 +165,19 @@ const SaleReturnSchema = new Schema(
     },
     saleId: {
       type: Schema.Types.ObjectId,
-      ref: "Sale", // Explicitly traceable to the origin Sale invoice
+      ref: "Sale",
       required: true,
       index: true,
     },
     warehouseId: {
       type: Schema.Types.ObjectId,
-      ref: "Warehouse", // The destination warehouse receiving the returned items
+      ref: "Warehouse", // The destination location where stock returns are processed
       required: true,
       index: true,
     },
     returnType: {
       type: String,
-      enum: ["RETURN", "EXCHANGE"],
+      enum: Object.values(SALE_RETURN_TYPE),
       required: true,
       index: true,
     },
@@ -161,7 +186,7 @@ const SaleReturnSchema = new Schema(
       required: true,
       validate: {
         validator: (items) => items && items.length > 0,
-        message: "At least one return item row is required.",
+        message: "At least one returned item is required.",
       },
     },
     replacementItems: {
@@ -181,28 +206,20 @@ const SaleReturnSchema = new Schema(
     totalQuantity: {
       type: Number,
       required: true,
-      min: [1, "Total return count must be greater than zero."],
+      min: [1, "Total quantity physically returned must be at least 1."],
     },
     totalAmount: {
       type: Number,
       required: true,
-      min: [0, "Total return commercial amount cannot be negative."],
+      min: [0, "Commercial value total cannot be negative."],
     },
     status: {
       type: String,
-      enum: [
-        "DRAFT",
-        "PENDING_APPROVAL",
-        "APPROVED",
-        "REJECTED",
-        "PROCESSING",
-        "COMPLETED",
-        "CANCELLED",
-      ],
+      enum: Object.values(SALE_RETURN_STATUS),
       default: "DRAFT",
       index: true,
     },
-    // Multi-Stage Workflow Audit Metadata Fields
+    // Workflow Audit Footprints
     approvedBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -221,7 +238,7 @@ const SaleReturnSchema = new Schema(
       type: Date,
       default: null,
     },
-    // System Creation Trails
+    // Document Lifecycle Audit Tracks
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -253,7 +270,7 @@ const SaleReturnSchema = new Schema(
   }
 );
 
-// Global Soft-Delete Query Filtering Middleware
+// Pre-Query Hook Integration for Soft Deletion Layers
 SaleReturnSchema.query.withDeleted = function () {
   return this.setOptions({ withDeleted: true });
 };
@@ -266,11 +283,12 @@ SaleReturnSchema.pre(/^find/, function (next) {
   next();
 });
 
-// Operational High-Performance Compound Queries Indexes
+// High-Performance Business Database Query Lookup Indexes
 SaleReturnSchema.index({ customerId: 1, createdAt: -1 });
 SaleReturnSchema.index({ saleId: 1, createdAt: -1 });
 SaleReturnSchema.index({ warehouseId: 1, createdAt: -1 });
 SaleReturnSchema.index({ status: 1, createdAt: -1 });
 SaleReturnSchema.index({ returnType: 1, createdAt: -1 });
+SaleReturnSchema.index({ customerId: 1, warehouseId: 1, createdAt: -1 });
 
 export const SaleReturn = model("SaleReturn", SaleReturnSchema);
