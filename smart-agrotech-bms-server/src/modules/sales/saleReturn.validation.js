@@ -223,3 +223,26 @@ export const rejectSaleReturnSchema = z.object({
     .trim()
     .min(3, "A rejection reason is required."),
 });
+
+
+/**
+ * ============================================================
+ * UNIFIED WORKFLOW SCHEMA CONTRACTS (Phase 13.x)
+ * ============================================================
+ * Wraps parameters to match the project's validateRequest structure cleanly.
+ */
+
+export const saleReturnWorkflowParamSchema = z.object({
+  params: z.object({
+    publicId: z.string().trim().min(1, "Sales return publicId parameter is required."),
+  }),
+});
+
+export const unifiedRejectSaleReturnSchema = z.object({
+  params: z.object({
+    publicId: z.string().trim().min(1, "Sales return publicId parameter is required."),
+  }),
+  body: z.object({
+    remarks: z.string().trim().min(3, "A detailed rejection reason remarks context is required."),
+  }),
+});

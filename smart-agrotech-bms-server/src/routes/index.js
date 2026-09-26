@@ -14,9 +14,11 @@ import brandRoutes from "../modules/brands/brand.routes.js";
 
 import productRoutes from "../modules/products/product.routes.js";
 
+import { purchaseReturnRoutes } from "../modules/purchases/purchaseReturn.routes.js";
+
 import { saleRoutes } from "../modules/sales/sale.routes.js";
 
-import { purchaseReturnRoutes } from "../modules/purchases/purchaseReturn.routes.js";
+import { saleReturnRoutes } from "../modules/sales/saleReturn.routes.js";
 
 const router = Router();
 
@@ -34,8 +36,10 @@ router.use("/brands", brandRoutes);
 
 router.use("/products", productRoutes);
 
+router.use("/purchases", purchaseReturnRoutes);
+
 router.use("/sales", saleRoutes);
 
-router.use("/purchases", purchaseReturnRoutes);
+router.use("/sales", saleReturnRoutes);
 
 export default router;
