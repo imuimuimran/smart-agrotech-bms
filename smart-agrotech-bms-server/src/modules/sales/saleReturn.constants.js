@@ -55,3 +55,41 @@ export const SALE_RETURN_SORTABLE_FIELDS = [
 ];
 
 export const SALE_RETURN_DEFAULT_SORT = "-createdAt";
+
+
+/**
+ * ============================================================
+ * SALES RETURN WORKFLOW TRANSITIONS
+ * ============================================================
+ * Sales Return lifecycle is independent from Sale.status.
+ * Inventory is NOT changed by workflow transitions.
+ * Physical inventory processing happens separately.
+ */
+export const SALE_RETURN_ALLOWED_TRANSITIONS = Object.freeze({
+  [SALE_RETURN_STATUS.DRAFT]: [
+    SALE_RETURN_STATUS.PENDING_APPROVAL,
+    SALE_RETURN_STATUS.CANCELLED,
+  ],
+  [SALE_RETURN_STATUS.PENDING_APPROVAL]: [
+    SALE_RETURN_STATUS.APPROVED,
+    SALE_RETURN_STATUS.REJECTED,
+    SALE_RETURN_STATUS.CANCELLED,
+  ],
+  [SALE_RETURN_STATUS.APPROVED]: [
+    SALE_RETURN_STATUS.PROCESSING,
+  ],
+  [SALE_RETURN_STATUS.PROCESSING]: [
+    SALE_RETURN_STATUS.COMPLETED,
+  ],
+  [SALE_RETURN_STATUS.REJECTED]: [],
+  [SALE_RETURN_STATUS.CANCELLED]: [],
+  [SALE_RETURN_STATUS.COMPLETED]: [],
+});
+
+/**
+ * Checks whether a Sales Return status transition is allowed.
+ */
+export const isSaleReturnTransitionAllowed = (currentStatus, nextStatus) => {
+  const allowedNextStatuses = SALE_RETURN_ALLOWED_TRANSITIONS[currentStatus] || [];
+  return allowedNextStatuses.includes(nextStatus);
+};

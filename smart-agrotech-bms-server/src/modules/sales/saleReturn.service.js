@@ -5,7 +5,8 @@ import { Sale } from "./sale.model.js";
 import { SaleReturn } from "./saleReturn.model.js";
 import { 
   SALE_RETURN_TYPE,
-  SALE_RETURN_STATUS 
+  SALE_RETURN_STATUS,
+  isSaleReturnTransitionAllowed 
 } from "./saleReturn.constants.js";
 import Customer from "../customers/customer.model.js";
 import Product from "../products/product.model.js";
@@ -507,6 +508,164 @@ const createSaleReturn = async (payload, reqUser) => {
 
 
 /* ============================================================
+ * SALES RETURN WORKFLOW ENGINE
+ * ============================================================
+ */
+
+/**
+ * Validates the authenticated actor context.
+ */
+const validateWorkflowActor = (reqUser) => {
+  if (!reqUser?.id) {
+    throw new ApiError(
+      HTTP_STATUS.UNAUTHORIZED,
+      "Authenticated user identity is required."
+    );
+  }
+  return reqUser.id;
+};
+
+/**
+ * Performs one controlled Sales Return status transition.
+ * This is the single state-transition authority across the domain.
+ */
+const transitionSaleReturnStatus = async (
+  returnPublicId,
+  nextStatus,
+  reqUser,
+  transitionMetadata = {}
+) => {
+  const actorId = validateWorkflowActor(reqUser);
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const saleReturn = await SaleReturn.findOne({
+      publicId: returnPublicId,
+      isDeleted: false,
+    }).session(session);
+
+    if (!saleReturn) {
+      throw new ApiError(
+        HTTP_STATUS.NOT_FOUND,
+        "Sales return record not found."
+      );
+    }
+
+    const currentStatus = saleReturn.status;
+
+    /**
+     * Central lifecycle matrix guard.
+     */
+    if (!isSaleReturnTransitionAllowed(currentStatus, nextStatus)) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        `Sales return cannot transition from ${currentStatus} to ${nextStatus}.`
+      );
+    }
+
+    const previousStatus = saleReturn.status;
+    saleReturn.status = nextStatus;
+    saleReturn.updatedBy = actorId;
+
+    /**
+     * Set explicit approval audit metadata.
+     */
+    if (nextStatus === SALE_RETURN_STATUS.APPROVED) {
+      saleReturn.approvedBy = actorId;
+      saleReturn.approvedAt = new Date();
+    }
+
+    /**
+     * Set explicit processing audit metadata.
+     * Note: PROCESSING -> COMPLETED is handled during inventory loops.
+     */
+    if (nextStatus === SALE_RETURN_STATUS.PROCESSING) {
+      saleReturn.processedBy = actorId;
+    }
+
+    await saleReturn.save({ session });
+
+    // Track workflow transition footprint atomically [63]
+    await ActivityLogService.logActivity({
+      user: actorId,
+      action: "STATUS_CHANGED",
+      module: "RETURNS_EXCHANGES",
+      entityId: saleReturn._id,
+      description: `Sales return ${saleReturn.returnNumber} transitioned from ${previousStatus} to ${nextStatus}.`,
+      metadata: {
+        returnPublicId: saleReturn.publicId,
+        returnNumber: saleReturn.returnNumber,
+        returnType: saleReturn.returnType,
+        previousStatus,
+        newStatus: nextStatus,
+        saleId: saleReturn.saleId,
+        customerId: saleReturn.customerId,
+        warehouseId: saleReturn.warehouseId,
+        ...transitionMetadata,
+      },
+      session,
+    });
+
+    await session.commitTransaction();
+    return saleReturn;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
+/**
+ * Workflow Submission Action: DRAFT -> PENDING_APPROVAL [64]
+ */
+const submitSaleReturn = async (returnPublicId, reqUser) => {
+  return transitionSaleReturnStatus(
+    returnPublicId,
+    SALE_RETURN_STATUS.PENDING_APPROVAL,
+    reqUser
+  );
+};
+
+/**
+ * Workflow Approval Action: PENDING_APPROVAL -> APPROVED [64]
+ */
+const approveSaleReturn = async (returnPublicId, reqUser) => {
+  return transitionSaleReturnStatus(
+    returnPublicId,
+    SALE_RETURN_STATUS.APPROVED,
+    reqUser
+  );
+};
+
+/**
+ * Workflow Rejection Action: PENDING_APPROVAL -> REJECTED [64]
+ */
+const rejectSaleReturn = async (returnPublicId, reqUser, remarks) => {
+  return transitionSaleReturnStatus(
+    returnPublicId,
+    SALE_RETURN_STATUS.REJECTED,
+    reqUser,
+    { rejectionReason: remarks }
+  );
+};
+
+/**
+ * Workflow Cancellation Action: DRAFT/PENDING_APPROVAL -> CANCELLED [65]
+ */
+const cancelSaleReturn = async (returnPublicId, reqUser, remarks) => {
+  return transitionSaleReturnStatus(
+    returnPublicId,
+    SALE_RETURN_STATUS.CANCELLED,
+    reqUser,
+    { cancellationReason: remarks }
+  );
+};
+
+
+
+/* ============================================================
  * PUBLIC SERVICE API
  * ============================================================
  */
@@ -531,6 +690,13 @@ export const SaleReturnService = {
 
     // Creation Boundary Entry Hook
     createSaleReturn,
+
+    // New Workflow API State Machine hooks
+  transitionSaleReturnStatus,
+  submitSaleReturn,
+  approveSaleReturn,
+  rejectSaleReturn,
+  cancelSaleReturn,
 };
 
 
