@@ -14,6 +14,7 @@ import { Warehouse } from "../warehouses/warehouse.model.js";
 import generatePublicId from "../../utils/generatePublicId.js";
 import Counter from "../../shared/schemas/counter.model.js";
 import { ActivityLogService } from "../activity-logs/activityLog.service.js";
+import { InventoryService } from "../inventory/inventory.service.js";
 
 /**
  * ============================================================
@@ -664,6 +665,199 @@ const cancelSaleReturn = async (returnPublicId, reqUser, remarks) => {
 };
 
 
+/**
+ * Phase 13.6 — Internal Helper: Prepare Inbound Inventory Movement Instructions
+ * Converts returned customer subdocuments into authoritative STOCK IN instructions.
+ */
+const prepareInboundReturnInstructions = (saleReturn, userId) => {
+  return saleReturn.items.map((item) => {
+    return {
+      productId: item.productId,
+      warehouseId: saleReturn.warehouseId, // Received into the return warehouse destination
+      quantity: item.returnQuantity,
+      unitCost: Number(item.unitCost.toString()), // Stored cost snapshot used to maintain WAC valuation stability
+      referenceType: "SALES_RETURN", // Identifies Sales Return as the stock event
+      referenceId: saleReturn._id,
+      postedBy: userId,
+      remarks: `Inbound customer return stock received under voucher ${saleReturn.returnNumber}`,
+    };
+  });
+};
+
+
+/**
+ * Phase 13.6 — Internal Helper: Prepare Outbound Inventory Movement Instructions (EXCHANGE only)
+ * Converts exchange replacement arrays into authoritative STOCK OUT instructions.
+ */
+const prepareOutboundReplacementInstructions = (saleReturn, userId) => {
+  if (saleReturn.returnType !== "EXCHANGE") {
+    return [];
+  }
+
+  return saleReturn.replacementItems.map((item) => {
+    return {
+      productId: item.productId,
+      warehouseId: saleReturn.warehouseId,
+      quantity: item.quantity,
+      referenceType: "SALES_RETURN",
+      referenceId: saleReturn._id,
+      postedBy: userId,
+      remarks: `Outbound exchange replacement lot issued to customer under voucher ${saleReturn.returnNumber}`,
+    };
+  });
+};
+
+
+/**
+ * Phase 13.6 Master Pipeline Core — Execute Sales Return & Exchange Inventory Processing
+ * Idempotency Firewall: Enforces status APPROVED, processes outbound and inbound movements 
+ * concurrently inside one shared session, and advances status safely to COMPLETED.
+ * 
+ * @param {string} returnPublicId - Unique public business trace identifier
+ * @param {Object} reqUser - Request user context token data object
+ * @returns {Promise<Object>} The updated SaleReturn document
+ */
+export const processSaleReturn = async (returnPublicId, reqUser) => {
+  if (!reqUser?.id) {
+    throw new ApiError(HTTP_STATUS.UNAUTHORIZED, "Authenticated user identity context is required.");
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction(); // Master transactional boundary safeguards atomicity
+
+  try {
+    // 1. Fetch document and explicitly block duplicate processing on terminal or invalid states
+    const saleReturn = await SaleReturn.findOne({
+      publicId: returnPublicId,
+      isDeleted: false,
+    }).session(session);
+
+    if (!saleReturn) {
+      throw new ApiError(HTTP_STATUS.NOT_FOUND, "Sales return record not found.");
+    }
+
+    // Idempotency Guard: Block execution if return is COMPLETED, CANCELLED, or REJECTED
+    if (
+      saleReturn.status === "COMPLETED" || 
+      saleReturn.status === "CANCELLED" || 
+      saleReturn.status === "REJECTED"
+    ) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        `Idempotency Guard: Processing rejected. Only vouchers holding status "APPROVED" can be processed. Current status: "${saleReturn.status}".`
+      );
+    }
+
+    // Strict State Firewall Check: Mandate status APPROVED to initiate physical processing
+    if (saleReturn.status !== "APPROVED") {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        `Inventory Boundary Error: Vouchers must be approved before inventory entries can execute. Current status: "${saleReturn.status}".`
+      );
+    }
+
+    // 2. Revalidate master database sale links to ensure data consistency
+    const sale = await getValidSale(
+      saleReturn.saleId,
+      saleReturn.customerId,
+      saleReturn.warehouseId,
+      session
+    );
+
+    // Revalidate item thresholds against remaining eligible quantities to prevent over-returns
+    for (const item of saleReturn.items) {
+      const originalSaleItem = findOriginalSaleItem(sale, item.originalSaleItemId);
+      const eligibility = await calculateRemainingEligibleQuantity({
+        saleId: saleReturn.saleId,
+        originalSaleItemId: item.originalSaleItemId,
+        saleItem: originalSaleItem,
+        session,
+      });
+
+      if (item.returnQuantity > eligibility.remainingEligibleQuantity) {
+        throw new ApiError(
+          HTTP_STATUS.BAD_REQUEST,
+          `Fulfillment Conflict: Item "${item.productNameSnapshot}" return quantity exceeds remaining eligible limit of ${eligibility.remainingEligibleQuantity}.`
+        );
+      }
+    }
+
+    // 3. Shift status to processing buffer stage
+    saleReturn.status = "PROCESSING";
+    saleReturn.processedBy = reqUser.id;
+    saleReturn.processedAt = new Date();
+    saleReturn.updatedBy = reqUser.id;
+    await saleReturn.save({ session });
+
+    // 4. Compile server-authoritative inventory instruction blocks
+    const inboundInstructions = prepareInboundReturnInstructions(saleReturn, reqUser.id);
+    const outboundInstructions = prepareOutboundReplacementInstructions(saleReturn, reqUser.id);
+
+    // 5. Execution Leg 1: Inbound Stock Receipts (Customer Returns go back IN to inventory)
+    for (const instruction of inboundInstructions) {
+      await InventoryService.increaseStock({
+        productId: instruction.productId,
+        warehouseId: instruction.warehouseId,
+        quantity: instruction.quantity,
+        referenceType: instruction.referenceType,
+        referenceId: instruction.referenceId, // Tied authoritatively to SaleReturn._id
+        unitCost: instruction.unitCost, 
+        postedBy: instruction.postedBy,
+        remarks: instruction.remarks,
+        transactionType: "SALES_RETURN", // Reuses core inventory transaction codes
+        session, 
+      });
+    }
+
+    // 6. Execution Leg 2: Outbound Replacement Shipments (EXCHANGE type only leaves inventory OUT)
+    if (saleReturn.returnType === "EXCHANGE") {
+      for (const instruction of outboundInstructions) {
+        await InventoryService.decreaseStock({
+          productId: instruction.productId,
+          warehouseId: instruction.warehouseId,
+          quantity: instruction.quantity,
+          referenceType: instruction.referenceType,
+          referenceId: instruction.referenceId, // Mapped to the same shared parent SaleReturn._id
+          postedBy: instruction.postedBy,
+          remarks: instruction.remarks,
+          transactionType: "SALE",
+          session, // Shares transaction context to allow dual-leg atomic rollbacks on failure
+        });
+      }
+    }
+
+    // 7. Transition state directly to COMPLETED after both physical inventory operations succeed
+    saleReturn.status = "COMPLETED";
+    await saleReturn.save({ session });
+
+    // 8. Log accountability footprint
+    await ActivityLogService.logActivity({
+      user: reqUser.id,
+      action: "STATUS_CHANGED",
+      module: "RETURNS_EXCHANGES",
+      entityId: saleReturn._id,
+      description: `Sales return ${saleReturn.returnNumber} (${saleReturn.returnType}) successfully processed. Inventory stock allocations committed.`,
+      metadata: {
+        returnNumber: saleReturn.returnNumber,
+        returnType: saleReturn.returnType,
+        status: saleReturn.status,
+        itemsInCount: inboundInstructions.length,
+        itemsOutCount: outboundInstructions.length,
+      },
+      session,
+    });
+
+    await session.commitTransaction(); // Atomic commit applied securely
+    return saleReturn;
+  } catch (error) {
+    await session.abortTransaction(); // Error on either leg triggers a full rollback, preventing data fragmentation
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
+
 
 /* ============================================================
  * PUBLIC SERVICE API
@@ -697,6 +891,7 @@ export const SaleReturnService = {
   approveSaleReturn,
   rejectSaleReturn,
   cancelSaleReturn,
+  processSaleReturn,
 };
 
 
