@@ -86,10 +86,32 @@ const cancelSaleReturn = catchAsync(async (req, res) => {
   });
 });
 
+/**
+ * ============================================================
+ * PROCESS SALES RETURN
+ * ============================================================
+ * Executes inbound inventory tracking updates and checks stock rules atomically.
+ */
+const processSaleReturn = catchAsync(async (req, res) => {
+  const saleReturn = await SaleReturnService.processSaleReturn(
+    req.params.publicId,
+    req.user
+  );
+
+  sendResponse({
+    res,
+    statusCode: HTTP_STATUS.OK,
+    success: true,
+    message: "Sales return processed successfully.",
+    data: saleReturn,
+  });
+});
+
 export const SaleReturnController = {
   createSaleReturn,
   submitSaleReturn,
   approveSaleReturn,
   rejectSaleReturn,
   cancelSaleReturn,
+  processSaleReturn,
 };

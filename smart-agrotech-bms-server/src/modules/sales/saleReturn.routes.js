@@ -73,4 +73,16 @@ router.post(
   SaleReturnController.cancelSaleReturn
 );
 
+/**
+ * Execute Stock Movements (APPROVED → PROCESSING → COMPLETED)
+ * Permissions: Admin Only (Strict Inventory Ledger Isolation Boundary)
+ */
+router.post(
+  "/returns/:publicId/process",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  validateRequest(saleReturnWorkflowParamSchema),
+  SaleReturnController.processSaleReturn
+);
+
 export const saleReturnRoutes = router;
