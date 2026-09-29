@@ -185,8 +185,8 @@ returnFinancialReconciliationSchema.index(
 
 returnFinancialReconciliationSchema.index({ customerId: 1, createdAt: -1 });
 returnFinancialReconciliationSchema.index({ supplierId: 1, createdAt: -1 });
-returnFinancialReconciliationSchema.index({ saleId: 1 });
-returnFinancialReconciliationSchema.index({ purchaseId: 1 });
+// returnFinancialReconciliationSchema.index({ saleId: 1 });
+// returnFinancialReconciliationSchema.index({ purchaseId: 1 });
 
 const ReturnFinancialReconciliation = mongoose.model(
   "ReturnFinancialReconciliation",

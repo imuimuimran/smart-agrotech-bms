@@ -20,6 +20,8 @@ import { saleRoutes } from "../modules/sales/sale.routes.js";
 
 import { saleReturnRoutes } from "../modules/sales/saleReturn.routes.js";
 
+import { returnFinancialReconciliationRoutes } from "../modules/accounting/returnFinancialReconciliation.routes.js";
+
 const router = Router();
 
 router.use("/auth", authRoutes);
@@ -41,5 +43,7 @@ router.use("/purchases", purchaseReturnRoutes);
 router.use("/sales", saleRoutes);
 
 router.use("/sales", saleReturnRoutes);
+
+router.use("/accounting", returnFinancialReconciliationRoutes);
 
 export default router;

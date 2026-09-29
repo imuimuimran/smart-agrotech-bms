@@ -8,7 +8,7 @@ import { Sale } from "../sales/sale.model.js";
 import { SaleReturn } from "../sales/saleReturn.model.js";
 
 import ReturnFinancialReconciliation from "./returnFinancialReconciliation.model.js";
-import AccountsPayable from "./accountsPayable.model.js"; // AP model import
+import { AccountsPayable } from "../purchases/accountsPayable.model.js";
 import Supplier from "../suppliers/supplier.model.js"; // Supplier model import
 import { PurchaseReturn } from "../purchases/purchaseReturn.model.js"; // Purchase Return model import
 
