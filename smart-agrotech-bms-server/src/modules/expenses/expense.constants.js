@@ -42,3 +42,10 @@ export const EXPENSE_SEARCHABLE_FIELDS = ["expenseNumber", "description", "refer
 export const EXPENSE_FILTERABLE_FIELDS = ["category", "paymentMethod", "status"];
 export const EXPENSE_SORTABLE_FIELDS = ["expenseNumber", "amount", "expenseDate", "createdAt"];
 export const EXPENSE_DEFAULT_SORT = "-expenseDate";
+
+
+export const EXPENSE_MESSAGES = Object.freeze({
+  CREATE_SUCCESS: "Business expense entry recorded successfully.",
+  INVALID_AMOUNT: "Validation Error: Expense allocations must be strictly greater than zero.",
+  NOT_FOUND: "Business expense record not found.",
+});
