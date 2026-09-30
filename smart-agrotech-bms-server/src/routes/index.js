@@ -22,6 +22,8 @@ import { saleReturnRoutes } from "../modules/sales/saleReturn.routes.js";
 
 import { returnFinancialReconciliationRoutes } from "../modules/accounting/returnFinancialReconciliation.routes.js";
 
+import expenseRoutes from "../modules/expenses/expense.routes.js";
+
 const router = Router();
 
 router.use("/auth", authRoutes);
@@ -45,5 +47,7 @@ router.use("/sales", saleRoutes);
 router.use("/sales", saleReturnRoutes);
 
 router.use("/accounting", returnFinancialReconciliationRoutes);
+
+router.use("/expenses", expenseRoutes);
 
 export default router;

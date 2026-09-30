@@ -26,7 +26,7 @@ export const createExpenseSchema = z.object({
     amount: z
       .number({ required_error: "Expense amount is required." })
       .positive("Expense allocation values must be strictly greater than 0."),
-    expenseDate: z.string({ required_error: "Expense date is required." }).preprocess(
+    expenseDate: z.preprocess(
       (value) => (typeof value === "string" ? new Date(value) : value),
       z.date({ invalid_type_error: "Please pass a structurally valid date format." })
     ),
@@ -62,7 +62,7 @@ export const updateExpenseSchema = z.object({
   body: z.object({
     category: z.enum(EXPENSE_CATEGORY_LIST).optional(),
     amount: z.number().positive("Updated amounts must be greater than zero.").optional(),
-    expenseDate: z.string().preprocess(
+    expenseDate: z.preprocess(
       (value) => (typeof value === "string" ? new Date(value) : value),
       z.date().optional()
     ).optional(),
