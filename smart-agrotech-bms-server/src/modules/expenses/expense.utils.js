@@ -27,6 +27,7 @@ export const formatExpenseNumber = (sequence) => {
 
 /**
  * Sanitizes Mongoose model instances to mask raw database fields.
+ * Enhanced: Preserves soft-delete auditing states for historical record tracing.
  */
 export const sanitizeExpense = (expense) => {
   const doc = expense.toObject ? expense.toObject() : expense;
@@ -34,12 +35,16 @@ export const sanitizeExpense = (expense) => {
     publicId: doc.publicId,
     expenseNumber: doc.expenseNumber,
     category: doc.category,
-    amount: doc.amount ? doc.amount.toString() : "0.00", // Decimal128 conversion guard
+    amount: doc.amount ? doc.amount.toString() : "0.00",
     expenseDate: doc.expenseDate,
     paymentMethod: doc.paymentMethod,
     reference: doc.reference,
     description: doc.description,
     status: doc.status,
+    isDeleted: doc.isDeleted ?? false, // Preserved for audit transparency
+    deletedAt: doc.deletedAt ?? null, // Preserved for audit transparency
+    deletedBy: doc.deletedBy ?? null, // Preserved for audit transparency
     createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
   };
 };

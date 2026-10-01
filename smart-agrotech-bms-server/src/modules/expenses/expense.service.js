@@ -202,10 +202,40 @@ const updateExpense = async (publicId, payload, reqUser) => {
   return sanitizeExpense(updatedExpense); // Return sanitized representation mapping layer
 };
 
+/**
+ * Fetch a complete historical audit trail of all business expenses.
+ * Safe Boundary: Bypasses automatic soft-delete omission layers to read all records.
+ * 
+ * @param {Object} query - Incoming raw req.query pagination parameters
+ * @returns {Promise<Object>} Paginated meta data and historical logs array
+ */
+const getExpenseHistory = async (query) => {
+  // Enforces query tracking over all active and soft-deleted records explicitly
+  const expenseQuery = new QueryBuilder(
+    Expense.find({}).withDeleted(), // Custom pre-hook override to read everything
+    query
+  )
+    .search(EXPENSE_SEARCHABLE_FIELDS)
+    .filter(EXPENSE_HISTORY_FILTERABLE_FIELDS)
+    .sort(EXPENSE_HISTORY_SORTABLE_FIELDS)
+    .paginate()
+    .fields();
 
+  const data = await expenseQuery.modelQuery;
+  const meta = await expenseQuery.countTotal();
+
+  return {
+    meta,
+    data: data.map(sanitizeExpense), // Formats each row with its full audit visibility tracking fields
+  };
+};
+
+// Update your exported service engine block explicitly
 export const ExpenseService = {
   createExpense,
   getExpenses,
   getExpenseByPublicId,
   updateExpense,
+  getExpenseHistory,
 };
+
