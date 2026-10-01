@@ -33,4 +33,16 @@ router.get(
   ExpenseController.getExpenses
 );
 
+/**
+ * Get Single Expense By Public Tracer ID
+ * Route: GET /api/v1/expenses/:publicId
+ * Permissions: Admin Only (Strict Financial Isolation)
+ */
+router.get(
+  "/:publicId",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  ExpenseController.getExpenseByPublicId
+);
+
 export default router;

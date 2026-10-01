@@ -36,7 +36,26 @@ const getExpenses = catchAsync(async (req, res) => {
   });
 });
 
+
+/**
+ * Retrieve one distinct business expense by route parameters.
+ * Route: GET /api/v1/expenses/:publicId
+ */
+const getExpenseByPublicId = catchAsync(async (req, res) => {
+  const expense = await ExpenseService.getExpenseByPublicId(
+    req.params.publicId
+  );
+
+  sendResponse({
+    res,
+    statusCode: HTTP_STATUS.OK,
+    message: EXPENSE_MESSAGES.FETCH_SINGLE_SUCCESS,
+    data: expense,
+  });
+});
+
 export const ExpenseController = {
   createExpense,
   getExpenses,
+  getExpenseByPublicId,
 };

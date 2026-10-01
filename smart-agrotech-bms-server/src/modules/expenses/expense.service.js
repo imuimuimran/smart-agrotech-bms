@@ -90,7 +90,32 @@ const getExpenses = async (query) => {
 };
 
 
+/**
+ * Retrieves a single business expense by its public identifier.
+ * Safe Boundary: Rejects lookups against soft-deleted records.
+ * 
+ * @param {string} publicId - Unique API-facing business identifier string
+ * @returns {Promise<Object>} The sanitized expense document structure
+ */
+const getExpenseByPublicId = async (publicId) => {
+  const expense = await Expense.findOne({
+    publicId,
+    isDeleted: false, // Strict exclusion boundary guard
+  });
+
+  if (!expense) {
+    throw new ApiError(
+      HTTP_STATUS.NOT_FOUND,
+      EXPENSE_MESSAGES.NOT_FOUND
+    );
+  }
+
+  return sanitizeExpense(expense);
+};
+
+
 export const ExpenseService = {
   createExpense,
   getExpenses,
+  getExpenseByPublicId,
 };
