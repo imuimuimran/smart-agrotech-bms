@@ -54,8 +54,30 @@ const getExpenseByPublicId = catchAsync(async (req, res) => {
   });
 });
 
+// ... Keep your existing createExpense, getExpenses, and getExpenseByPublicId endpoints intact above
+
+/**
+ * Update an existing business expense by route parameters.
+ * Route: PATCH /api/v1/expenses/:publicId
+ */
+const updateExpenseByPublicId = catchAsync(async (req, res) => {
+  const updatedExpense = await ExpenseService.updateExpenseByPublicId(
+    req.params.publicId,
+    req.body,
+    req.user
+  );
+
+  sendResponse({
+    res,
+    statusCode: HTTP_STATUS.OK,
+    message: EXPENSE_MESSAGES.UPDATE_SUCCESS,
+    data: updatedExpense,
+  });
+});
+
 export const ExpenseController = {
   createExpense,
   getExpenses,
   getExpenseByPublicId,
+  updateExpenseByPublicId,
 };

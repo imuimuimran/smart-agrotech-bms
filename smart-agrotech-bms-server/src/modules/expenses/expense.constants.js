@@ -62,11 +62,11 @@ export const EXPENSE_SORTABLE_FIELDS = [
 
 export const EXPENSE_DEFAULT_SORT = "-expenseDate";
 
-
 export const EXPENSE_MESSAGES = Object.freeze({
   CREATE_SUCCESS: "Business expense entry recorded successfully.",
   FETCH_SUCCESS: "Business expense records retrieved successfully.",
-  FETCH_SINGLE_SUCCESS: "Business expense record retrieved successfully.", // Added for Single API
+  FETCH_SINGLE_SUCCESS: "Business expense record retrieved successfully.",
+  UPDATE_SUCCESS: "Business expense record updated successfully.", // Added for Update API
   INVALID_AMOUNT: "Validation Error: Expense allocations must be strictly greater than zero.",
   NOT_FOUND: "Business expense record not found.",
 });

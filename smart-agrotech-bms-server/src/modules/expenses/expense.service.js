@@ -113,9 +113,64 @@ const getExpenseByPublicId = async (publicId) => {
   return sanitizeExpense(expense);
 };
 
+/**
+ * Updates a single business expense by its public identifier.
+ * Safe Boundary: Only maps client-editable parameters and updates audit fields server-side.
+ * 
+ * @param {string} publicId - Unique API-facing business identifier string
+ * @param {Object} payload - The raw incoming validation request body changes
+ * @param {Object} reqUser - The authenticated request identity context token object
+ * @returns {Promise<Object>} The sanitized updated expense document JSON footprint
+ */
+const updateExpenseByPublicId = async (publicId, payload, reqUser) => {
+  // 1. Fetch document and reject updates against soft-deleted records
+  const expense = await Expense.findOne({
+    publicId,
+    isDeleted: false,
+  });
+
+  if (!expense) {
+    throw new ApiError(
+      HTTP_STATUS.NOT_FOUND,
+      EXPENSE_MESSAGES.NOT_FOUND
+    );
+  }
+
+  // 2. Normalize and extract client-editable input parameters defensively
+  const allowedUpdates = {};
+  if (payload.category !== undefined) allowedUpdates.category = payload.category;
+  if (payload.expenseDate !== undefined) allowedUpdates.expenseDate = payload.expenseDate;
+  if (payload.paymentMethod !== undefined) allowedUpdates.paymentMethod = payload.paymentMethod;
+  if (payload.reference !== undefined) allowedUpdates.reference = payload.reference.trim();
+  if (payload.description !== undefined) allowedUpdates.description = payload.description.trim();
+
+  // 3. Defensive amount validation check if present in payload
+  if (payload.amount !== undefined) {
+    if (Number(payload.amount) <= 0) {
+      throw new ApiError(
+        HTTP_STATUS.BAD_REQUEST,
+        EXPENSE_MESSAGES.INVALID_AMOUNT
+      );
+    }
+    allowedUpdates.amount = payload.amount;
+  }
+
+  // 4. Invariant Protection: Force server-controlled audit fields onto the update parameters
+  allowedUpdates.updatedBy = reqUser.id || reqUser.publicId;
+
+  // 5. Execute safe, structured data mutation via Mongoose findOneAndUpdate
+  const updatedExpense = await Expense.findOneAndUpdate(
+    { _id: expense._id, isDeleted: false },
+    { $set: allowedUpdates },
+    { new: true } // Returns the newly mutated document format
+  );
+
+  return sanitizeExpense(updatedExpense);
+};
 
 export const ExpenseService = {
   createExpense,
   getExpenses,
   getExpenseByPublicId,
+  updateExpenseByPublicId,
 };

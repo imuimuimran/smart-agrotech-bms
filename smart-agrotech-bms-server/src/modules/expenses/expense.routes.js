@@ -4,7 +4,10 @@ import authorize from "../../middlewares/authorize.middleware.js";
 import validateRequest from "../../middlewares/validate.middleware.js";
 import ROLES from "../../constants/roles.js";
 import { ExpenseController } from "./expense.controller.js";
-import { createExpenseSchema } from "./expense.validation.js";
+import { 
+  createExpenseSchema,
+  updateExpenseSchema, 
+} from "./expense.validation.js";
 
 const router = express.Router();
 
@@ -43,6 +46,19 @@ router.get(
   verifyToken,
   authorize(ROLES.ADMIN),
   ExpenseController.getExpenseByPublicId
+);
+
+/**
+ * Update Expense Record By Public Identifier
+ * Route: PATCH /api/v1/expenses/:publicId
+ * Permissions: Admin Only (Financial Writing Isolation Protection)
+ */
+router.patch(
+  "/:publicId",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  validateRequest(updateExpenseSchema),
+  ExpenseController.updateExpenseByPublicId
 );
 
 export default router;
