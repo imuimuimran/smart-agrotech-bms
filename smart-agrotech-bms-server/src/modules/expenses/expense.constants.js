@@ -38,14 +38,34 @@ export const EXPENSE_STATUS_LIST = Object.values(EXPENSE_STATUS);
 /**
  * QueryBuilder Integration Optimization Parameters
  */
-export const EXPENSE_SEARCHABLE_FIELDS = ["expenseNumber", "description", "reference"];
-export const EXPENSE_FILTERABLE_FIELDS = ["category", "paymentMethod", "status"];
-export const EXPENSE_SORTABLE_FIELDS = ["expenseNumber", "amount", "expenseDate", "createdAt"];
-export const EXPENSE_DEFAULT_SORT = "-expenseDate";
 
+export const EXPENSE_SEARCHABLE_FIELDS = [
+  "expenseNumber",
+  "reference",
+  "description",
+];
+
+export const EXPENSE_FILTERABLE_FIELDS = [
+  "category",
+  "paymentMethod",
+  "status",
+  "expenseDate",
+];
+
+export const EXPENSE_SORTABLE_FIELDS = [
+  "expenseNumber",
+  "amount",
+  "expenseDate",
+  "createdAt",
+  "updatedAt",
+];
+
+export const EXPENSE_DEFAULT_SORT = "-expenseDate";
 
 export const EXPENSE_MESSAGES = Object.freeze({
   CREATE_SUCCESS: "Business expense entry recorded successfully.",
+  FETCH_SUCCESS: "Business expense records retrieved successfully.", // Added for Phase 15 List API
   INVALID_AMOUNT: "Validation Error: Expense allocations must be strictly greater than zero.",
   NOT_FOUND: "Business expense record not found.",
 });
+

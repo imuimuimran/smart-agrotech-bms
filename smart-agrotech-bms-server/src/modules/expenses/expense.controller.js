@@ -20,6 +20,23 @@ const createExpense = catchAsync(async (req, res) => {
   });
 });
 
+
+/**
+ * Fetch and list sanitized business expenses.
+ */
+const getExpenses = catchAsync(async (req, res) => {
+  const result = await ExpenseService.getExpenses(req.query);
+
+  sendResponse({
+    res,
+    statusCode: HTTP_STATUS.OK,
+    message: EXPENSE_MESSAGES.FETCH_SUCCESS,
+    meta: result.meta,
+    data: result.data,
+  });
+});
+
 export const ExpenseController = {
   createExpense,
+  getExpenses,
 };

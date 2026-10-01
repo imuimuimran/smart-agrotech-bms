@@ -22,4 +22,15 @@ router.post(
   ExpenseController.createExpense
 );
 
+/**
+ * Get Paginated and Filtered Expenses List
+ * Permissions: Admin Only
+ */
+router.get(
+  "/",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  ExpenseController.getExpenses
+);
+
 export default router;

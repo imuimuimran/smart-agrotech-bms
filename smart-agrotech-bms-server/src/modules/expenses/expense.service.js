@@ -1,8 +1,14 @@
 import HTTP_STATUS from "../../constants/httpStatus.js";
 import ApiError from "../../shared/ApiError.js";
 import { getNextSequence } from "../../utils/sequence.util.js";
+import QueryBuilder from "../../builder/QueryBuilder.js";
 import Expense from "./expense.model.js";
-import { EXPENSE_MESSAGES } from "./expense.constants.js";
+import { 
+  EXPENSE_MESSAGES,
+  EXPENSE_SEARCHABLE_FIELDS,
+  EXPENSE_FILTERABLE_FIELDS,
+  EXPENSE_SORTABLE_FIELDS 
+} from "./expense.constants.js";
 import {
   normalizeExpensePayload,
   sanitizeExpense,
@@ -60,6 +66,31 @@ const createExpense = async (payload, reqUser) => {
   return sanitizeExpense(expense);
 };
 
+/**
+ * Fetch paginated, filtered, and sorted business expenses from DB.
+ */
+const getExpenses = async (query) => {
+  const expenseQuery = new QueryBuilder(
+    Expense.find({ isDeleted: false }),
+    query
+  )
+    .search(EXPENSE_SEARCHABLE_FIELDS)
+    .filter(EXPENSE_FILTERABLE_FIELDS)
+    .sort(EXPENSE_SORTABLE_FIELDS)
+    .paginate()
+    .fields();
+
+  const data = await expenseQuery.modelQuery;
+  const meta = await expenseQuery.countTotal();
+
+  return {
+    meta,
+    data: data.map(sanitizeExpense), // Applies server-side sanitation to every item row
+  };
+};
+
+
 export const ExpenseService = {
   createExpense,
+  getExpenses,
 };
