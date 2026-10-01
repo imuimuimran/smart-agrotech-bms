@@ -6,7 +6,8 @@ import ROLES from "../../constants/roles.js";
 import { ExpenseController } from "./expense.controller.js";
 import { 
   createExpenseSchema,
-  updateExpenseSchema, 
+  updateExpenseSchema,
+  expensePublicIdParamSchema, 
 } from "./expense.validation.js";
 
 const router = express.Router();
@@ -45,6 +46,7 @@ router.get(
   "/:publicId",
   verifyToken,
   authorize(ROLES.ADMIN),
+  validateRequest(expensePublicIdParamSchema),
   ExpenseController.getExpenseByPublicId
 );
 
@@ -58,7 +60,7 @@ router.patch(
   verifyToken,
   authorize(ROLES.ADMIN),
   validateRequest(updateExpenseSchema),
-  ExpenseController.updateExpenseByPublicId
+  ExpenseController.updateExpense
 );
 
 export default router;

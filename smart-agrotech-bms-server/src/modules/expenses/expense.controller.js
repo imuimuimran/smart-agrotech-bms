@@ -54,14 +54,12 @@ const getExpenseByPublicId = catchAsync(async (req, res) => {
   });
 });
 
-// ... Keep your existing createExpense, getExpenses, and getExpenseByPublicId endpoints intact above
-
 /**
  * Update an existing business expense by route parameters.
  * Route: PATCH /api/v1/expenses/:publicId
  */
-const updateExpenseByPublicId = catchAsync(async (req, res) => {
-  const updatedExpense = await ExpenseService.updateExpenseByPublicId(
+const updateExpense = catchAsync(async (req, res) => {
+  const expense = await ExpenseService.updateExpense(
     req.params.publicId,
     req.body,
     req.user
@@ -70,8 +68,8 @@ const updateExpenseByPublicId = catchAsync(async (req, res) => {
   sendResponse({
     res,
     statusCode: HTTP_STATUS.OK,
-    message: EXPENSE_MESSAGES.UPDATE_SUCCESS,
-    data: updatedExpense,
+    message: EXPENSE_MESSAGES.UPDATE_SUCCESS, // Uses established project success naming convention
+    data: expense,
   });
 });
 
@@ -79,5 +77,5 @@ export const ExpenseController = {
   createExpense,
   getExpenses,
   getExpenseByPublicId,
-  updateExpenseByPublicId,
+  updateExpense,
 };

@@ -113,17 +113,18 @@ const getExpenseByPublicId = async (publicId) => {
   return sanitizeExpense(expense);
 };
 
+
 /**
- * Updates a single business expense by its public identifier.
- * Safe Boundary: Only maps client-editable parameters and updates audit fields server-side.
+ * Updates an active business expense by its publicId.
+ * Final Business-Security Boundary: Explicitly purges protected/immutable data elements.
  * 
- * @param {string} publicId - Unique API-facing business identifier string
- * @param {Object} payload - The raw incoming validation request body changes
+ * @param {string} publicId - Unique API-facing business tracker identifier
+ * @param {Object} payload - The raw partial request changes from the client body
  * @param {Object} reqUser - The authenticated request identity context token object
  * @returns {Promise<Object>} The sanitized updated expense document JSON footprint
  */
-const updateExpenseByPublicId = async (publicId, payload, reqUser) => {
-  // 1. Fetch document and reject updates against soft-deleted records
+const updateExpense = async (publicId, payload, reqUser) => {
+  // 1. Revalidate that the target expense exists and is not soft-deleted
   const expense = await Expense.findOne({
     publicId,
     isDeleted: false,
@@ -136,41 +137,75 @@ const updateExpenseByPublicId = async (publicId, payload, reqUser) => {
     );
   }
 
-  // 2. Normalize and extract client-editable input parameters defensively
-  const allowedUpdates = {};
-  if (payload.category !== undefined) allowedUpdates.category = payload.category;
-  if (payload.expenseDate !== undefined) allowedUpdates.expenseDate = payload.expenseDate;
-  if (payload.paymentMethod !== undefined) allowedUpdates.paymentMethod = payload.paymentMethod;
-  if (payload.reference !== undefined) allowedUpdates.reference = payload.reference.trim();
-  if (payload.description !== undefined) allowedUpdates.description = payload.description.trim();
+  // 2. Normalize input through the helper utility
+  const normalizedData = normalizeExpensePayload(payload);
 
-  // 3. Defensive amount validation check if present in payload
-  if (payload.amount !== undefined) {
-    if (Number(payload.amount) <= 0) {
-      throw new ApiError(
-        HTTP_STATUS.BAD_REQUEST,
-        EXPENSE_MESSAGES.INVALID_AMOUNT
-      );
-    }
-    allowedUpdates.amount = payload.amount;
+  /*
+   --------------------------------
+   Protected Fields Isolation Layer
+   --------------------------------
+   */
+  delete normalizedData.publicId;
+  delete normalizedData.expenseNumber;
+  delete normalizedData.createdBy;
+  delete normalizedData.updatedBy;
+  delete normalizedData.isDeleted;
+  delete normalizedData.deletedAt;
+  delete normalizedData.deletedBy;
+  delete normalizedData.createdAt;
+  delete normalizedData.updatedAt;
+
+  /*
+   --------------------------------
+   Defensive Amount Validation
+   --------------------------------
+   */
+  if (
+    normalizedData.amount !== undefined &&
+    Number(normalizedData.amount) <= 0
+  ) {
+    throw new ApiError(
+      HTTP_STATUS.BAD_REQUEST,
+      EXPENSE_MESSAGES.INVALID_AMOUNT
+    );
   }
 
-  // 4. Invariant Protection: Force server-controlled audit fields onto the update parameters
-  allowedUpdates.updatedBy = reqUser.id || reqUser.publicId;
+  /*
+   --------------------------------
+   Server-Controlled Audit Tracking
+   --------------------------------
+   */
+  normalizedData.updatedBy = reqUser.id || reqUser.publicId;
 
-  // 5. Execute safe, structured data mutation via Mongoose findOneAndUpdate
+  // 3. Persist modifications using atomic $set operators
   const updatedExpense = await Expense.findOneAndUpdate(
-    { _id: expense._id, isDeleted: false },
-    { $set: allowedUpdates },
-    { new: true } // Returns the newly mutated document format
+    {
+      publicId,
+      isDeleted: false,
+    },
+    {
+      $set: normalizedData,
+    },
+    {
+      new: true, // Returns the newly mutated document
+      runValidators: true, // Forces Mongoose schema-level checks
+    }
   );
 
-  return sanitizeExpense(updatedExpense);
+  if (!updatedExpense) {
+    throw new ApiError(
+      HTTP_STATUS.NOT_FOUND,
+      EXPENSE_MESSAGES.NOT_FOUND
+    );
+  }
+
+  return sanitizeExpense(updatedExpense); // Return sanitized representation mapping layer
 };
+
 
 export const ExpenseService = {
   createExpense,
   getExpenses,
   getExpenseByPublicId,
-  updateExpenseByPublicId,
+  updateExpense,
 };

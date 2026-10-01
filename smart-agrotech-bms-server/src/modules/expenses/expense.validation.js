@@ -49,16 +49,15 @@ export const expensePublicIdParamSchema = z.object({
   }),
 });
 
+
 /**
  * ============================================================
- * UPDATE EXPENSE SCHEMA CONTRACT
+ * UPDATE EXPENSE SCHEMA CONTRACT (Instructor Specification)
  * ============================================================
- * Allows incremental data changes while keeping protected properties hidden.
+ * Targets the request 'body' envelope and applies partial schema filtering 
+ * to allow incremental data updates on whitelisted fields only.
  */
 export const updateExpenseSchema = z.object({
-  params: z.object({
-    publicId: z.string().trim().min(1, "Public business trace identifier parameter is required."),
-  }),
   body: z.object({
     category: z.enum(EXPENSE_CATEGORY_LIST).optional(),
     amount: z.number().positive("Updated amounts must be greater than zero.").optional(),
