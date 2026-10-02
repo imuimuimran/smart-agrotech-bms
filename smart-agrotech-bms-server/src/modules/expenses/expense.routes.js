@@ -37,6 +37,15 @@ router.get(
   ExpenseController.getExpenses
 );
 
+
+// 3. Historical Audit Log Gateway
+router.get(
+  "/history",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  ExpenseController.getExpenseHistory
+);
+
 /**
  * Get Single Expense By Public Tracer ID
  * Route: GET /api/v1/expenses/:publicId
@@ -62,5 +71,13 @@ router.patch(
   validateRequest(updateExpenseSchema),
   ExpenseController.updateExpense
 );
+
+// 6. Soft Delete Operational Hook
+router.delete(
+  "/:publicId", 
+  verifyToken, 
+  authorize(ROLES.ADMIN), 
+  validateRequest(expensePublicIdParamSchema), 
+  ExpenseController.deleteExpense);
 
 export default router;

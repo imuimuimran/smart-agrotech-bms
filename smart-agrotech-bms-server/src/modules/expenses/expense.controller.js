@@ -73,9 +73,49 @@ const updateExpense = catchAsync(async (req, res) => {
   });
 });
 
+
+/**
+ * Soft-delete / Void a business expense record.
+ * Route: DELETE /api/v1/expenses/:publicId
+ */
+const deleteExpense = catchAsync(async (req, res) => {
+  // If your expense service doesn't have deleteExpense yet, we pass a temporary success message
+  // Or delegate to the service layer if it exists. For now, this resolves the ReferenceError.
+  const result = await ExpenseService.updateExpense(
+    req.params.publicId, 
+    { status: "VOIDED", isDeleted: true, deletedAt: new Date(), deletedBy: req.user.id }, 
+    req.user
+  );
+
+  sendResponse({
+    res,
+    statusCode: HTTP_STATUS.OK,
+    message: EXPENSE_MESSAGES.DELETE_SUCCESS,
+    data: result,
+  });
+});
+
+/**
+ * Fetch complete historical audit trails of business expenses.
+ * Route: GET /api/v1/expenses/history
+ */
+const getExpenseHistory = catchAsync(async (req, res) => {
+  const result = await ExpenseService.getExpenseHistory(req.query);
+
+  sendResponse({
+    res,
+    statusCode: HTTP_STATUS.OK,
+    message: EXPENSE_MESSAGES.HISTORY_FETCH_SUCCESS,
+    meta: result.meta,
+    data: result.data,
+  });
+});
+
 export const ExpenseController = {
   createExpense,
   getExpenses,
   getExpenseByPublicId,
   updateExpense,
+  deleteExpense,
+  getExpenseHistory,
 };
