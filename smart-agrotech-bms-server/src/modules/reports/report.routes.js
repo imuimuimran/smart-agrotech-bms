@@ -16,6 +16,15 @@ router.get(
   ReportController.getSalesReport
 );
 
+// Purchase Route - Mounted under ADMIN security parameters
+router.get(
+  "/purchases",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  validateRequest(ReportValidation.purchaseReportSchema),
+  ReportController.getPurchaseReport
+);
+
 // FIX: Convert default export to strict explicit named export
 export const ReportRoutes = router;
 

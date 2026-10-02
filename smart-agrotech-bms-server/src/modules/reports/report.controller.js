@@ -16,6 +16,19 @@ const getSalesReport = catchAsync(async (req, res) => {
   });
 });
 
+const getPurchaseReport = catchAsync(async (req, res) => {
+  const result = await ReportService.getPurchaseReport(req.query);
+  
+  // Clean architectural pattern: pass res directly as the first argument
+  sendResponse(res, {
+    statusCode: HTTP_STATUS.OK,
+    success: true,
+    message: REPORT_MESSAGES.PURCHASE_FETCH_SUCCESS,
+    data: result,
+  });
+});
+
 export const ReportController = {
   getSalesReport,
+  getPurchaseReport,
 };

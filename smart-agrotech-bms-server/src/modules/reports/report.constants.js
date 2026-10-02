@@ -1,3 +1,5 @@
+// src/modules/reports/report.constants.js
+
 export const REPORT_PERIODS = Object.freeze({
   DAILY: "daily",
   MONTHLY: "monthly",
@@ -7,6 +9,15 @@ export const REPORT_PERIODS = Object.freeze({
 
 export const REPORT_MESSAGES = Object.freeze({
   SALES_FETCH_SUCCESS: "Sales report fetched successfully.",
+  PURCHASE_FETCH_SUCCESS: "Purchase report fetched successfully.", // Added
   INVALID_PERIOD: "Invalid report period.",
   INVALID_DATE_RANGE: "Invalid report date range.",
 });
+
+// Whitelisted lifecycle processing states for operational records (Excludes DRAFT, SUBMITTED, APPROVED, CANCELLED)
+export const REPORTABLE_PURCHASE_STATUSES = Object.freeze([
+  "CONFIRMED",
+  "PARTIALLY_RECEIVED",
+  "RECEIVED",
+  "COMPLETED",
+]);
