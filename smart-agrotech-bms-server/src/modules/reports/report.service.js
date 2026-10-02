@@ -1,4 +1,4 @@
-import Sale from "../sales/sale.model.js"; // Adjust relative path to your exact architecture location
+import { Sale } from "../sales/sale.model.js";
 import { getDateRange } from "./report.utils.js";
 
 /**
