@@ -9,7 +9,11 @@ export const REPORT_PERIODS = Object.freeze({
 
 export const REPORT_MESSAGES = Object.freeze({
   SALES_FETCH_SUCCESS: "Sales report fetched successfully.",
-  PURCHASE_FETCH_SUCCESS: "Purchase report fetched successfully.", // Added
+  PURCHASE_FETCH_SUCCESS: "Purchase report fetched successfully.",
+  CURRENT_STOCK_FETCH_SUCCESS: "Current stock report fetched successfully.",           
+  LOW_STOCK_FETCH_SUCCESS: "Low stock report fetched successfully.",                
+  OUT_OF_STOCK_FETCH_SUCCESS: "Out of stock report fetched successfully.",             
+  INVENTORY_MOVEMENT_FETCH_SUCCESS: "Inventory movement report fetched successfully.", 
   INVALID_PERIOD: "Invalid report period.",
   INVALID_DATE_RANGE: "Invalid report date range.",
 });

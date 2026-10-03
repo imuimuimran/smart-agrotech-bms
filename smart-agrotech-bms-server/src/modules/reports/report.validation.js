@@ -19,8 +19,16 @@ const purchaseReportSchema = z.object({
   }),
 });
 
+const inventoryMovementReportSchema = z.object({
+  query: z.object({
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+  }),
+});
+
 // Enforce project standard explicit named export
 export const ReportValidation = {
   salesReportSchema,
   purchaseReportSchema,
+  inventoryMovementReportSchema,
 };

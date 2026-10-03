@@ -25,6 +25,36 @@ router.get(
   ReportController.getPurchaseReport
 );
 
+// Inventory Report Routing Structure
+router.get(
+  "/inventory/current",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  ReportController.getCurrentStockReport
+);
+
+router.get(
+  "/inventory/low-stock",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  ReportController.getLowStockReport
+);
+
+router.get(
+  "/inventory/out-of-stock",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  ReportController.getOutOfStockReport
+);
+
+router.get(
+  "/inventory/movement",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  validateRequest(ReportValidation.inventoryMovementReportSchema),
+  ReportController.getInventoryMovementReport
+);
+
 // FIX: Convert default export to strict explicit named export
 export const ReportRoutes = router;
 
