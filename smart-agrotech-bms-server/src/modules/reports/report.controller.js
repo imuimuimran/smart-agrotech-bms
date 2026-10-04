@@ -68,6 +68,18 @@ const getInventoryMovementReport = catchAsync(async (req, res) => {
   });
 });
 
+const getExpenseReport = catchAsync(async (req, res) => {
+  const result = await ReportService.getExpenseReport(req.query);
+  
+  // Signature Fix: pass res cleanly as the first independent argument
+  sendResponse(res, {
+    statusCode: HTTP_STATUS.OK,
+    success: true,
+    message: REPORT_MESSAGES.EXPENSE_FETCH_SUCCESS,
+    data: result,
+  });
+});
+
 export const ReportController = {
   getSalesReport,
   getPurchaseReport,
@@ -75,4 +87,5 @@ export const ReportController = {
   getLowStockReport,
   getOutOfStockReport,
   getInventoryMovementReport,
+  getExpenseReport,
 };

@@ -5,6 +5,7 @@ import { ProductWarehouseStock } from "../inventory/productWarehouseStock.model.
 import { InventoryTransaction } from "../purchases/inventoryTransaction.model.js";
 import { getDateRange } from "./report.utils.js";
 import { REPORTABLE_PURCHASE_STATUSES } from "./report.constants.js";
+import { Expense } from "../expenses/expense.model.js";
 
 /**
  * Runs a transactional aggregation query on the Sales collection.
@@ -274,6 +275,83 @@ const getInventoryMovementReport = async (query) => {
 };
 
 
+/**
+ * Compiles a financial matrix report for independent operational business expenses.
+ * Excludes soft-deleted elements and structures data dynamically via multi-stage pipelines.
+ */
+const getExpenseReport = async (query) => {
+  const { period = "daily", startDate, endDate } = query;
+  
+  const { start, end } = getDateRange({ period, startDate, endDate });
+
+  const matchStage = {
+    isDeleted: false, // Strict global soft-delete firewall compliance
+    expenseDate: {
+      $gte: start,
+      $lte: end,
+    },
+  };
+
+  // Pipeline 1: Global totals execution block
+  const [summary] = await Expense.aggregate([
+    {
+      $match: matchStage,
+    },
+    {
+      $group: {
+        _id: null,
+        totalExpenses: { $sum: 1 },
+        totalAmount: { $sum: { $toDouble: "$amount" } }, // Float precision decimal mapping
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        totalExpenses: 1,
+        totalAmount: 1,
+      },
+    },
+  ]);
+
+  // Pipeline 2: Categorised operational cost segmentation block
+  const categoryBreakdown = await Expense.aggregate([
+    {
+      $match: matchStage,
+    },
+    {
+      $group: {
+        _id: "$category",
+        expenseCount: { $sum: 1 },
+        totalAmount: { $sum: { $toDouble: "$amount" } },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        category: "$_id",
+        expenseCount: 1,
+        totalAmount: 1,
+      },
+    },
+    {
+      $sort: {
+        totalAmount: -1, // Highlight the highest cash expenditure streams first
+      },
+    },
+  ]);
+
+  return {
+    period,
+    startDate: start,
+    endDate: end,
+    summary: summary || {
+      totalExpenses: 0,
+      totalAmount: 0,
+    },
+    categoryBreakdown: categoryBreakdown || [],
+  };
+};
+
 export const ReportService = {
   getSalesReport,
   getPurchaseReport,
@@ -281,4 +359,5 @@ export const ReportService = {
   getLowStockReport,
   getOutOfStockReport,
   getInventoryMovementReport,
+  getExpenseReport,
 };

@@ -55,6 +55,15 @@ router.get(
   ReportController.getInventoryMovementReport
 );
 
+// Expense Report Gateway Endpoint
+router.get(
+  "/expenses",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  validateRequest(ReportValidation.expenseReportSchema),
+  ReportController.getExpenseReport
+);
+
 // FIX: Convert default export to strict explicit named export
 export const ReportRoutes = router;
 
