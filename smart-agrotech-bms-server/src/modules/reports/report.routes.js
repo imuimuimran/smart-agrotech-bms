@@ -64,6 +64,15 @@ router.get(
   ReportController.getExpenseReport
 );
 
+// Revenue Report Gateway Path
+router.get(
+  "/revenue",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  validateRequest(ReportValidation.revenueReportSchema),
+  ReportController.getRevenueReport
+);
+
 // FIX: Convert default export to strict explicit named export
 export const ReportRoutes = router;
 

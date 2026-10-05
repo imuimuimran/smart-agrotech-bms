@@ -80,6 +80,17 @@ const getExpenseReport = catchAsync(async (req, res) => {
   });
 });
 
+const getRevenueReport = catchAsync(async (req, res) => {
+  const result = await ReportService.getRevenueReport(req.query);
+  
+  sendResponse(res, {
+    statusCode: HTTP_STATUS.OK,
+    success: true,
+    message: REPORT_MESSAGES.REVENUE_FETCH_SUCCESS,
+    data: result,
+  });
+});
+
 export const ReportController = {
   getSalesReport,
   getPurchaseReport,
@@ -88,4 +99,5 @@ export const ReportController = {
   getOutOfStockReport,
   getInventoryMovementReport,
   getExpenseReport,
+  getRevenueReport,
 };

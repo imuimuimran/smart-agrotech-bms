@@ -14,7 +14,8 @@ export const REPORT_MESSAGES = Object.freeze({
   LOW_STOCK_FETCH_SUCCESS: "Low stock report fetched successfully.",                
   OUT_OF_STOCK_FETCH_SUCCESS: "Out of stock report fetched successfully.",             
   INVENTORY_MOVEMENT_FETCH_SUCCESS: "Inventory movement report fetched successfully.",
-  EXPENSE_FETCH_SUCCESS: "Expense report fetched successfully.", 
+  EXPENSE_FETCH_SUCCESS: "Expense report fetched successfully.",
+  REVENUE_FETCH_SUCCESS: "Revenue report fetched successfully.", 
   INVALID_PERIOD: "Invalid report period.",
   INVALID_DATE_RANGE: "Invalid report date range.",
 });

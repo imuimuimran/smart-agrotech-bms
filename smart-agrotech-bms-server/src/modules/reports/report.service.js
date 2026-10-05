@@ -1,4 +1,7 @@
 import { Sale } from "../sales/sale.model.js";
+import { SaleReturn } from "../sales/saleReturn.model.js";
+import { SALE_STATUS } from "../sales/sale.constants.js";
+import { SALE_RETURN_STATUS, SALE_RETURN_TYPE } from "../sales/saleReturn.constants.js";
 import { Purchase } from "../purchases/purchase.model.js";
 import Product from "../products/product.model.js";
 import { ProductWarehouseStock } from "../inventory/productWarehouseStock.model.js";
@@ -6,6 +9,14 @@ import { InventoryTransaction } from "../purchases/inventoryTransaction.model.js
 import { getDateRange } from "./report.utils.js";
 import { REPORTABLE_PURCHASE_STATUSES } from "./report.constants.js";
 import { Expense } from "../expenses/expense.model.js";
+
+const REVENUE_SALE_STATUSES = [
+  SALE_STATUS.CONFIRMED,
+  SALE_STATUS.PARTIAL_PAID,
+  SALE_STATUS.PAID,
+  SALE_STATUS.COMPLETED,
+  SALE_STATUS.RETURNED,
+];
 
 /**
  * Runs a transactional aggregation query on the Sales collection.
@@ -352,6 +363,118 @@ const getExpenseReport = async (query) => {
   };
 };
 
+
+/**
+ * Compiles Net Recognized Revenue based on Phase 14 Rule C parameters.
+ * Formulas: Net Revenue = Qualifying Gross Sales - Completed Returns/Exchanges Total Amount.
+ */
+const getRevenueReport = async (query) => {
+  const { period = "daily", startDate, endDate } = query;
+  const { start, end } = getDateRange({ period, startDate, endDate });
+
+  // 1. Recognized Gross Sales Aggregate Engine
+  const saleMatchStage = {
+    isDeleted: false,
+    status: { $in: REVENUE_SALE_STATUSES },
+    saleDate: { $gte: start, $lte: end },
+  };
+
+  const [salesSummary] = await Sale.aggregate([
+    { $match: saleMatchStage },
+    {
+      $group: {
+        _id: null,
+        totalSales: { $sum: 1 },
+        grossRevenue: { $sum: { $toDouble: "$totalAmount" } },
+        totalPaid: { $sum: { $toDouble: "$paidAmount" } },
+        totalDue: { $sum: { $toDouble: "$dueAmount" } },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        totalSales: 1,
+        grossRevenue: 1,
+        totalPaid: 1,
+        totalDue: 1,
+      },
+    },
+  ]);
+
+  // 2. Completed Returns / Exchanges Deductions Aggregate Engine (Uses processedAt tracking)
+  const returnMatchStage = {
+    isDeleted: false,
+    status: SALE_RETURN_STATUS.COMPLETED,
+    returnType: { $in: [SALE_RETURN_TYPE.RETURN, SALE_RETURN_TYPE.EXCHANGE] },
+    processedAt: { $gte: start, $lte: end },
+  };
+
+  const [returnsSummary] = await SaleReturn.aggregate([
+    { $match: returnMatchStage },
+    {
+      $group: {
+        _id: null,
+        totalReturns: { $sum: 1 },
+        totalReturnAmount: { $sum: { $toDouble: "$totalAmount" } },
+        returnAmount: {
+          $sum: {
+            $cond: [
+              { $eq: ["$returnType", SALE_RETURN_TYPE.RETURN] },
+              { $toDouble: "$totalAmount" },
+              0,
+            ],
+          },
+        },
+        exchangeAmount: {
+          $sum: {
+            $cond: [
+              { $eq: ["$returnType", SALE_RETURN_TYPE.EXCHANGE] },
+              { $toDouble: "$totalAmount" },
+              0,
+            ],
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        totalReturns: 1,
+        totalReturnAmount: 1,
+        returnAmount: 1,
+        exchangeAmount: 1,
+      },
+    },
+  ]);
+
+  // 3. Normalization Safe Guards
+  const sales = salesSummary || { totalSales: 0, grossRevenue: 0, totalPaid: 0, totalDue: 0 };
+  const returns = returnsSummary || { totalReturns: 0, totalReturnAmount: 0, returnAmount: 0, exchangeAmount: 0 };
+
+  // 4. Net Balancing Matrix Calculations
+  const grossRevenue = Number(sales.grossRevenue || 0);
+  const totalReturnAmount = Number(returns.totalReturnAmount || 0);
+  const netRecognizedRevenue = grossRevenue - totalReturnAmount;
+
+  return {
+    period,
+    startDate: start,
+    endDate: end,
+    summary: {
+      totalSales: Number(sales.totalSales || 0),
+      grossRevenue,
+      totalReturns: Number(returns.totalReturns || 0),
+      totalReturnAmount,
+      returnAmount: Number(returns.returnAmount || 0),
+      exchangeAmount: Number(returns.exchangeAmount || 0),
+      netRecognizedRevenue,
+      totalPaid: Number(sales.totalPaid || 0),
+      totalDue: Number(sales.totalDue || 0),
+    },
+  };
+};
+
+
 export const ReportService = {
   getSalesReport,
   getPurchaseReport,
@@ -360,4 +483,5 @@ export const ReportService = {
   getOutOfStockReport,
   getInventoryMovementReport,
   getExpenseReport,
+  getRevenueReport,
 };
