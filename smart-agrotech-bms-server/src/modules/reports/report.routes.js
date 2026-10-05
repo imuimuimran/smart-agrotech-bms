@@ -73,6 +73,15 @@ router.get(
   ReportController.getRevenueReport
 );
 
+// Profit & Loss Gateway Path Route
+router.get(
+  "/profit-loss",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  validateRequest(ReportValidation.profitLossReportSchema),
+  ReportController.getProfitLossReport
+);
+
 // FIX: Convert default export to strict explicit named export
 export const ReportRoutes = router;
 

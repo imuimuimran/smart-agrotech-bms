@@ -91,6 +91,18 @@ const getRevenueReport = catchAsync(async (req, res) => {
   });
 });
 
+
+const getProfitLossReport = catchAsync(async (req, res) => {
+  const result = await ReportService.getProfitLossReport(req.query);
+  
+  sendResponse(res, {
+    statusCode: HTTP_STATUS.OK,
+    success: true,
+    message: REPORT_MESSAGES.PROFIT_LOSS_FETCH_SUCCESS,
+    data: result,
+  });
+});
+
 export const ReportController = {
   getSalesReport,
   getPurchaseReport,
@@ -100,4 +112,5 @@ export const ReportController = {
   getInventoryMovementReport,
   getExpenseReport,
   getRevenueReport,
+  getProfitLossReport,
 };

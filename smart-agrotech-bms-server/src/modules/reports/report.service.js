@@ -12,10 +12,12 @@ import { Expense } from "../expenses/expense.model.js";
 
 const REVENUE_SALE_STATUSES = [
   SALE_STATUS.CONFIRMED,
+  SALE_STATUS.PARTIALLY_RECEIVED,
+  SALE_STATUS.RECEIVED,
   SALE_STATUS.PARTIAL_PAID,
   SALE_STATUS.PAID,
-  SALE_STATUS.COMPLETED,
   SALE_STATUS.RETURNED,
+  SALE_STATUS.COMPLETED,
 ];
 
 /**
@@ -474,6 +476,158 @@ const getRevenueReport = async (query) => {
   };
 };
 
+/**
+ * Generates an analytical Profit and Loss statement for a designated period scope.
+ * Computes Net Revenue, Weighted Average Cost of Goods Sold (COGS), Gross Margins, and Net Profits.
+ */
+const getProfitLossReport = async (query) => {
+  const { period = "daily", startDate, endDate } = query;
+  const { start, end } = getDateRange({ period, startDate, endDate });
+
+  // ============================================================
+  // 1. SALES REVENUE + COST OF GOODS SOLD (COGS) AGGREGATION
+  // ============================================================
+  const [salesSummary] = await Sale.aggregate([
+    {
+      $match: {
+        isDeleted: false,
+        status: { $in: REVENUE_SALE_STATUSES },
+        saleDate: { $gte: start, $lte: end },
+      },
+    },
+    { $unwind: "$products" },
+    {
+      $group: {
+        _id: null,
+        grossRevenue: { $sum: { $toDouble: "$products.lineTotal" } },
+        grossCOGS: {
+          $sum: {
+            $multiply: [
+              { $toDouble: "$products.quantity" },
+              { $toDouble: "$products.unitCost" },
+            ],
+          },
+        },
+        totalSales: { $addToSet: "$_id" },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        grossRevenue: 1,
+        grossCOGS: 1,
+        totalSales: { $size: "$totalSales" },
+      },
+    },
+  ]);
+
+  // ============================================================
+  // 2. COMPLETED RETURNS / EXCHANGES COST SNAPSHOTS AGGREGATION
+  // ============================================================
+  const [returnSummary] = await SaleReturn.aggregate([
+    {
+      $match: {
+        isDeleted: false,
+        status: SALE_RETURN_STATUS.COMPLETED,
+        returnType: { $in: [SALE_RETURN_TYPE.RETURN, SALE_RETURN_TYPE.EXCHANGE] },
+        processedAt: { $gte: start, $lte: end },
+      },
+    },
+    { $unwind: "$items" },
+    {
+      $group: {
+        _id: null,
+        returnRevenue: { $sum: { $toDouble: "$items.lineTotal" } },
+        returnedCOGS: {
+          $sum: {
+            $multiply: [
+              { $toDouble: "$items.returnQuantity" },
+              { $toDouble: "$items.unitCost" },
+            ],
+          },
+        },
+        totalReturns: { $addToSet: "$_id" },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        returnRevenue: 1,
+        returnedCOGS: 1,
+        totalReturns: { $size: "$totalReturns" },
+      },
+    },
+  ]);
+
+  // ============================================================
+  // 3. OPERATING EXPENSES AGGREGATION
+  // ============================================================
+  const [expenseSummary] = await Expense.aggregate([
+    {
+      $match: {
+        isDeleted: false,
+        expenseDate: { $gte: start, $lte: end },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalExpenses: { $sum: 1 },
+        operatingExpenses: { $sum: { $toDouble: "$amount" } },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        totalExpenses: 1,
+        operatingExpenses: 1,
+      },
+    },
+  ]);
+
+  // ============================================================
+  // 4. NORMALIZE EMPTY DATA MATRICES
+  // ============================================================
+  const sales = salesSummary || { totalSales: 0, grossRevenue: 0, grossCOGS: 0 };
+  const returns = returnSummary || { totalReturns: 0, returnRevenue: 0, returnedCOGS: 0 };
+  const expenses = expenseSummary || { totalExpenses: 0, operatingExpenses: 0 };
+
+  // ============================================================
+  // 5. FINANCIAL STRUCTURAL CALCULATIONS
+  // ============================================================
+  const grossRevenue = Number(sales.grossRevenue || 0);
+  const returnRevenue = Number(returns.returnRevenue || 0);
+  const netRevenue = grossRevenue - returnRevenue;
+
+  const grossCOGS = Number(sales.grossCOGS || 0);
+  const returnedCOGS = Number(returns.returnedCOGS || 0);
+  const netCOGS = grossCOGS - returnedCOGS;
+
+  const grossProfit = netRevenue - netCOGS;
+  const operatingExpenses = Number(expenses.operatingExpenses || 0);
+  const netProfit = grossProfit - operatingExpenses;
+
+  return {
+    period,
+    startDate: start,
+    endDate: end,
+    summary: {
+      totalSales: Number(sales.totalSales || 0),
+      totalReturns: Number(returns.totalReturns || 0),
+      grossRevenue,
+      returnRevenue,
+      netRevenue,
+      grossCOGS,
+      returnedCOGS,
+      netCOGS,
+      grossProfit,
+      totalExpenses: Number(expenses.totalExpenses || 0),
+      operatingExpenses,
+      netProfit,
+    },
+  };
+};
+
 
 export const ReportService = {
   getSalesReport,
@@ -484,4 +638,5 @@ export const ReportService = {
   getInventoryMovementReport,
   getExpenseReport,
   getRevenueReport,
+  getProfitLossReport,
 };

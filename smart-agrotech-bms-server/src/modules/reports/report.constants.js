@@ -15,7 +15,8 @@ export const REPORT_MESSAGES = Object.freeze({
   OUT_OF_STOCK_FETCH_SUCCESS: "Out of stock report fetched successfully.",             
   INVENTORY_MOVEMENT_FETCH_SUCCESS: "Inventory movement report fetched successfully.",
   EXPENSE_FETCH_SUCCESS: "Expense report fetched successfully.",
-  REVENUE_FETCH_SUCCESS: "Revenue report fetched successfully.", 
+  REVENUE_FETCH_SUCCESS: "Revenue report fetched successfully.",
+  PROFIT_LOSS_FETCH_SUCCESS: "Profit and Loss report fetched successfully.", 
   INVALID_PERIOD: "Invalid report period.",
   INVALID_DATE_RANGE: "Invalid report date range.",
 });
@@ -25,5 +26,8 @@ export const REPORTABLE_PURCHASE_STATUSES = Object.freeze([
   "CONFIRMED",
   "PARTIALLY_RECEIVED",
   "RECEIVED",
+  "PARTIAL_PAID",
+  "PAID",
+  "RETURNED",
   "COMPLETED",
 ]);
