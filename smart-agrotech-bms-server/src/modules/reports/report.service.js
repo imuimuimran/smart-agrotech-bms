@@ -2,6 +2,7 @@ import { Sale } from "../sales/sale.model.js";
 import { SaleReturn } from "../sales/saleReturn.model.js";
 import { SALE_STATUS } from "../sales/sale.constants.js";
 import { SALE_RETURN_STATUS, SALE_RETURN_TYPE } from "../sales/saleReturn.constants.js";
+import Customer from "../customers/customer.model.js";
 import { Purchase } from "../purchases/purchase.model.js";
 import Product from "../products/product.model.js";
 import { ProductWarehouseStock } from "../inventory/productWarehouseStock.model.js";
@@ -629,6 +630,92 @@ const getProfitLossReport = async (query) => {
 };
 
 
+/**
+ * Generates an outstanding Customer Due Report with summary matrices.
+ * Relies directly on the atomically synchronized customer balance states.
+ */
+const getCustomerDueReport = async (query = {}) => {
+  const { search, minDue, maxDue } = query;
+
+  // 1. Establish structural base boundaries (Only active balances > 0)
+  const matchStage = {
+    isDeleted: false,
+    currentBalance: { $gt: 0 },
+  };
+
+  if (minDue !== undefined && minDue !== "") {
+    matchStage.currentBalance.$gte = Number(minDue);
+  }
+  if (maxDue !== undefined && maxDue !== "") {
+    matchStage.currentBalance.$lte = Number(maxDue);
+  }
+
+  // 2. Formulate textual regex stage matches if matching criteria is submitted
+  const searchMatchCriteria = [];
+  if (search && search.trim() !== "") {
+    const searchRegex = { $regex: search.trim(), $options: "i" };
+    searchMatchCriteria.push({
+      $match: {
+        $or: [
+          { name: searchRegex },
+          { companyName: searchRegex },
+          { phone: searchRegex },
+          { email: searchRegex },
+        ],
+      },
+    });
+  }
+
+  // 3. Assemble and execute the high-performance aggregate summary statement pipeline
+  const summaryPipeline = [
+    { $match: matchStage },
+    ...searchMatchCriteria,
+    {
+      $group: {
+        _id: null,
+        totalCustomersWithDue: { $sum: 1 },
+        totalOutstandingDue: { $sum: { $toDouble: "$currentBalance" } },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        totalCustomersWithDue: 1,
+        totalOutstandingDue: 1,
+      },
+    },
+  ];
+
+  const [summaryResult] = await Customer.aggregate(summaryPipeline);
+
+  // 4. Construct final synchronized dataset query execution block
+  let finalQueryConditions = { ...matchStage };
+  if (search && search.trim() !== "") {
+    const searchRegex = { $regex: search.trim(), $options: "i" };
+    finalQueryConditions.$or = [
+      { name: searchRegex },
+      { companyName: searchRegex },
+      { phone: searchRegex },
+      { email: searchRegex },
+    ];
+  }
+
+  const customersList = await Customer.find(finalQueryConditions)
+    .select(
+      "publicId name companyName phone email currentBalance creditLimit paymentTerms lastPaymentDate"
+    )
+    .sort({ currentBalance: -1 }); // Rank highest debts first
+
+  return {
+    summary: summaryResult || {
+      totalCustomersWithDue: 0,
+      totalOutstandingDue: 0,
+    },
+    customers: customersList || [],
+  };
+};
+
+
 export const ReportService = {
   getSalesReport,
   getPurchaseReport,
@@ -639,4 +726,5 @@ export const ReportService = {
   getExpenseReport,
   getRevenueReport,
   getProfitLossReport,
+  getCustomerDueReport,
 };
