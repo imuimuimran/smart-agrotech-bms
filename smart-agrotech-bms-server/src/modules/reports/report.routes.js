@@ -91,6 +91,15 @@ router.get(
   ReportController.getCustomerDueReport
 );
 
+// Supplier Due Report Gateway Path Route
+router.get(
+  "/supplier-due",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  validateRequest(ReportValidation.supplierDueReportSchema),
+  ReportController.getSupplierDueReport
+);
+
 // FIX: Convert default export to strict explicit named export
 export const ReportRoutes = router;
 

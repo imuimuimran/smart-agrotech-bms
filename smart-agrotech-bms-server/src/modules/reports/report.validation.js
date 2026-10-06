@@ -67,6 +67,18 @@ const customerDueReportSchema = z.object({
   }),
 });
 
+
+const supplierDueReportSchema = z.object({
+  query: z.object({
+    supplierId: z.string().optional(),
+    search: z.string().trim().optional(),
+    overdueOnly: z
+      .union([z.boolean(), z.enum(["true", "false"])])
+      .optional()
+      .transform((val) => val === true || val === "true"),
+  }),
+});
+
 // Enforce project standard explicit named export
 export const ReportValidation = {
   salesReportSchema,
@@ -76,4 +88,5 @@ export const ReportValidation = {
   revenueReportSchema,
   profitLossReportSchema,
   customerDueReportSchema,
+  supplierDueReportSchema,
 };

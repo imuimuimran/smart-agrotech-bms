@@ -116,6 +116,19 @@ const getCustomerDueReport = catchAsync(async (req, res) => {
   });
 });
 
+
+const getSupplierDueReport = catchAsync(async (req, res) => {
+  // Transformed query values pass directly down into our service layer aggregation pipeline
+  const result = await ReportService.getSupplierDueReport(req.query);
+  
+  sendResponse(res, {
+    statusCode: HTTP_STATUS.OK,
+    success: true,
+    message: REPORT_MESSAGES.SUPPLIER_DUE_FETCH_SUCCESS,
+    data: result,
+  });
+});
+
 export const ReportController = {
   getSalesReport,
   getPurchaseReport,
@@ -127,4 +140,5 @@ export const ReportController = {
   getRevenueReport,
   getProfitLossReport,
   getCustomerDueReport,
+  getSupplierDueReport,
 };
