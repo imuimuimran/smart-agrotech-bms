@@ -50,6 +50,23 @@ const profitLossReportSchema = z.object({
   }),
 });
 
+
+const customerDueReportSchema = z.object({
+  query: z.object({
+    search: z.string().trim().optional(),
+    minDue: z.string().optional().transform((val) => (val ? Number(val) : undefined)),
+    maxDue: z.string().optional().transform((val) => (val ? Number(val) : undefined)),
+  }).refine((data) => {
+    if (data.minDue !== undefined && data.maxDue !== undefined && data.maxDue < data.minDue) {
+      return false;
+    }
+    return true;
+  }, {
+    message: "maxDue must be greater than or equal to minDue",
+    path: ["maxDue"], // Attaches error footprint directly onto the maxDue response field
+  }),
+});
+
 // Enforce project standard explicit named export
 export const ReportValidation = {
   salesReportSchema,
@@ -58,4 +75,5 @@ export const ReportValidation = {
   expenseReportSchema,
   revenueReportSchema,
   profitLossReportSchema,
+  customerDueReportSchema,
 };

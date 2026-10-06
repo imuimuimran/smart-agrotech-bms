@@ -82,6 +82,15 @@ router.get(
   ReportController.getProfitLossReport
 );
 
+// Customer Due Report Gateway Path Route
+router.get(
+  "/customer-due",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  validateRequest(ReportValidation.customerDueReportSchema),
+  ReportController.getCustomerDueReport
+);
+
 // FIX: Convert default export to strict explicit named export
 export const ReportRoutes = router;
 

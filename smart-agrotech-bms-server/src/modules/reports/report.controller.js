@@ -103,6 +103,19 @@ const getProfitLossReport = catchAsync(async (req, res) => {
   });
 });
 
+
+const getCustomerDueReport = catchAsync(async (req, res) => {
+  // Directly passes req.query containing Zod-transformed numbers down to the service layer
+  const result = await ReportService.getCustomerDueReport(req.query);
+  
+  sendResponse(res, {
+    statusCode: HTTP_STATUS.OK,
+    success: true,
+    message: REPORT_MESSAGES.CUSTOMER_DUE_FETCH_SUCCESS,
+    data: result,
+  });
+});
+
 export const ReportController = {
   getSalesReport,
   getPurchaseReport,
@@ -113,4 +126,5 @@ export const ReportController = {
   getExpenseReport,
   getRevenueReport,
   getProfitLossReport,
+  getCustomerDueReport,
 };
