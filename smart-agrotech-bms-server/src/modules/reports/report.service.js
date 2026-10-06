@@ -1,8 +1,11 @@
+import mongoose from "mongoose";
 import { Sale } from "../sales/sale.model.js";
 import { SaleReturn } from "../sales/saleReturn.model.js";
 import { SALE_STATUS } from "../sales/sale.constants.js";
 import { SALE_RETURN_STATUS, SALE_RETURN_TYPE } from "../sales/saleReturn.constants.js";
 import Customer from "../customers/customer.model.js";
+import { AccountsPayable } from "../purchases/accountsPayable.model.js";
+import Supplier from "../suppliers/supplier.model.js";
 import { Purchase } from "../purchases/purchase.model.js";
 import Product from "../products/product.model.js";
 import { ProductWarehouseStock } from "../inventory/productWarehouseStock.model.js";
@@ -716,6 +719,155 @@ const getCustomerDueReport = async (query = {}) => {
 };
 
 
+/**
+ * Generates an aggregated Supplier Due Liability Report using the Accounts Payable sub-ledger.
+ * Traces aging schedules, tracks totals, and maps actual supplier field properties.
+ */
+const getSupplierDueReport = async (query = {}) => {
+  const { supplierId, search = "", overdueOnly = false } = query;
+
+  // 1. Initialize match filtering criteria (Enforce active soft-delete firewalls)
+  const matchStage = {
+    isDeleted: false,
+    status: { $ne: "PAID" },
+  };
+
+  // Optional supplier filter boundary checking
+  if (supplierId) {
+    if (!mongoose.Types.ObjectId.isValid(supplierId)) {
+      return {
+        summary: {
+          totalSuppliersWithDue: 0,
+          totalPayableAmount: 0,
+          totalPaidAmount: 0,
+          totalOutstandingDue: 0,
+          totalOverdueAmount: 0,
+        },
+        suppliers: [],
+      };
+    }
+    matchStage.supplierId = new mongoose.Types.ObjectId(supplierId);
+  }
+
+  // Handle explicit aging overdue query scopes
+  if (overdueOnly === true || overdueOnly === "true") {
+    matchStage.dueDate = { $lt: new Date() };
+  }
+
+  // 2. Build out high-performance pipeline array maps dynamically
+  const pipeline = [
+    { $match: matchStage },
+    {
+      $group: {
+        _id: "$supplierId",
+        totalPayableAmount: { $sum: { $toDouble: "$payableAmount" } },
+        totalPaidAmount: { $sum: { $toDouble: "$paidAmount" } },
+        totalOutstandingDue: { $sum: { $toDouble: "$outstandingAmount" } },
+        invoiceCount: { $sum: 1 },
+        overdueAmount: {
+          $sum: {
+            $cond: [
+              {
+                $and: [
+                  { $lt: ["$dueDate", new Date()] },
+                  { $ne: ["$status", "PAID"] },
+                ],
+              },
+              { $toDouble: "$outstandingAmount" },
+              0,
+            ],
+          },
+        },
+        overdueInvoiceCount: {
+          $sum: {
+            $cond: [
+              {
+                $and: [
+                  { $lt: ["$dueDate", new Date()] },
+                  { $ne: ["$status", "PAID"] },
+                ],
+              },
+              1,
+              0,
+            ],
+          },
+        },
+      },
+    },
+    {
+      $lookup: {
+        from: "suppliers",
+        localField: "_id",
+        foreignField: "_id",
+        as: "supplierInfo",
+      },
+    },
+    { $unwind: "$supplierInfo" },
+    {
+      $project: {
+        _id: 0,
+        supplierId: "$_id",
+        publicId: "$supplierInfo.publicId",
+        supplierName: "$supplierInfo.supplierName", // Corrected mapping property hook
+        supplierCode: "$supplierInfo.supplierCode",
+        companyName: "$supplierInfo.companyName",
+        email: "$supplierInfo.email",
+        phone: "$supplierInfo.phone",
+        totalPayableAmount: 1,
+        totalPaidAmount: 1,
+        outstandingAmount: "$totalOutstandingDue",
+        invoiceCount: 1,
+        overdueAmount: 1,
+        overdueInvoiceCount: 1,
+      },
+    },
+  ];
+
+  // Dynamically push text filter stage to prevent pipeline syntax errors
+  if (search && search.trim() !== "") {
+    const searchRegex = { $regex: search.trim(), $options: "i" };
+    pipeline.push({
+      $match: {
+        $or: [
+          { supplierName: searchRegex },
+          { companyName: searchRegex },
+          { supplierCode: searchRegex },
+          { email: searchRegex },
+        ],
+      },
+    });
+  }
+
+  // Sort by highest liabilities first
+  pipeline.push({ $sort: { outstandingAmount: -1 } });
+
+  const aggregation = await AccountsPayable.aggregate(pipeline);
+
+  // 3. Compile high-level operational liability counters
+  const summary = aggregation.reduce(
+    (accumulator, supplier) => {
+      accumulator.totalSuppliersWithDue += 1;
+      accumulator.totalPayableAmount += supplier.totalPayableAmount || 0;
+      accumulator.totalPaidAmount += supplier.totalPaidAmount || 0;
+      accumulator.totalOutstandingDue += supplier.outstandingAmount || 0;
+      accumulator.totalOverdueAmount += supplier.overdueAmount || 0;
+      return accumulator;
+    },
+    {
+      totalSuppliersWithDue: 0,
+      totalPayableAmount: 0,
+      totalPaidAmount: 0,
+      totalOutstandingDue: 0,
+      totalOverdueAmount: 0,
+    }
+  );
+
+  return {
+    summary,
+    suppliers: aggregation || [],
+  };
+};
+
 export const ReportService = {
   getSalesReport,
   getPurchaseReport,
@@ -727,4 +879,5 @@ export const ReportService = {
   getRevenueReport,
   getProfitLossReport,
   getCustomerDueReport,
+  getSupplierDueReport,
 };

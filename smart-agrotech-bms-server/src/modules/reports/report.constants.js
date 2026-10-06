@@ -17,7 +17,8 @@ export const REPORT_MESSAGES = Object.freeze({
   EXPENSE_FETCH_SUCCESS: "Expense report fetched successfully.",
   REVENUE_FETCH_SUCCESS: "Revenue report fetched successfully.",
   PROFIT_LOSS_FETCH_SUCCESS: "Profit and Loss report fetched successfully.",
-  CUSTOMER_DUE_FETCH_SUCCESS: "Customer due report fetched successfully.", 
+  CUSTOMER_DUE_FETCH_SUCCESS: "Customer due report fetched successfully.",
+  SUPPLIER_DUE_FETCH_SUCCESS: "Supplier due report fetched successfully.", 
   INVALID_PERIOD: "Invalid report period.",
   INVALID_DATE_RANGE: "Invalid report date range.",
 });
