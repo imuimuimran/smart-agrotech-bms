@@ -26,6 +26,8 @@ import expenseRoutes from "../modules/expenses/expense.routes.js";
 
 import { ReportRoutes } from "../modules/reports/report.routes.js";
 
+import { ActivityLogRoutes } from "../modules/activity-logs/activityLog.routes.js";
+
 const router = Router();
 
 router.use("/auth", authRoutes);
@@ -52,6 +54,8 @@ router.use("/accounting", returnFinancialReconciliationRoutes);
 
 router.use("/expenses", expenseRoutes);
 
-router.use("/reports", ReportRoutes); 
+router.use("/reports", ReportRoutes);
+
+router.use("/activity-logs", ActivityLogRoutes);
 
 export default router;
