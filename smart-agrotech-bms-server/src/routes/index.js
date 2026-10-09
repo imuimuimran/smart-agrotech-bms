@@ -28,7 +28,11 @@ import { ReportRoutes } from "../modules/reports/report.routes.js";
 
 import { ActivityLogRoutes } from "../modules/activity-logs/activityLog.routes.js";
 
+import { NotificationRoutes } from "../modules/notifications/notification.route.js";
+
+
 const router = Router();
+
 
 router.use("/auth", authRoutes);
 
@@ -57,5 +61,7 @@ router.use("/expenses", expenseRoutes);
 router.use("/reports", ReportRoutes);
 
 router.use("/activity-logs", ActivityLogRoutes);
+
+router.use("/notifications", NotificationRoutes);
 
 export default router;
