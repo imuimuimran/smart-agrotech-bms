@@ -1,4 +1,3 @@
-// src/modules/settings/settings.validation.js
 import { z } from "zod";
 
 const businessLogoValidationSchema = z.object({
