@@ -120,7 +120,7 @@ const settingsSchema = new mongoose.Schema(
 );
 
 // Enforce single system-wide asset configuration limits by querying index limits
-settingsSchema.index({ publicId: 1 }, { unique: true });
+// settingsSchema.index({ publicId: 1 }, { unique: true });
 
 // Convert standard default module export to strict explicit named export mapping structure
 export const Settings = mongoose.model(

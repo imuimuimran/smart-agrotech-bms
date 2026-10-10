@@ -10,7 +10,8 @@ const getSettings = catchAsync(async (req, res) => {
   const settings = await SettingsService.getSettings();
   
   // FIX: Extracted res out as the first independent argument to fulfill system standard signatures
-  sendResponse(res, {
+  sendResponse({
+    res,
     statusCode: HTTP_STATUS.OK,
     success: true,
     message: SETTINGS_MESSAGES.FETCH_SUCCESS,
@@ -28,7 +29,8 @@ const updateSettings = catchAsync(async (req, res) => {
   );
   
   // FIX: Extracted res out as the first independent argument to fulfill system standard signatures
-  sendResponse(res, {
+  sendResponse({
+    res,
     statusCode: HTTP_STATUS.OK,
     success: true,
     message: SETTINGS_MESSAGES.UPDATE_SUCCESS,

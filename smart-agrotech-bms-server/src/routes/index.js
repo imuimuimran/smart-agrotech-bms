@@ -30,6 +30,8 @@ import { ActivityLogRoutes } from "../modules/activity-logs/activityLog.routes.j
 
 import { NotificationRoutes } from "../modules/notifications/notification.route.js";
 
+import { SettingsRoutes } from "../modules/settings/settings.routes.js";
+
 
 const router = Router();
 
@@ -63,5 +65,7 @@ router.use("/reports", ReportRoutes);
 router.use("/activity-logs", ActivityLogRoutes);
 
 router.use("/notifications", NotificationRoutes);
+
+router.use("/settings", SettingsRoutes);
 
 export default router;
