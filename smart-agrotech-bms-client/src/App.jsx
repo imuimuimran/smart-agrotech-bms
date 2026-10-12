@@ -1,19 +1,40 @@
 // src/App.jsx
-import React from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
-import { LoginPage } from "./pages/auth/LoginPage"; // FIX: Enforce explicit named import
-import { ProtectedRoute } from "./routes/ProtectedRoute"; // FIX: Enforce explicit named import
+import { LoginPage } from "./pages/auth/LoginPage.jsx"; 
+import { ProtectedRoute } from "./routes/ProtectedRoute.jsx"; 
+import { AppLayout } from "./layouts/AppLayout.jsx"
 
-function HomePlaceholder() {
+// function HomePlaceholder() {
+//   return (
+//     <main className="p-8">
+//       <h1 className="text-2xl font-bold text-slate-900">
+//         Dashboard placeholder
+//       </h1>
+//       <p className="mt-2 text-slate-600">
+//         Authentication is working. The dashboard will be implemented next.
+//       </p>
+//     </main>
+//   );
+// }
+
+function DashboardPage() {
   return (
-    <main className="p-8">
-      <h1 className="text-2xl font-bold text-slate-900">
-        Dashboard placeholder
-      </h1>
+    <section>
+      <h2 className="text-2xl font-bold text-slate-900">
+        Welcome to Smart AgroTech BMS
+      </h2>
       <p className="mt-2 text-slate-600">
-        Authentication is working. The dashboard will be implemented next.
+        Your business management workspace is ready.
       </p>
-    </main>
+      <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <p className="font-medium text-slate-800">
+          Dashboard
+        </p>
+        <p className="mt-2 text-sm text-slate-500">
+          Business metrics and module summaries will appear here in a later step.
+        </p>
+      </div>
+    </section>
   );
 }
 
@@ -34,13 +55,14 @@ export function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/forbidden" element={<ForbiddenPage />} />
       <Route
-        path="/"
         element={
           <ProtectedRoute>
-            <HomePlaceholder />
+            <AppLayout />
           </ProtectedRoute>
         }
-      />
+      >
+        <Route index element={<DashboardPage />} />
+      </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

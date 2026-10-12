@@ -1,8 +1,9 @@
 // src/contexts/AuthContext.jsx
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { AuthService } from "../services/authService"; // FIX: Aligned explicit named engine hook import
+import { useCallback, useEffect, useState } from "react";
+import { AuthService } from "../services/authService";
+import { AuthContext } from "./contextRegistry.js";
 
-const AuthContext = createContext(null);
+// export const AuthContext = createContext(null);
 const TOKEN_KEY = "bms_access_token";
 
 export function AuthProvider({ children }) {
@@ -84,10 +85,10 @@ export function AuthProvider({ children }) {
   );
 }
 
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth hook execution must be used inside an active AuthProvider container.");
-  }
-  return context;
-}
+// export function useAuth() {
+//   const context = useContext(AuthContext);
+//   if (!context) {
+//     throw new Error("useAuth hook execution must be used inside an active AuthProvider container.");
+//   }
+//   return context;
+// }

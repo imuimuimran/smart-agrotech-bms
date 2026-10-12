@@ -1,7 +1,8 @@
 // src/pages/auth/LoginPage.jsx
-import React, { useState } from "react";
+import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../../contexts/AuthContext"; // Aligned with the verified explicit named context hook
+// import { useAuth } from "../../contexts/AuthContext.jsx";
+import { useAuth } from "../../hooks/useAuth";
 
 export function LoginPage() {
   const { login } = useAuth();
