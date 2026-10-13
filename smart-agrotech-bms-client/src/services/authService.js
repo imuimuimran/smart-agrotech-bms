@@ -1,12 +1,15 @@
 import { apiClient } from "../api/apiClient";
+import { API_ENDPOINTS } from "../api/endpoints";
 
 export const AuthService = {
   /**
-   * Authenticates user against the server contract.
-   * Expects response envelope structure to match: response.data.data -> { token, user }
+   * Authenticates user against the server contract using centralized paths.
    */
   async login(credentials) {
-    const response = await apiClient.post("/auth/login", credentials);
+    const response = await apiClient.post(
+      API_ENDPOINTS.AUTH.LOGIN,
+      credentials
+    );
     return response.data.data;
   },
 
@@ -14,7 +17,9 @@ export const AuthService = {
    * Resolves the profile matching the active authenticated session context.
    */
   async getCurrentUser() {
-    const response = await apiClient.get("/auth/me");
+    const response = await apiClient.get(
+      API_ENDPOINTS.AUTH.CURRENT_USER
+    );
     return response.data.data;
   },
 
@@ -22,7 +27,9 @@ export const AuthService = {
    * Notifies server to clear the active authentication token context.
    */
   async logout() {
-    const response = await apiClient.post("/auth/logout");
+    const response = await apiClient.post(
+      API_ENDPOINTS.AUTH.LOGOUT
+    );
     return response.data;
   },
 };
