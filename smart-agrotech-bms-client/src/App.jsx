@@ -3,40 +3,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { LoginPage } from "./pages/auth/LoginPage.jsx"; 
 import { ProtectedRoute } from "./routes/ProtectedRoute.jsx"; 
 import { AppLayout } from "./layouts/AppLayout.jsx"
-
-// function HomePlaceholder() {
-//   return (
-//     <main className="p-8">
-//       <h1 className="text-2xl font-bold text-slate-900">
-//         Dashboard placeholder
-//       </h1>
-//       <p className="mt-2 text-slate-600">
-//         Authentication is working. The dashboard will be implemented next.
-//       </p>
-//     </main>
-//   );
-// }
-
-function DashboardPage() {
-  return (
-    <section>
-      <h2 className="text-2xl font-bold text-slate-900">
-        Welcome to Smart AgroTech BMS
-      </h2>
-      <p className="mt-2 text-slate-600">
-        Your business management workspace is ready.
-      </p>
-      <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="font-medium text-slate-800">
-          Dashboard
-        </p>
-        <p className="mt-2 text-sm text-slate-500">
-          Business metrics and module summaries will appear here in a later step.
-        </p>
-      </div>
-    </section>
-  );
-}
+import { DashboardPage } from "./pages/dashboard/DashboardPage.jsx";
 
 function ForbiddenPage() {
   return (
