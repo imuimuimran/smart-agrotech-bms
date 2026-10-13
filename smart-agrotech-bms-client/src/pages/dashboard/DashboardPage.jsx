@@ -27,7 +27,6 @@ const dashboardSections = [
   },
 ];
 
-// Enforce strict project standard explicit named export mapping structure
 export function DashboardPage() {
   return (
     <div className="mx-auto w-full max-w-7xl space-y-8">
@@ -47,18 +46,21 @@ export function DashboardPage() {
         <h3 className="mb-4 text-lg font-semibold text-slate-900">
           Business modules
         </h3>
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        {/* FIX: Simplified standard responsive grid layout utility classes */}
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {dashboardSections.map((section) => (
             <article
               key={section.title}
-              className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-emerald-300 hover:shadow-md"
+              className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-emerald-300 hover:shadow-md"
             >
-              <h4 className="font-semibold text-slate-900">
-                {section.title}
-              </h4>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                {section.description}
-              </p>
+              <div>
+                <h4 className="font-semibold text-slate-900">
+                  {section.title}
+                </h4>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {section.description}
+                </p>
+              </div>
               <span className="mt-4 inline-block text-xs font-medium text-slate-400">
                 Module navigation will be connected in later steps
               </span>
