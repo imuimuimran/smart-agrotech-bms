@@ -19,25 +19,6 @@ const getActivityLogs = async (req, res, next) => {
   }
 };
 
-// const getSingleActivityLog = async (req, res, next) => {
-//   try {
-//     const { id } = req.params;
-//     const log = await ActivityLogService.getSingleLogFromDB(id);
-
-//     if (!log) {
-//       throw new ApiError(HTTP_STATUS.NOT_FOUND, 'The requested activity log record could not be found.');
-//     }
-
-//     res.status(HTTP_STATUS.OK).json({
-//       success: true,
-//       message: 'Detailed audit log event information resolved successfully.',
-//       data: log,
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
 /**
  * Retrieves a single immutable activity log record by its ID.
  */
@@ -45,14 +26,16 @@ const getSingleActivityLog = catchAsync(async (req, res) => {
   const result = await ActivityLogService.getSingleLogFromDB(req.params.id);
   
   if (!result) {
-    return sendResponse(res, {
+    return sendResponse({
+      res,
       statusCode: HTTP_STATUS.NOT_FOUND,
       success: false,
       message: "Activity log not found",
     });
   }
 
-  sendResponse(res, {
+  sendResponse({
+    res,
     statusCode: HTTP_STATUS.OK,
     success: true,
     message: "Activity log retrieved successfully",
@@ -66,7 +49,8 @@ const getSingleActivityLog = catchAsync(async (req, res) => {
 const getAllActivityLogs = catchAsync(async (req, res) => {
   const result = await ActivityLogService.getAllLogsFromDB(req.query);
   
-  sendResponse(res, {
+  sendResponse({
+    res,
     statusCode: HTTP_STATUS.OK,
     success: true,
     message: "Activity logs retrieved successfully",

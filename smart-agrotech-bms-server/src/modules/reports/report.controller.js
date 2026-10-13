@@ -8,7 +8,8 @@ const getSalesReport = catchAsync(async (req, res) => {
   const result = await ReportService.getSalesReport(req.query);
   
   // FIX: Extracted res out as the first parameter to align with standard project helpers
-  sendResponse(res, {
+  sendResponse({
+    res,
     statusCode: HTTP_STATUS.OK,
     success: true,
     message: REPORT_MESSAGES.SALES_FETCH_SUCCESS,
@@ -20,7 +21,8 @@ const getPurchaseReport = catchAsync(async (req, res) => {
   const result = await ReportService.getPurchaseReport(req.query);
   
   // Clean architectural pattern: pass res directly as the first argument
-  sendResponse(res, {
+  sendResponse({
+    res,
     statusCode: HTTP_STATUS.OK,
     success: true,
     message: REPORT_MESSAGES.PURCHASE_FETCH_SUCCESS,
@@ -30,7 +32,8 @@ const getPurchaseReport = catchAsync(async (req, res) => {
 
 const getCurrentStockReport = catchAsync(async (req, res) => {
   const data = await ReportService.getCurrentStockReport();
-  sendResponse(res, {
+  sendResponse({
+    res,
     statusCode: HTTP_STATUS.OK,
     success: true,
     message: REPORT_MESSAGES.CURRENT_STOCK_FETCH_SUCCESS,
@@ -40,7 +43,8 @@ const getCurrentStockReport = catchAsync(async (req, res) => {
 
 const getLowStockReport = catchAsync(async (req, res) => {
   const data = await ReportService.getLowStockReport();
-  sendResponse(res, {
+  sendResponse({
+    res,
     statusCode: HTTP_STATUS.OK,
     success: true,
     message: REPORT_MESSAGES.LOW_STOCK_FETCH_SUCCESS,
@@ -50,7 +54,8 @@ const getLowStockReport = catchAsync(async (req, res) => {
 
 const getOutOfStockReport = catchAsync(async (req, res) => {
   const data = await ReportService.getOutOfStockReport();
-  sendResponse(res, {
+  sendResponse({
+    res,
     statusCode: HTTP_STATUS.OK,
     success: true,
     message: REPORT_MESSAGES.OUT_OF_STOCK_FETCH_SUCCESS,
@@ -60,7 +65,8 @@ const getOutOfStockReport = catchAsync(async (req, res) => {
 
 const getInventoryMovementReport = catchAsync(async (req, res) => {
   const data = await ReportService.getInventoryMovementReport(req.query);
-  sendResponse(res, {
+  sendResponse({
+    res,
     statusCode: HTTP_STATUS.OK,
     success: true,
     message: REPORT_MESSAGES.INVENTORY_MOVEMENT_FETCH_SUCCESS,
@@ -72,7 +78,8 @@ const getExpenseReport = catchAsync(async (req, res) => {
   const result = await ReportService.getExpenseReport(req.query);
   
   // Signature Fix: pass res cleanly as the first independent argument
-  sendResponse(res, {
+  sendResponse({
+    res,
     statusCode: HTTP_STATUS.OK,
     success: true,
     message: REPORT_MESSAGES.EXPENSE_FETCH_SUCCESS,
@@ -83,7 +90,8 @@ const getExpenseReport = catchAsync(async (req, res) => {
 const getRevenueReport = catchAsync(async (req, res) => {
   const result = await ReportService.getRevenueReport(req.query);
   
-  sendResponse(res, {
+  sendResponse({
+    res,
     statusCode: HTTP_STATUS.OK,
     success: true,
     message: REPORT_MESSAGES.REVENUE_FETCH_SUCCESS,
@@ -95,7 +103,8 @@ const getRevenueReport = catchAsync(async (req, res) => {
 const getProfitLossReport = catchAsync(async (req, res) => {
   const result = await ReportService.getProfitLossReport(req.query);
   
-  sendResponse(res, {
+  sendResponse({
+    res,
     statusCode: HTTP_STATUS.OK,
     success: true,
     message: REPORT_MESSAGES.PROFIT_LOSS_FETCH_SUCCESS,
@@ -108,7 +117,8 @@ const getCustomerDueReport = catchAsync(async (req, res) => {
   // Directly passes req.query containing Zod-transformed numbers down to the service layer
   const result = await ReportService.getCustomerDueReport(req.query);
   
-  sendResponse(res, {
+  sendResponse({
+    res,
     statusCode: HTTP_STATUS.OK,
     success: true,
     message: REPORT_MESSAGES.CUSTOMER_DUE_FETCH_SUCCESS,
@@ -121,7 +131,8 @@ const getSupplierDueReport = catchAsync(async (req, res) => {
   // Transformed query values pass directly down into our service layer aggregation pipeline
   const result = await ReportService.getSupplierDueReport(req.query);
   
-  sendResponse(res, {
+  sendResponse({
+    res,
     statusCode: HTTP_STATUS.OK,
     success: true,
     message: REPORT_MESSAGES.SUPPLIER_DUE_FETCH_SUCCESS,
