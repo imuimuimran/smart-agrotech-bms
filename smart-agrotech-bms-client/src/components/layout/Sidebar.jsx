@@ -3,7 +3,16 @@
 import { NavLink } from "react-router-dom";
 
 const navigationItems = [
-  { label: "Dashboard", to: "/", end: true },
+  { 
+    label: "Dashboard", 
+    to: "/", 
+    end: true 
+  },
+  { 
+    label: "Products", 
+    to: "/products", 
+    end: false 
+  },
 ];
 
 export function Sidebar({ isOpen, onClose }) {
