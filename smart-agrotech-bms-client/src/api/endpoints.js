@@ -15,4 +15,11 @@ export const API_ENDPOINTS = {
     UPDATE: (id) => `/products/${id}`,
     DELETE: (id) => `/products/${id}`,
   },
+  CATEGORIES: {
+    LIST: "/product-categories",
+  },
+  // Verified backend configuration resource collection paths
+  BRANDS: {
+    LIST: "/brands",
+  },
 };
