@@ -100,14 +100,26 @@ export function ProductCreatePage({ onBack, onSuccess }) {
     return () => { active = false; };
   }, []);
 
+  // const categoryOptions = useMemo(
+  //   () => categories.filter((item) => item?._id || item?.id),
+  //   [categories],
+  // );
+  // const brandOptions = useMemo(
+  //   () => brands.filter((item) => item?._id || item?.id),
+  //   [brands],
+  // );
+
+
   const categoryOptions = useMemo(
-    () => categories.filter((item) => item?._id || item?.id),
+    () => categories.filter((item) => item?.publicId || item?._id || item?.id),
     [categories],
   );
+
   const brandOptions = useMemo(
-    () => brands.filter((item) => item?._id || item?.id),
+    () => brands.filter((item) => item?.publicId || item?._id || item?.id),
     [brands],
   );
+
 
   function handleChange(event) {
     const { name, value, type, checked } = event.target;
@@ -238,10 +250,33 @@ export function ProductCreatePage({ onBack, onSuccess }) {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div>
               <label htmlFor="categoryId" className="mb-1 block text-sm font-medium text-slate-700">Category *</label>
-              <select id="categoryId" name="categoryId" value={formData.categoryId} onChange={handleChange} required className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm">
+              {/* <select id="categoryId" name="categoryId" value={formData.categoryId} onChange={handleChange} required className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm">
                 <option value="">Select category</option>
                 {categoryOptions.map((item) => <option key={item._id || item.id} value={item._id || item.id}>{item.categoryName || item.name || item.title || "Unnamed category"}</option>)}
+              </select> */}
+
+
+              <select
+                id="categoryId"
+                name="categoryId"
+                value={formData.categoryId}
+                onChange={handleChange}
+                required
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm"
+              >
+                <option value="">Select category</option>
+                {categoryOptions.map((item) => {
+                  const id = item.publicId || item._id || item.id;
+
+                  return (
+                    <option key={id} value={id}>
+                      {item.categoryName || item.name || item.title || "Unnamed category"}
+                    </option>
+                  );
+                })}
               </select>
+              
+
               {categoryOptions.length === 0 && <FieldError>No categories were returned by the category service.</FieldError>}
             </div>
             <div>
