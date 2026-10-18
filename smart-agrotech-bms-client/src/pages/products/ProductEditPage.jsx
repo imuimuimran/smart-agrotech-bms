@@ -199,10 +199,29 @@ export function ProductEditPage({ productId, onBack, onSuccess }) {
       }
       if (reorderLevel < 0) throw new Error("Reorder level cannot be negative.");
 
+      // const images = formData.images
+      //   .split(/[\n,]+/)
+      //   .map((url) => url.trim())
+      //   .filter(Boolean);
+
+
+
       const images = formData.images
         .split(/[\n,]+/)
-        .map((url) => url.trim())
-        .filter(Boolean);
+        .map((value) => value.trim())
+        .filter(Boolean)
+        // Remove Markdown link formatting if it was pasted into the field.
+        .map((value) => {
+          const markdownLink = value.match(/^\[([^\]]+)\]\((https?:\/\/[^)]+)\)$/);
+          return markdownLink ? markdownLink[2] : value;
+        })
+        .map((url, index) => ({
+          url,
+          alt: formData.productName.trim(),
+          isPrimary: index === 0,
+        }));
+
+
 
       // Only send fields supported by the verified backend update service.
       payload = {
