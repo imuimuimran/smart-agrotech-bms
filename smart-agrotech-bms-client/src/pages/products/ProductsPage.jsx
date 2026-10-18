@@ -1912,6 +1912,43 @@ function formatPrice(value) {
     : "—";
 }
 
+
+function getProductImageUrl(product) {
+  const images = Array.isArray(product?.images)
+    ? product.images
+    : [];
+
+  // Prefer the image marked as primary.
+  const primaryImage = images.find(
+    (image) =>
+      typeof image === "object" && image?.isPrimary === true
+  );
+
+  const firstImage = primaryImage || images[0];
+
+  let url =
+    typeof firstImage === "string"
+      ? firstImage
+      : firstImage?.url ||
+      firstImage?.imageUrl ||
+      firstImage?.src ||
+      "";
+
+  // Support Markdown links such as [Image](https://example.com/image.jpg).
+  const markdownMatch =
+    typeof url === "string"
+      ? url.match(/^\[[^\]]*\]\((https?:\/\/[^)]+)\)$/)
+      : null;
+
+  if (markdownMatch) {
+    url = markdownMatch[1];
+  }
+
+  return typeof url === "string" ? url.trim() : "";
+}
+
+
+
 export function ProductsPage({
   currentUser,
   user,
@@ -1961,6 +1998,7 @@ export function ProductsPage({
       const response = await ProductService.getProducts(params);
       const responseData = response?.data ?? response;
       const items = unwrapList(responseData);
+
 
       setProducts(items);
       const pageInfo =
@@ -2319,7 +2357,7 @@ export function ProductsPage({
 
                   return (
                     <tr key={id || `${product?.productName || "product"}-${index}`} className="hover:bg-slate-50">
-                      <td className="px-4 py-4">
+                      {/* <td className="px-4 py-4">
                         <button
                           type="button"
                           className="text-left font-medium text-slate-900 hover:text-emerald-700"
@@ -2331,7 +2369,40 @@ export function ProductsPage({
                         <div className="mt-1 text-xs text-slate-500">
                           {product?.productType || "—"}
                         </div>
+                      </td> */}
+
+
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-3">
+                          {getProductImageUrl(product) ? (
+                            <img
+                              src={getProductImageUrl(product)}
+                              alt={product.productName || "Product image"}
+                              className="h-14 w-14 shrink-0 rounded-md border border-gray-200 bg-white object-contain"
+                              loading="lazy"
+                              onError={(event) => {
+                                event.currentTarget.style.display = "none";
+                              }}
+                            />
+                          ) : (
+                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-50 text-xs text-gray-400">
+                              No image
+                            </div>
+                          )}
+
+                          <div className="min-w-0">
+                            <div className="font-medium text-gray-900">
+                              {product.productName || product.name || "Unnamed Product"}
+                            </div>
+                            <div className="mt-1 text-xs text-gray-500">
+                              {product?.productType || "—"}
+                            </div>
+                          </div>
+                        </div>
                       </td>
+
+
+
                       <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-600">
                         <div>{product?.productCode || "—"}</div>
                         {product?.sku && <div className="mt-1 text-xs text-slate-500">{product.sku}</div>}
