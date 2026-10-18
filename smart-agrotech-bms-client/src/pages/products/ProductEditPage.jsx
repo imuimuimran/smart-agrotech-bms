@@ -199,13 +199,6 @@ export function ProductEditPage({ productId, onBack, onSuccess }) {
       }
       if (reorderLevel < 0) throw new Error("Reorder level cannot be negative.");
 
-      // const images = formData.images
-      //   .split(/[\n,]+/)
-      //   .map((url) => url.trim())
-      //   .filter(Boolean);
-
-
-
       const images = formData.images
         .split(/[\n,]+/)
         .map((value) => value.trim())
