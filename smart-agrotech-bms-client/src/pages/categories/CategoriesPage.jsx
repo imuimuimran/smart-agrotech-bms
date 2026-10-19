@@ -1,5 +1,6 @@
 // src/pages/categories/categoriesPage.jsx
 
+import { Link } from "react-router-dom";
 import { useCallback, useEffect, useState } from "react";
 import { CategoryService } from "../../services/categoryService";
 import { Button } from "../../components/ui/Button";
@@ -123,9 +124,9 @@ export function CategoriesPage() {
 
   useEffect(() => {
     async function fetchData() {
-        await loadCategories(1, activeSearch);
+      await loadCategories(1, activeSearch);
     }
-    fetchData(); 
+    fetchData();
   }, [loadCategories, activeSearch]);
 
   function handleSearchSubmit(event) {
@@ -261,7 +262,7 @@ export function CategoriesPage() {
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-slate-100">
+              {/* <tbody className="divide-y divide-slate-100">
                 {categories.map((category) => (
                   <tr
                     key={category.publicId || category._id}
@@ -300,7 +301,62 @@ export function CategoriesPage() {
                     </td>
                   </tr>
                 ))}
+              </tbody> */}
+
+
+              <tbody className="divide-y divide-slate-100">
+                {categories.map((category) => (
+                  <tr
+                    key={category.publicId || category._id}
+                    className="align-top hover:bg-slate-50"
+                  >
+                    {/* 1. WE INTEGRATE THE ACTION LINK IN THE CORE CATEGORY NAME CELL LAYER BELOW */}
+                    <td className="whitespace-nowrap px-4 py-4 font-medium text-slate-900">
+                      {category.publicId ? (
+                        <Link
+                          to={`/categories/${encodeURIComponent(category.publicId)}`}
+                          className="text-emerald-700 font-semibold hover:text-emerald-800 hover:underline transition-colors"
+                        >
+                          {category.categoryName || "Unnamed Category"}
+                        </Link>
+                      ) : (
+                        displayValue(category.categoryName)
+                      )}
+                    </td>
+
+                    <td className="whitespace-nowrap px-4 py-4 font-mono text-slate-700">
+                      {displayValue(category.categoryCode)}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-4 font-mono text-xs text-slate-600">
+                      {displayValue(category.publicId)}
+                    </td>
+                    <td className="min-w-48 max-w-xs px-4 py-4 text-slate-600">
+                      <span className="line-clamp-3">
+                        {displayValue(category.description)}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-4 text-slate-600">
+                      {getParentCategory(category)}
+                    </td>
+                    <td className="px-4 py-4 text-slate-600">
+                      {displayValue(category.level)}
+                    </td>
+                    <td className="px-4 py-4 text-slate-600">
+                      {displayValue(category.sortOrder)}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-4">
+                      <Badge
+                        variant={getStatusVariant(category.status)}
+                        className="capitalize"
+                      >
+                        {displayValue(category.status)}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
+
+
             </table>
           </div>
         )}

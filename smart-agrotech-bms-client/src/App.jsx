@@ -6,6 +6,7 @@ import { AppLayout } from "./layouts/AppLayout.jsx"
 import { DashboardPage } from "./pages/dashboard/DashboardPage.jsx";
 import { ProductsPage } from "./pages/products/ProductsPage";
 import CategoriesPage from "./pages/categories/CategoriesPage.jsx";
+import CategoryDetailsPage from "./pages/categories/CategoryDetailsPage";
 
 function ForbiddenPage() {
   return (
@@ -35,6 +36,8 @@ export function App() {
         <Route path="/products" element={<ProductsPage />} />
 
         <Route path="/categories" element={<CategoriesPage />} />
+
+        <Route path="/categories/:publicId" element={<CategoryDetailsPage />} />
         
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

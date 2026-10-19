@@ -3,15 +3,20 @@
 import { NavLink } from "react-router-dom";
 
 const navigationItems = [
-  { 
-    label: "Dashboard", 
-    to: "/", 
-    end: true 
+  {
+    label: "Dashboard",
+    to: "/",
+    end: true
   },
-  { 
-    label: "Products", 
-    to: "/products", 
-    end: false 
+  {
+    label: "Products",
+    to: "/products",
+    end: false
+  },
+  {
+    label: "Categories",
+    to: "/categories",
+    end: false,
   },
 ];
 
@@ -31,9 +36,8 @@ export function Sidebar({ isOpen, onClose }) {
       {/* Adaptive responsive layout drawer container */}
       <aside
         id="app-sidebar"
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-slate-200 bg-white transition-transform duration-200 lg:static lg:z-auto lg:translate-x-0 ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-slate-200 bg-white transition-transform duration-200 lg:static lg:z-auto lg:translate-x-0 ${isOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
         <div className="flex min-h-16 items-center justify-between border-b border-slate-200 px-6 py-5">
           <div>
@@ -62,10 +66,9 @@ export function Sidebar({ isOpen, onClose }) {
               end={item.end}
               onClick={onClose}
               className={({ isActive }) =>
-                `block rounded-lg px-4 py-3 text-sm font-medium transition ${
-                  isActive
-                    ? "bg-emerald-50 text-emerald-800"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                `block rounded-lg px-4 py-3 text-sm font-medium transition ${isActive
+                  ? "bg-emerald-50 text-emerald-800"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                 }`
               }
             >
