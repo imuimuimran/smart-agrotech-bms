@@ -7,6 +7,7 @@ import { DashboardPage } from "./pages/dashboard/DashboardPage.jsx";
 import { ProductsPage } from "./pages/products/ProductsPage";
 import CategoriesPage from "./pages/categories/CategoriesPage.jsx";
 import CategoryDetailsPage from "./pages/categories/CategoryDetailsPage";
+import CategoryCreatePage from "./pages/categories/CategoryCreatePage";
 
 function ForbiddenPage() {
   return (
@@ -38,6 +39,8 @@ export function App() {
         <Route path="/categories" element={<CategoriesPage />} />
 
         <Route path="/categories/:publicId" element={<CategoryDetailsPage />} />
+
+        <Route path="/categories/new" element={<CategoryCreatePage />} />
         
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

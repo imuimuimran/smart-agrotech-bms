@@ -163,9 +163,23 @@ export function CategoriesPage() {
           </p>
         </div>
 
-        <p className="text-sm text-slate-600">
+        {/* <p className="text-sm text-slate-600">
           {meta.total} {meta.total === 1 ? "category" : "categories"}
-        </p>
+        </p> */}
+
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-sm text-slate-600">
+            {meta.total} {meta.total === 1 ? "category" : "categories"}
+          </p>
+
+          <Link
+            to="/categories/new"
+            className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-800"
+          >
+            Create Category
+          </Link>
+        </div>
+
       </div>
 
       <Card>
@@ -262,48 +276,6 @@ export function CategoriesPage() {
                 </tr>
               </thead>
 
-              {/* <tbody className="divide-y divide-slate-100">
-                {categories.map((category) => (
-                  <tr
-                    key={category.publicId || category._id}
-                    className="align-top hover:bg-slate-50"
-                  >
-                    <td className="whitespace-nowrap px-4 py-4 font-medium text-slate-900">
-                      {displayValue(category.categoryName)}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-4 font-mono text-slate-700">
-                      {displayValue(category.categoryCode)}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-4 font-mono text-xs text-slate-600">
-                      {displayValue(category.publicId)}
-                    </td>
-                    <td className="min-w-48 max-w-xs px-4 py-4 text-slate-600">
-                      <span className="line-clamp-3">
-                        {displayValue(category.description)}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-4 text-slate-600">
-                      {getParentCategory(category)}
-                    </td>
-                    <td className="px-4 py-4 text-slate-600">
-                      {displayValue(category.level)}
-                    </td>
-                    <td className="px-4 py-4 text-slate-600">
-                      {displayValue(category.sortOrder)}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-4">
-                      <Badge
-                        variant={getStatusVariant(category.status)}
-                        className="capitalize"
-                      >
-                        {displayValue(category.status)}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody> */}
-
-
               <tbody className="divide-y divide-slate-100">
                 {categories.map((category) => (
                   <tr
@@ -355,7 +327,6 @@ export function CategoriesPage() {
                   </tr>
                 ))}
               </tbody>
-
 
             </table>
           </div>

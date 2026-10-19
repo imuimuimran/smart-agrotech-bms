@@ -10,13 +10,6 @@ export const CategoryService = {
    * status, and parentCategory.
    * Returns the server response body, including { success, message, meta, data }.
    */
-  // async getCategories(params = {}) {
-  //   const response = await apiClient.get(API_ENDPOINTS.CATEGORIES.LIST, {
-  //     params,
-  //   });
-
-  //   return response.data;
-  // },
 
   getCategories: async (params = {}) => {
     const response = await apiClient.get(
