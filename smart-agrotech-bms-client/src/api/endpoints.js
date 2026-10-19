@@ -17,6 +17,11 @@ export const API_ENDPOINTS = {
   },
   CATEGORIES: {
     LIST: "/product-categories",
+    DETAILS: (publicId) => `/product-categories/${encodeURIComponent(publicId)}`,
+    CREATE: "/product-categories",
+    UPDATE: (publicId) => `/product-categories/${encodeURIComponent(publicId)}`,
+    DELETE: (publicId) => `/product-categories/${encodeURIComponent(publicId)}`,
+    RESTORE: (publicId) => `/product-categories/${encodeURIComponent(publicId)}/restore`,
   },
   // Verified backend configuration resource collection paths
   BRANDS: {
