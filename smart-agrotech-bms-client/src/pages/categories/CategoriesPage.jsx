@@ -1,0 +1,339 @@
+// src/pages/categories/categoriesPage.jsx
+
+import { useCallback, useEffect, useState } from "react";
+import { CategoryService } from "../../services/categoryService";
+import { Button } from "../../components/ui/Button";
+import { Card } from "../../components/ui/Card";
+import { Badge } from "../../components/ui/Badge";
+import { Input } from "../../components/ui/Input";
+import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
+
+const PAGE_SIZE = 10;
+
+const INITIAL_META = {
+  page: 1,
+  limit: PAGE_SIZE,
+  total: 0,
+  totalPages: 0,
+};
+
+function getErrorMessage(error) {
+  return (
+    error?.response?.data?.message ||
+    error?.message ||
+    "Failed to load categories. Please try again."
+  );
+}
+
+function getParentCategory(category) {
+  const parent = category?.parentCategory;
+
+  if (!parent) return "Root category";
+
+  // Handle a populated parent-category object.
+  if (typeof parent === "object") {
+    return (
+      parent.categoryName ||
+      parent.name ||
+      parent.publicId ||
+      parent._id ||
+      "Parent category"
+    );
+  }
+
+  // Handle a parent ID if the API returns an unpopulated reference.
+  return String(parent);
+}
+
+function getStatusVariant(status) {
+  switch (String(status || "").toLowerCase()) {
+    case "active":
+      return "success";
+    case "inactive":
+      return "warning";
+    case "deleted":
+      return "danger";
+    default:
+      return "neutral";
+  }
+}
+
+function displayValue(value) {
+  if (value === null || value === undefined || value === "") {
+    return "—";
+  }
+
+  return String(value);
+}
+
+export function CategoriesPage() {
+  const [categories, setCategories] = useState([]);
+  const [searchInput, setSearchInput] = useState("");
+  const [activeSearch, setActiveSearch] = useState("");
+  const [meta, setMeta] = useState({ ...INITIAL_META });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const loadCategories = useCallback(
+    async (page = 1, search = activeSearch) => {
+      setIsLoading(true);
+      setError("");
+
+      try {
+        const params = {
+          page,
+          limit: PAGE_SIZE,
+        };
+
+        // The backend searches category name, code, and description.
+        if (search.trim()) {
+          params.search = search.trim();
+        }
+
+        const response = await CategoryService.getCategories(params);
+
+        // The verified Categories API returns the list in data
+        // and pagination details in meta.
+        if (!Array.isArray(response?.data)) {
+          throw new Error(
+            "The Categories API returned an unexpected response format."
+          );
+        }
+
+        const items = response.data;
+        const responseMeta = response.meta || {};
+
+        setCategories(items);
+        setMeta({
+          page: Number(responseMeta.page ?? page),
+          limit: Number(responseMeta.limit ?? PAGE_SIZE),
+          total: Number(responseMeta.total ?? items.length),
+          totalPages: Number(responseMeta.totalPages ?? 0),
+        });
+      } catch (loadError) {
+        setCategories([]);
+        setMeta({ ...INITIAL_META, page });
+        setError(getErrorMessage(loadError));
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [activeSearch]
+  );
+
+  useEffect(() => {
+    async function fetchData() {
+        await loadCategories(1, activeSearch);
+    }
+    fetchData(); 
+  }, [loadCategories, activeSearch]);
+
+  function handleSearchSubmit(event) {
+    event.preventDefault();
+
+    const nextSearch = searchInput.trim();
+
+    // Avoid a duplicate state transition when the search is unchanged.
+    if (nextSearch === activeSearch) {
+      loadCategories(1, nextSearch);
+      return;
+    }
+
+    setActiveSearch(nextSearch);
+  }
+
+  function clearSearch() {
+    setSearchInput("");
+    setActiveSearch("");
+  }
+
+  const hasPreviousPage = meta.page > 1;
+  const hasNextPage = meta.page < meta.totalPages;
+
+  return (
+    <div className="mx-auto max-w-7xl space-y-6">
+      <div className="flex flex-col gap-3 border-b border-slate-200 pb-5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">
+            Product Categories
+          </h1>
+          <p className="mt-1 text-sm text-slate-600">
+            Browse and search categories retrieved from the backend.
+          </p>
+        </div>
+
+        <p className="text-sm text-slate-600">
+          {meta.total} {meta.total === 1 ? "category" : "categories"}
+        </p>
+      </div>
+
+      <Card>
+        <form
+          onSubmit={handleSearchSubmit}
+          className="flex flex-col gap-3 sm:flex-row sm:items-end"
+        >
+          <div className="w-full flex-1">
+            <label
+              htmlFor="category-search"
+              className="mb-1 block text-sm font-medium text-slate-700"
+            >
+              Search categories
+            </label>
+            <Input
+              id="category-search"
+              type="search"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="Search by name, code, or description"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <Button type="submit" disabled={isLoading}>
+              Search
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={clearSearch}
+              disabled={isLoading && !activeSearch && !searchInput}
+            >
+              Clear
+            </Button>
+          </div>
+        </form>
+      </Card>
+
+      {error && (
+        <div
+          className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+          role="alert"
+        >
+          <p>{error}</p>
+          <div className="mt-3">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => loadCategories(meta.page, activeSearch)}
+              disabled={isLoading}
+            >
+              Try again
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <Card>
+        {isLoading ? (
+          <div className="flex justify-center py-16">
+            <LoadingSpinner label="Loading product categories..." />
+          </div>
+        ) : error ? (
+          <div className="py-8 text-center text-sm text-slate-500">
+            Categories could not be displayed. Retry the request above.
+          </div>
+        ) : categories.length === 0 ? (
+          <div className="py-16 text-center">
+            <h2 className="text-lg font-semibold text-slate-800">
+              {activeSearch
+                ? "No matching categories"
+                : "No categories found"}
+            </h2>
+            <p className="mt-2 text-sm text-slate-600">
+              {activeSearch
+                ? "Try another search term or clear the search."
+                : "There are currently no categories to display."}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200 text-sm">
+              <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-600">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Category</th>
+                  <th className="px-4 py-3 font-semibold">Code</th>
+                  <th className="px-4 py-3 font-semibold">Public ID</th>
+                  <th className="px-4 py-3 font-semibold">Description</th>
+                  <th className="px-4 py-3 font-semibold">Parent</th>
+                  <th className="px-4 py-3 font-semibold">Level</th>
+                  <th className="px-4 py-3 font-semibold">Sort order</th>
+                  <th className="px-4 py-3 font-semibold">Status</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-slate-100">
+                {categories.map((category) => (
+                  <tr
+                    key={category.publicId || category._id}
+                    className="align-top hover:bg-slate-50"
+                  >
+                    <td className="whitespace-nowrap px-4 py-4 font-medium text-slate-900">
+                      {displayValue(category.categoryName)}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-4 font-mono text-slate-700">
+                      {displayValue(category.categoryCode)}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-4 font-mono text-xs text-slate-600">
+                      {displayValue(category.publicId)}
+                    </td>
+                    <td className="min-w-48 max-w-xs px-4 py-4 text-slate-600">
+                      <span className="line-clamp-3">
+                        {displayValue(category.description)}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-4 text-slate-600">
+                      {getParentCategory(category)}
+                    </td>
+                    <td className="px-4 py-4 text-slate-600">
+                      {displayValue(category.level)}
+                    </td>
+                    <td className="px-4 py-4 text-slate-600">
+                      {displayValue(category.sortOrder)}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-4">
+                      <Badge
+                        variant={getStatusVariant(category.status)}
+                        className="capitalize"
+                      >
+                        {displayValue(category.status)}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-slate-600">
+          Page {meta.page}
+          {meta.totalPages > 0 ? ` of ${meta.totalPages}` : ""} ·{" "}
+          {meta.total} {meta.total === 1 ? "category" : "categories"}
+        </p>
+
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={isLoading || !hasPreviousPage}
+            onClick={() => loadCategories(meta.page - 1, activeSearch)}
+          >
+            Previous
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={isLoading || !hasNextPage}
+            onClick={() => loadCategories(meta.page + 1, activeSearch)}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default CategoriesPage;

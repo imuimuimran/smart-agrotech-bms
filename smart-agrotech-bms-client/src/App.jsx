@@ -5,6 +5,7 @@ import { ProtectedRoute } from "./routes/ProtectedRoute.jsx";
 import { AppLayout } from "./layouts/AppLayout.jsx"
 import { DashboardPage } from "./pages/dashboard/DashboardPage.jsx";
 import { ProductsPage } from "./pages/products/ProductsPage";
+import CategoriesPage from "./pages/categories/CategoriesPage.jsx";
 
 function ForbiddenPage() {
   return (
@@ -32,6 +33,8 @@ export function App() {
         <Route index element={<DashboardPage />} />
 
         <Route path="/products" element={<ProductsPage />} />
+
+        <Route path="/categories" element={<CategoriesPage />} />
         
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
