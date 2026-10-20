@@ -1,13 +1,14 @@
 // src/App.jsx
 import { Navigate, Route, Routes } from "react-router-dom";
-import { LoginPage } from "./pages/auth/LoginPage.jsx"; 
-import { ProtectedRoute } from "./routes/ProtectedRoute.jsx"; 
+import { LoginPage } from "./pages/auth/LoginPage.jsx";
+import { ProtectedRoute } from "./routes/ProtectedRoute.jsx";
 import { AppLayout } from "./layouts/AppLayout.jsx"
 import { DashboardPage } from "./pages/dashboard/DashboardPage.jsx";
 import { ProductsPage } from "./pages/products/ProductsPage";
 import CategoriesPage from "./pages/categories/CategoriesPage.jsx";
 import CategoryDetailsPage from "./pages/categories/CategoryDetailsPage";
 import CategoryCreatePage from "./pages/categories/CategoryCreatePage";
+import CategoryEditPage from "./pages/categories/CategoryEditPage";
 
 function ForbiddenPage() {
   return (
@@ -41,7 +42,9 @@ export function App() {
         <Route path="/categories/:publicId" element={<CategoryDetailsPage />} />
 
         <Route path="/categories/new" element={<CategoryCreatePage />} />
-        
+
+        <Route path="/categories/:publicId/edit" element={<CategoryEditPage />} />
+
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

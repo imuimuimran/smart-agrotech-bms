@@ -46,11 +46,20 @@ export const CategoryService = {
     return response.data;
   },
 
-  async updateCategory(publicId, payload) {
+  // async updateCategory(publicId, payload) {
+  //   const response = await apiClient.patch(
+  //     API_ENDPOINTS.CATEGORIES.UPDATE(publicId),
+  //     payload
+  //   );
+  //   return response.data;
+  // },
+
+  updateCategory: async (publicId, payload) => {
     const response = await apiClient.patch(
-      API_ENDPOINTS.CATEGORIES.UPDATE(publicId),
+      `${API_ENDPOINTS.CATEGORIES.LIST}/${encodeURIComponent(publicId)}`,
       payload
     );
+
     return response.data;
   },
 

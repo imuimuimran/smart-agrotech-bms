@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
 
 import { CategoryService } from "../../services/categoryService";
 import { Badge } from "../../components/ui/Badge";
@@ -25,10 +26,27 @@ const getStatusVariant = (status) => {
 const CategoryDetailsPage = () => {
   const { publicId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [category, setCategory] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const rawRole =
+  user?.role?.name ??
+  user?.role ??
+  user?.user?.role?.name ??
+  user?.user?.role ??
+  user?.userRole ??
+  user?.roleName ??
+  "";
+
+const role = String(rawRole)
+  .trim()
+  .toLowerCase()
+  .replace(/[\s-]+/g, "_");
+
+const canEdit = ["admin", "moderator"].includes(role);
 
   useEffect(() => {
     let isMounted = true;
@@ -170,9 +188,26 @@ const CategoryDetailsPage = () => {
           </p>
         </div>
 
-        <Button onClick={() => navigate("/categories")} variant="secondary">
+        {/* <Button onClick={() => navigate("/categories")} variant="secondary">
           Back to Categories
-        </Button>
+        </Button> */}
+
+        <div className="flex items-center gap-2">
+          {/* PLACE AN EDIT ACTION BUTTON GATED FOR PERMITTED SECURITY TIER PROFILES */}
+          {canEdit && category.publicId && (
+            <Link
+              to={`/categories/${encodeURIComponent(category.publicId)}/edit`}
+              className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 transition-colors"
+            >
+              Edit Category
+            </Link>
+          )}
+          
+          <Button onClick={() => navigate("/categories")} variant="secondary">
+            Back to Categories
+          </Button>
+        </div>
+        
       </div>
 
       <Card>
