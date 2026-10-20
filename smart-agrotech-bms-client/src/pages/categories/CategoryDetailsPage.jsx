@@ -32,21 +32,38 @@ const CategoryDetailsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [deleteSuccess, setDeleteSuccess] = useState("");
+
   const rawRole =
-  user?.role?.name ??
-  user?.role ??
-  user?.user?.role?.name ??
-  user?.user?.role ??
-  user?.userRole ??
-  user?.roleName ??
-  "";
+    user?.role?.name ??
+    user?.role ??
+    user?.user?.role?.name ??
+    user?.user?.role ??
+    user?.userRole ??
+    user?.roleName ??
+    "";
 
-const role = String(rawRole)
-  .trim()
-  .toLowerCase()
-  .replace(/[\s-]+/g, "_");
+  const role = String(rawRole)
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
 
-const canEdit = ["admin", "moderator"].includes(role);
+  const canEdit = ["admin", "moderator"].includes(role);
+
+  // Use the same role extraction convention as your other category pages.
+  const roleValue =
+    user?.role?.name ??
+    user?.role ??
+    user?.user?.role?.name ??
+    user?.user?.role ??
+    user?.userRole ??
+    user?.roleName ??
+    "";
+
+  const normalizedRole = String(roleValue).toLowerCase();
+  const canDeleteCategory = normalizedRole === "admin";
 
   useEffect(() => {
     let isMounted = true;
@@ -83,8 +100,8 @@ const canEdit = ["admin", "moderator"].includes(role);
             statusCode === 404
               ? "Category not found. It may have been removed or the link may be incorrect."
               : err?.response?.data?.message ||
-                  err?.message ||
-                  "Unable to load category details. Please try again."
+              err?.message ||
+              "Unable to load category details. Please try again."
           );
         }
       } finally {
@@ -100,6 +117,40 @@ const canEdit = ["admin", "moderator"].includes(role);
       isMounted = false;
     };
   }, [publicId]);
+
+  const handleDelete = async () => {
+    if (!category?.publicId || isDeleting || !canDeleteCategory) return;
+
+    const confirmed = window.confirm(
+      `Delete category "${category.categoryName}"?`
+    );
+
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    setDeleteError("");
+    setDeleteSuccess("");
+
+    try {
+      await CategoryService.deleteCategory(category.publicId);
+
+      setDeleteSuccess("Category deleted successfully.");
+
+      // Return to the listing after a successful deletion.
+      navigate("/categories", {
+        replace: true,
+        state: { successMessage: "Category deleted successfully." },
+      });
+    } catch (error) {
+      setDeleteError(
+        error?.response?.data?.message ||
+        error?.message ||
+        "Unable to delete this category. Please try again."
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const renderParentCategory = () => {
     const parent = category?.parentCategory;
@@ -202,13 +253,47 @@ const canEdit = ["admin", "moderator"].includes(role);
               Edit Category
             </Link>
           )}
-          
+
+
+          {canDeleteCategory && (
+            <Button
+              type="button"
+              variant="danger"
+              disabled={isDeleting}
+              onClick={handleDelete}
+            >
+              {isDeleting ? "Deleting..." : "Delete Category"}
+            </Button>
+          )}
+
+          {deleteError && (
+            <p role="alert" className="text-sm text-red-600">
+              {deleteError}
+            </p>
+          )}
+
           <Button onClick={() => navigate("/categories")} variant="secondary">
             Back to Categories
           </Button>
         </div>
-        
+
       </div>
+
+
+      {/* 4. VISUAL ACTION LAYER FOR INLINE BACKEND ERROR RESPONSE ALERTS */}
+      {deleteError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">
+          <p className="font-semibold">Action Blocked by Server Logic:</p>
+          <p className="mt-1">{deleteError}</p>
+        </div>
+      )}
+
+      {deleteSuccess && (
+        <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800" role="status">
+          {deleteSuccess}
+        </div>
+      )}
+      
 
       <Card>
         <div className="p-6">

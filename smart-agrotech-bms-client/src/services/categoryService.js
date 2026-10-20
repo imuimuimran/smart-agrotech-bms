@@ -66,10 +66,18 @@ export const CategoryService = {
   /**
    * Soft-delete. The backend restricts this operation to admins.
    */
+  // async deleteCategory(publicId) {
+  //   const response = await apiClient.delete(
+  //     API_ENDPOINTS.CATEGORIES.DELETE(publicId)
+  //   );
+  //   return response.data;
+  // },
+
   async deleteCategory(publicId) {
     const response = await apiClient.delete(
-      API_ENDPOINTS.CATEGORIES.DELETE(publicId)
+      `${API_ENDPOINTS.CATEGORIES.LIST}/${encodeURIComponent(publicId)}`
     );
+
     return response.data;
   },
 
