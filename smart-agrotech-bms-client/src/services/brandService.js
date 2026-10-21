@@ -1,20 +1,18 @@
-
 import { apiClient } from "../api/apiClient";
 import { API_ENDPOINTS } from "../api/endpoints";
 
-export const BrandService = {
+const BrandService = {
   async getBrands(params = {}) {
-    const response = await apiClient.get(
-      API_ENDPOINTS.BRANDS.LIST,
-      { params }
-    );
+    const response = await apiClient.get(API_ENDPOINTS.BRANDS.LIST, {
+      params,
+    });
 
     return response.data;
   },
 
   async getBrand(publicId) {
     const response = await apiClient.get(
-      API_ENDPOINTS.BRANDS.DETAILS(publicId)
+      API_ENDPOINTS.BRANDS.DETAILS(encodeURIComponent(publicId))
     );
 
     return response.data;
@@ -31,7 +29,7 @@ export const BrandService = {
 
   async updateBrand(publicId, payload) {
     const response = await apiClient.patch(
-      API_ENDPOINTS.BRANDS.UPDATE(publicId),
+      API_ENDPOINTS.BRANDS.UPDATE(encodeURIComponent(publicId)),
       payload
     );
 
@@ -40,7 +38,7 @@ export const BrandService = {
 
   async deleteBrand(publicId) {
     const response = await apiClient.delete(
-      API_ENDPOINTS.BRANDS.DELETE(publicId)
+      API_ENDPOINTS.BRANDS.DELETE(encodeURIComponent(publicId))
     );
 
     return response.data;
@@ -48,7 +46,7 @@ export const BrandService = {
 
   async restoreBrand(publicId) {
     const response = await apiClient.patch(
-      API_ENDPOINTS.BRANDS.RESTORE(publicId)
+      API_ENDPOINTS.BRANDS.RESTORE(encodeURIComponent(publicId))
     );
 
     return response.data;
