@@ -11,9 +11,14 @@ export const API_ENDPOINTS = {
   PRODUCTS: {
     LIST: "/products",
     DETAILS: (id) => `/products/${id}`,
+    // DETAILS: (publicId) => `/products/${publicId}`,
     CREATE: "/products",
     UPDATE: (id) => `/products/${id}`,
+    // UPDATE: (publicId) => `/products/${publicId}`,
     DELETE: (id) => `/products/${id}`,
+    // DELETE: (publicId) => `/products/${publicId}`,
+    
+    // RESTORE: (publicId) => `/products/${publicId}/restore`,
   },
   CATEGORIES: {
     LIST: "/product-categories",
