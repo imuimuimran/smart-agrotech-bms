@@ -26,5 +26,10 @@ export const API_ENDPOINTS = {
   // Verified backend configuration resource collection paths
   BRANDS: {
     LIST: "/brands",
+    DETAILS: (publicId) => `/brands/${publicId}`,
+    CREATE: "/brands",
+    UPDATE: (publicId) => `/brands/${publicId}`,
+    DELETE: (publicId) => `/brands/${publicId}`,
+    RESTORE: (publicId) => `/brands/${publicId}/restore`,
   },
 };
