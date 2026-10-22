@@ -786,6 +786,7 @@ export function ProductsPage({
 
                     <Button
                       type="button"
+                      variant="danger"
                       disabled={isDeleting}
                       onClick={handleDeleteProduct}
                     >

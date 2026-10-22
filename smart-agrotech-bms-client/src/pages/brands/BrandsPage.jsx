@@ -124,8 +124,18 @@ export default function BrandsPage() {
                     <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Brands</h1>
                     <p className="mt-1 text-sm text-slate-600">Browse and search your registered brands.</p>
                 </div>
-                <div className="text-sm text-slate-500" aria-live="polite">
-                    {!loading && !error ? `${total} brand${total === 1 ? "" : "s"}` : ""}
+                
+                <div className="flex flex-wrap items-center gap-3">
+                    <p className="text-sm text-slate-600">
+                        {!loading && !error ? `${total} brand${total === 1 ? "" : "s"}` : ""}
+                    </p>
+
+                    <Link
+                        to="/brands/new"
+                        className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-800"
+                    >
+                        Create brand
+                    </Link>
                 </div>
             </header>
 
