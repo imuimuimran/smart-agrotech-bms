@@ -12,6 +12,7 @@ export const API_ENDPOINTS = {
     LIST: "/products",
     DETAILS: (id) => `/products/${id}`,
     // DETAILS: (publicId) => `/products/${publicId}`,
+    // DETAILS: (publicId) => `/products/${encodeURIComponent(publicId)}`,
     CREATE: "/products",
     UPDATE: (id) => `/products/${id}`,
     // UPDATE: (publicId) => `/products/${publicId}`,
@@ -31,7 +32,8 @@ export const API_ENDPOINTS = {
   // Verified backend configuration resource collection paths
   BRANDS: {
     LIST: "/brands",
-    DETAILS: (publicId) => `/brands/${publicId}`,
+    // DETAILS: (publicId) => `/brands/${publicId}`,
+    DETAILS: (publicId) => `/brands/${encodeURIComponent(publicId)}`,
     CREATE: "/brands",
     UPDATE: (publicId) => `/brands/${publicId}`,
     DELETE: (publicId) => `/brands/${publicId}`,
