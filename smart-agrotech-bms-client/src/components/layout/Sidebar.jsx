@@ -9,6 +9,11 @@ const navigationItems = [
     end: true
   },
   {
+    label: "Brands",
+    to: "/brands",
+    end: false
+  },
+  {
     label: "Products",
     to: "/products",
     end: false

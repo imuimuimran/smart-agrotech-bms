@@ -13,6 +13,8 @@ import CategoryDetailsPage from "./pages/categories/CategoryDetailsPage";
 import CategoryCreatePage from "./pages/categories/CategoryCreatePage";
 import CategoryEditPage from "./pages/categories/CategoryEditPage";
 
+import BrandsPage from "./pages/brands/BrandsPage";
+
 function ForbiddenPage() {
   return (
     <main className="p-8">
@@ -53,6 +55,8 @@ export function App() {
         <Route path="/categories/new" element={<CategoryCreatePage />} />
 
         <Route path="/categories/:publicId/edit" element={<CategoryEditPage />} />
+
+        <Route path="/brands" element={<BrandsPage />} />
 
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
