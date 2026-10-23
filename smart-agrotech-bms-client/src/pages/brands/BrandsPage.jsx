@@ -1,3 +1,5 @@
+// src/pages/brands/BrandsPage.jsx
+
 import { Link } from "react-router-dom";
 import { useCallback, useEffect, useState } from "react";
 import BrandService from "../../services/brandService";

@@ -1,6 +1,7 @@
 // src/pages/brands/BrandDetailsPage.jsx
 
 import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "../../hooks/useAuth";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import BrandService from "../../services/brandService";
 import { Button } from "../../components/ui/Button";
@@ -54,6 +55,11 @@ export default function BrandDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
+  const { user } = useAuth();
+
+  const canEditBrands = ["ADMIN", "MODERATOR"].includes(
+    String(user?.role ?? "").toUpperCase()
+  );
 
   // SOLVED ERROR 2: Removed synchronous state calls from the inner execution hook logic.
   const loadBrand = useCallback(async (isInitialLoad = false) => {
@@ -140,7 +146,17 @@ export default function BrandDetailsPage() {
         <Link to="/brands" className="text-sm font-medium text-emerald-700 hover:text-emerald-900">← Back to brands</Link>
         <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div><h1 className="wrap-break-words text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{brand.brandName || "Brand details"}</h1><p className="mt-1 text-sm text-slate-500">Brand profile and record information</p></div>
-          <StatusBadge status={brand.status} />
+          <div className="flex items-center gap-2">
+            <StatusBadge status={brand.status} />
+            {canEditBrands && (
+              <Link
+                to={`/brands/${encodeURIComponent(brand.publicId)}/edit`}
+                className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+              >
+                Edit Brand
+              </Link>
+            )}
+          </div>
         </div>
       </div>
 
