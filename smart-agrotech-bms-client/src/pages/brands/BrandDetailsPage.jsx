@@ -187,7 +187,7 @@ export default function BrandDetailsPage() {
                 variant="danger"
                 onClick={() => setShowDeleteDialog(true)}
               >
-                Delete Product
+                Delete Brand
               </Button>
             )}
           </div>
