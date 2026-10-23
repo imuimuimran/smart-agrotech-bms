@@ -63,6 +63,22 @@ export default function BrandDetailsPage() {
     String(user?.role ?? "").toUpperCase()
   );
 
+  const rawRole =
+    user?.role?.name ??
+    user?.role ??
+    user?.user?.role?.name ??
+    user?.user?.role ??
+    user?.userRole ??
+    user?.roleName ??
+    "";
+
+  const role = String(rawRole)
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+
+  const canDeleteProduct = role === "admin";
+
   // SOLVED ERROR 2: Removed synchronous state calls from the inner execution hook logic.
   const loadBrand = useCallback(async (isInitialLoad = false) => {
     if (!publicId) {
@@ -158,13 +174,22 @@ export default function BrandDetailsPage() {
                 Edit Brand
               </Link>
             )}
-            <Button
+            {/* <Button
               type="button"
               variant="danger"
               onClick={() => setShowDeleteDialog(true)}
             >
               Delete brand
-            </Button>
+            </Button> */}
+            {canDeleteProduct && (
+              <Button
+                type="button"
+                variant="danger"
+                onClick={() => setShowDeleteDialog(true)}
+              >
+                Delete Product
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -193,7 +218,7 @@ export default function BrandDetailsPage() {
         </dl>
       </Card>
       <Button type="button" variant="secondary" onClick={() => navigate("/brands")}>Back to brands</Button>
-      
+
       {showDeleteDialog && brand && (
         <BrandDeletePage
           brand={brand}
