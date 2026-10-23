@@ -7,6 +7,7 @@ import BrandService from "../../services/brandService";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
+import BrandDeletePage from "./BrandDeletePage";
 
 function messageFor(error) {
   const status = error?.response?.status;
@@ -56,6 +57,7 @@ export default function BrandDetailsPage() {
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
   const { user } = useAuth();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const canEditBrands = ["ADMIN", "MODERATOR"].includes(
     String(user?.role ?? "").toUpperCase()
@@ -156,6 +158,13 @@ export default function BrandDetailsPage() {
                 Edit Brand
               </Link>
             )}
+            <Button
+              type="button"
+              variant="danger"
+              onClick={() => setShowDeleteDialog(true)}
+            >
+              Delete brand
+            </Button>
           </div>
         </div>
       </div>
@@ -184,6 +193,22 @@ export default function BrandDetailsPage() {
         </dl>
       </Card>
       <Button type="button" variant="secondary" onClick={() => navigate("/brands")}>Back to brands</Button>
+      
+      {showDeleteDialog && brand && (
+        <BrandDeletePage
+          brand={brand}
+          onClose={() => setShowDeleteDialog(false)}
+          onDeleted={() => {
+            setShowDeleteDialog(false);
+            navigate("/brands", {
+              replace: true,
+              state: {
+                message: `${brand.brandName} was deleted successfully.`,
+              },
+            });
+          }}
+        />
+      )}
     </main>
   );
 }

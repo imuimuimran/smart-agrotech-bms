@@ -37,7 +37,8 @@ export const API_ENDPOINTS = {
     CREATE: "/brands",
     // UPDATE: (publicId) => `/brands/${publicId}`,
     UPDATE: (publicId) => `/brands/${encodeURIComponent(publicId)}`,
-    DELETE: (publicId) => `/brands/${publicId}`,
+    // DELETE: (publicId) => `/brands/${publicId}`,
+    DELETE: (publicId) => `/brands/${encodeURIComponent(publicId)}`,
     RESTORE: (publicId) => `/brands/${publicId}/restore`,
   },
 };
