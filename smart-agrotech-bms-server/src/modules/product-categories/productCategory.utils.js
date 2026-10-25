@@ -29,6 +29,8 @@ export const sanitizeProductCategory = (category) => {
   if (!category) return null;
   
   return {
+    _id: category._id?.toString?.() ?? category._id,
+
     publicId: category.publicId,
     categoryName: category.categoryName,
     categoryCode: category.categoryCode,

@@ -7,6 +7,8 @@ export const sanitizeBrand = (brand) => {
   if (!brand) return null;
 
   return {
+    _id: brand._id?.toString?.() ?? brand._id,
+
     publicId: brand.publicId,
     brandName: brand.brandName,
     brandCode: brand.brandCode,

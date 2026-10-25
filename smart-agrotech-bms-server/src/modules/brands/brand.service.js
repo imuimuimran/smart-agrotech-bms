@@ -90,6 +90,20 @@ const getBrands = async (query) => {
   };
 };
 
+const getDeletedBrands = async () => {
+  // withDeleted() bypasses the model middleware that normally excludes soft-deleted records.
+  const brands = await Brand.find({ isDeleted: true })
+    .withDeleted()
+    .select("publicId brandName deletedAt")
+    .sort({ brandName: 1 });
+
+  return brands.map((brand) => ({
+    publicId: brand.publicId,
+    brandName: brand.brandName,
+    deletedAt: brand.deletedAt,
+  }));
+};
+
 const getBrand = async (publicId) => {
   const brand = await Brand.findOne({ publicId });
 
@@ -286,6 +300,7 @@ const restoreBrand = async (publicId, reqUser) => {
 export const BrandService = {
   createBrand,
   getBrands,
+  getDeletedBrands,
   getBrand,
   updateBrand,
   deleteBrand,

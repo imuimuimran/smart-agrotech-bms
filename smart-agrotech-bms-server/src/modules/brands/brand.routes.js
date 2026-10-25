@@ -22,6 +22,13 @@ router.get(
 );
 
 router.get(
+  "/deleted",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  BrandController.getDeletedBrands
+);
+
+router.get(
   "/:publicId",
   verifyToken,
   authorize(
