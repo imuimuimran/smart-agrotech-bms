@@ -17,6 +17,7 @@ import BrandsPage from "./pages/brands/BrandsPage";
 import BrandDetailsPage from "./pages/brands/BrandDetailsPage.jsx";
 import BrandCreatePage from "./pages/brands/BrandCreatePage.jsx";
 import BrandEditPage from "./pages/brands/BrandEditPage";
+import BrandRestoreByIdPage from "./pages/brands/BrandRestoreByIdPage";
 
 function ForbiddenPage() {
   return (
@@ -66,6 +67,8 @@ export function App() {
         <Route path="/brands/new" element={<BrandCreatePage />} />
 
         <Route path="/brands/:publicId/edit" element={<BrandEditPage />} />
+
+        <Route path="/brands/restore" element={<BrandRestoreByIdPage />} />
 
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

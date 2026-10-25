@@ -1,7 +1,8 @@
 // src/pages/brands/BrandsPage.jsx
 
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "../../hooks/useAuth";
 import BrandService from "../../services/brandService";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
@@ -65,6 +66,21 @@ export default function BrandsPage() {
     const [reloadKey, setReloadKey] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const navigate = useNavigate();
+    const { user } = useAuth();
+
+    const rawRole =
+        user?.role?.name ??
+        user?.role ??
+        user?.user?.role?.name ??
+        user?.user?.role ??
+        user?.userRole ??
+        user?.roleName ??
+        "";
+
+    const isAdmin =
+        String(rawRole).trim().toLowerCase().replace(/[\s-]+/g, "_") ===
+        "admin";
 
     const loadBrands = useCallback(async () => {
         setLoading(true);
@@ -126,7 +142,7 @@ export default function BrandsPage() {
                     <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Brands</h1>
                     <p className="mt-1 text-sm text-slate-600">Browse and search your registered brands.</p>
                 </div>
-                
+
                 <div className="flex flex-wrap items-center gap-3">
                     <p className="text-sm text-slate-600">
                         {!loading && !error ? `${total} brand${total === 1 ? "" : "s"}` : ""}
@@ -138,6 +154,16 @@ export default function BrandsPage() {
                     >
                         Create brand
                     </Link>
+
+                    {isAdmin && (
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => navigate("/brands/restore")}
+                        >
+                            Restore deleted brand
+                        </Button>
+                    )}
                 </div>
             </header>
 
@@ -257,6 +283,8 @@ export default function BrandsPage() {
 
                                     </div>
                                 </article>
+
+
                             </Card>
                         ))}
                     </section>
