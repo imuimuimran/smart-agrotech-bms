@@ -53,12 +53,17 @@ const BrandService = {
 
   //   return response.data;
   // },
-  
+
   async restoreBrand(publicId) {
   const response = await apiClient.patch(
     API_ENDPOINTS.BRANDS.RESTORE(publicId)
   );
 
+  return response.data;
+},
+
+async getDeletedBrands() {
+  const response = await apiClient.get(API_ENDPOINTS.BRANDS.DELETED);
   return response.data;
 },
 };
