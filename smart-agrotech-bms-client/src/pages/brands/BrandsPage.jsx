@@ -107,14 +107,22 @@ export default function BrandsPage() {
         } finally {
             setLoading(false);
         }
-    }, [page, search, status, country, reloadKey]);
+    }, [page, search, status, country]);
+
+    // useEffect(() => {
+    //     async function fetchData() {
+    //         await loadBrands(1, searchInput);
+    //     }
+    //     fetchData();
+    // }, [loadBrands, searchInput]);
 
     useEffect(() => {
         async function fetchData() {
-            await loadBrands(1, searchInput);
+            await loadBrands();
         }
-        fetchData();
-    }, [loadBrands, searchInput]);
+
+        void fetchData();
+    }, [loadBrands, searchInput, reloadKey]);
 
     const handleSearchSubmit = (event) => {
         event.preventDefault();
