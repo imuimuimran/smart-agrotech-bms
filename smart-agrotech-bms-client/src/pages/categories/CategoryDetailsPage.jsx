@@ -52,7 +52,9 @@ const CategoryDetailsPage = () => {
     .toLowerCase()
     .replace(/[\s-]+/g, "_");
 
-  const canEdit = ["admin", "moderator"].includes(role);
+  // const canEdit = ["admin", "moderator"].includes(role);
+
+  const canEdit = role === "admin";
 
   const canDeleteCategory = role === "admin";
 
