@@ -156,12 +156,14 @@ export default function BrandsPage() {
                         {!loading && !error ? `${total} brand${total === 1 ? "" : "s"}` : ""}
                     </p>
 
-                    <Link
-                        to="/brands/new"
-                        className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-800"
-                    >
-                        Create brand
-                    </Link>
+                    {isAdmin && (
+                        <Link
+                            to="/brands/new"
+                            className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-800"
+                        >
+                            Create brand
+                        </Link>
+                    )}
 
                     {isAdmin && (
                         <Button

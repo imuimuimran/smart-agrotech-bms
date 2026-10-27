@@ -111,15 +111,6 @@ export default function BrandDetailsPage() {
     }
   }, [publicId]);
 
-  // Safely execute initial load transitions on component mount
-  // useEffect(() => { 
-  //   let isMounted = true;
-  //   if (isMounted) {
-  //     loadBrand(true); 
-  //   }
-  //   return () => { isMounted = false; };
-  // }, [loadBrand, retry]);
-
   useEffect(() => {
     let isMounted = true;
 
@@ -174,13 +165,7 @@ export default function BrandDetailsPage() {
                 Edit Brand
               </Link>
             )}
-            {/* <Button
-              type="button"
-              variant="danger"
-              onClick={() => setShowDeleteDialog(true)}
-            >
-              Delete brand
-            </Button> */}
+        
             {canDeleteProduct && (
               <Button
                 type="button"
