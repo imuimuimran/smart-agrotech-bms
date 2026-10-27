@@ -59,9 +59,9 @@ export default function BrandDetailsPage() {
   const { user } = useAuth();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  const canEditBrands = ["ADMIN", "MODERATOR"].includes(
-    String(user?.role ?? "").toUpperCase()
-  );
+  // const canEditBrands = ["ADMIN", "MODERATOR"].includes(
+  //   String(user?.role ?? "").toUpperCase()
+  // );
 
   const rawRole =
     user?.role?.name ??
@@ -78,6 +78,7 @@ export default function BrandDetailsPage() {
     .replace(/[\s-]+/g, "_");
 
   const canDeleteProduct = role === "admin";
+  const canEditBrands = role === "admin";
 
   // SOLVED ERROR 2: Removed synchronous state calls from the inner execution hook logic.
   const loadBrand = useCallback(async (isInitialLoad = false) => {
@@ -165,7 +166,7 @@ export default function BrandDetailsPage() {
                 Edit Brand
               </Link>
             )}
-        
+
             {canDeleteProduct && (
               <Button
                 type="button"
