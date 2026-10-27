@@ -96,6 +96,10 @@ export function CategoriesPage() {
     .toLowerCase()
     .replace(/[\\s-]+/g, "_");
 
+  const canCreate = role === "admin";
+
+  const canEdit = role === "admin";
+
   const canDeleteCategory = role === "admin";
 
   const loadCategories = useCallback(
@@ -240,12 +244,21 @@ export function CategoriesPage() {
             {meta.total} {meta.total === 1 ? "category" : "categories"}
           </p>
 
-          <Link
+          {/* <Link
             to="/categories/new"
             className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-800"
           >
             Create Category
-          </Link>
+          </Link> */}
+
+          {canCreate && (
+            <Link
+              to={`/categories/new`}
+              className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 transition-colors"
+            >
+              Edit Category
+            </Link>
+          )}
         </div>
 
       </div>
@@ -425,9 +438,19 @@ export function CategoriesPage() {
                         {category.publicId && (
                           <Link
                             to={`/categories/${encodeURIComponent(category.publicId)}`}
-                            className="text-emerald-700 hover:underline mr-3"
+                            // className="text-emerald-700 hover:underline mr-3"
+                            className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 transition-colors"
                           >
                             View
+                          </Link>
+                        )}
+
+                        {canEdit && category.publicId && (
+                          <Link
+                            to={`/categories/${encodeURIComponent(category.publicId)}/edit`}
+                            className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 transition-colors"
+                          >
+                            Edit Category
                           </Link>
                         )}
 

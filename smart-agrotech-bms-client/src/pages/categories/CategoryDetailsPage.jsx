@@ -36,7 +36,7 @@ const CategoryDetailsPage = () => {
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
-  const [deleteSuccess, setDeleteSuccess] = useState("");
+  const [deleteSuccess, setDeleteSuccess] = useState(""); 
 
   const rawRole =
     user?.role?.name ??
