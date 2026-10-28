@@ -1,5 +1,6 @@
 // src/pages/brands/BrandDetailsPage.jsx
 
+import { SquarePen, Trash } from 'lucide-react';
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -163,7 +164,7 @@ export default function BrandDetailsPage() {
                 to={`/brands/${encodeURIComponent(brand.publicId)}/edit`}
                 className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
               >
-                Edit Brand
+                <SquarePen className="w-4 h-4 mr-2" /> <span>Edit Brand</span>
               </Link>
             )}
 
@@ -173,7 +174,7 @@ export default function BrandDetailsPage() {
                 variant="danger"
                 onClick={() => setShowDeleteDialog(true)}
               >
-                Delete Brand
+                <Trash className="w-4 h-4 mr-2" /> <span>Delete Brand</span>
               </Button>
             )}
           </div>

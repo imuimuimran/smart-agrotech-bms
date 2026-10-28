@@ -1,5 +1,6 @@
 // src/pages/brands/BrandsPage.jsx
 
+import { Eye, SquarePen, Trash } from 'lucide-react';
 import { Link, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../../hooks/useAuth";
@@ -7,6 +8,7 @@ import BrandService from "../../services/brandService";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
+import BrandDeletePage from "./BrandDeletePage";
 
 const PAGE_SIZE = 10;
 
@@ -68,6 +70,7 @@ export default function BrandsPage() {
     const [error, setError] = useState("");
     const navigate = useNavigate();
     const { user } = useAuth();
+    const [selectedBrand, setSelectedBrand] = useState(null);
 
     const rawRole =
         user?.role?.name ??
@@ -78,9 +81,17 @@ export default function BrandsPage() {
         user?.roleName ??
         "";
 
+    const role = String(rawRole)
+        .trim()
+        .toLowerCase()
+        .replace(/[\s-]+/g, "_");
+
     const isAdmin =
         String(rawRole).trim().toLowerCase().replace(/[\s-]+/g, "_") ===
         "admin";
+
+    const canEditBrands = role === "admin";
+    const canDeleteBrand = role === "admin";
 
     const loadBrands = useCallback(async () => {
         setLoading(true);
@@ -261,6 +272,7 @@ export default function BrandsPage() {
                                             <p className="mt-1 text-xs text-slate-500">{brand.brandCode || brand.publicId || "No code"}</p>
                                             <div className="mt-2"><StatusBadge status={brand.status} /></div>
                                         </div>
+
                                     </div>
                                     <p className="min-h-10 wrap-break-words text-sm leading-6 text-slate-600">
                                         {brand.description || "No description provided."}
@@ -281,15 +293,40 @@ export default function BrandsPage() {
                                         )}
                                         {brand.publicId && <p className="text-xs text-slate-400">ID: {brand.publicId}</p>}
 
+                                        <div className="mt-3 w-full">
+                                            {brand.publicId && (
+                                                <Link
+                                                    to={`/brands/${encodeURIComponent(brand.publicId)}`}
+                                                    // className="mt-3 inline-flex text-sm font-medium text-emerald-700 underline underline-offset-2 hover:text-emerald-900"
+                                                    className="inline-flex items-center justify-center w-full rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                                                >
+                                                    <Eye className="w-4 h-4 mr-2" /> <span>View details</span>
+                                                </Link>
+                                            )}
+                                        </div>
 
-                                        {brand.publicId && (
-                                            <Link
-                                                to={`/brands/${encodeURIComponent(brand.publicId)}`}
-                                                className="mt-3 inline-flex text-sm font-medium text-emerald-700 underline underline-offset-2 hover:text-emerald-900"
-                                            >
-                                                View details
-                                            </Link>
-                                        )}
+                                        <div className="mt-3 flex items-center justify-between">
+
+                                            {canEditBrands && brand.publicId && (
+                                                <Link
+                                                    to={`/brands/${encodeURIComponent(brand.publicId)}/edit`}
+                                                    className="inline-flex items-center justify-center rounded-lg bg-amber-400 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-500"
+                                                >
+                                                    <SquarePen className="w-4 h-4 mr-2" /> <span>Edit Brand</span>
+                                                </Link>
+                                            )}
+
+                                            {canDeleteBrand && (
+                                                <Button
+                                                    type="button"
+                                                    variant="danger"
+                                                    onClick={() => setSelectedBrand(brand)}
+                                                >
+                                                    <Trash className="w-4 h-4 mr-2" /> <span>Delete Brand</span>
+                                                </Button>
+                                            )}
+
+                                        </div>
 
                                     </div>
                                 </article>
@@ -314,6 +351,20 @@ export default function BrandsPage() {
                     </div>
                 </>
             )}
+
+
+            {selectedBrand && (
+                <BrandDeletePage
+                    brand={selectedBrand}
+                    onClose={() => setSelectedBrand(null)}
+                    onDeleted={() => {
+                        setSelectedBrand(null);
+                        setReloadKey((key) => key + 1);
+                    }}
+                />
+            )}
+
+
         </main>
     );
 }
