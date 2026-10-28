@@ -10,9 +10,9 @@ export function Button({
   ...props
 }) {
   const variants = {
-    primary: "bg-emerald-700 text-white hover:bg-emerald-800",
-    secondary: "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
-    danger: "bg-red-600 text-white hover:bg-red-700",
+    primary: "bg-emerald-700 text-white hover:bg-emerald-800 cursor-pointer",
+    secondary: "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 cursor-pointer",
+    danger: "bg-red-600 text-white hover:bg-red-700 cursor-pointer",
   };
 
   return (

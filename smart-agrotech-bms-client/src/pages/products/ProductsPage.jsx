@@ -679,59 +679,60 @@ export function ProductsPage({
                         </span>
                       </td>
                       <td className="whitespace-nowrap px-4 py-4 text-right">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => openDetails(product)}
-                          disabled={!id}
-                        >
-                          View
-                        </Button>
-                        {canUpdate && (
+                        <div className="flex items-center gap-2">
                           <Button
                             type="button"
                             variant="secondary"
                             size="sm"
-                            onClick={() => openEdit(id)}
+                            onClick={() => openDetails(product)}
                             disabled={!id}
                           >
-                            Edit
+                            View
                           </Button>
-                        )}
-
-
-
-                        {canUpdate &&
-                          product.status !== "discontinued" && (
+                          {canUpdate && (
                             <Button
                               type="button"
                               variant="secondary"
-                              disabled={Boolean(updatingStatusId)}
-                              onClick={() => handleDiscontinueProduct(product)}
+                              size="sm"
+                              onClick={() => openEdit(id)}
+                              disabled={!id}
                             >
-                              {updatingStatusId === product._id
-                                ? "Updating..."
-                                : "Discontinue"}
+                              Edit
                             </Button>
                           )}
 
-                        {canDelete && (
-                          <Button
-                            type="button"
-                            variant="danger"
-                            onClick={() => {
-                              setActionMessage("");
-                              setActionError("");
-                              setDeleteTarget(product);
-                            }}
-                          >
-                            Delete
-                          </Button>
-                        )}
+                          {canUpdate &&
+                            product.status !== "discontinued" && (
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                disabled={Boolean(updatingStatusId)}
+                                onClick={() => handleDiscontinueProduct(product)}
+                              >
+                                {updatingStatusId === product._id
+                                  ? "Updating..."
+                                  : "Discontinue"}
+                              </Button>
+                            )}
+
+                          {canDelete && (
+                            <Button
+                              type="button"
+                              variant="danger"
+                              onClick={() => {
+                                setActionMessage("");
+                                setActionError("");
+                                setDeleteTarget(product);
+                              }}
+                            >
+                              Delete
+                            </Button>
+                          )}
+                        </div>
 
 
                       </td>
+
                     </tr>
                   );
                 })}

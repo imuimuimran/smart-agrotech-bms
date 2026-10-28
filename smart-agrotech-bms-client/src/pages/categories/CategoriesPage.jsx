@@ -256,7 +256,7 @@ export function CategoriesPage() {
               to={`/categories/new`}
               className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 transition-colors"
             >
-              Edit Category
+              Create Category
             </Link>
           )}
         </div>
@@ -439,7 +439,8 @@ export function CategoriesPage() {
                           <Link
                             to={`/categories/${encodeURIComponent(category.publicId)}`}
                             // className="text-emerald-700 hover:underline mr-3"
-                            className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 transition-colors"
+                            // className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 transition-colors"
+                            className="inline-flex items-center justify-center rounded-lg border px-4 py-2.5 border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50"
                           >
                             View
                           </Link>
@@ -448,9 +449,10 @@ export function CategoriesPage() {
                         {canEdit && category.publicId && (
                           <Link
                             to={`/categories/${encodeURIComponent(category.publicId)}/edit`}
-                            className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 transition-colors"
+                            // className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 transition-colors"
+                            className="inline-flex items-center justify-center rounded-lg border px-4 py-2.5 border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50"
                           >
-                            Edit Category
+                            Edit
                           </Link>
                         )}
 

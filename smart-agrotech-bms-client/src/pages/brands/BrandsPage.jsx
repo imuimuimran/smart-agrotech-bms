@@ -1,6 +1,6 @@
 // src/pages/brands/BrandsPage.jsx
 
-import { Eye, SquarePen, Trash } from 'lucide-react';
+import { LayersPlus, ArchiveArrowUp, Eye, SquarePen, Trash } from 'lucide-react';
 import { Link, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../../hooks/useAuth";
@@ -172,7 +172,7 @@ export default function BrandsPage() {
                             to="/brands/new"
                             className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-800"
                         >
-                            Create brand
+                            <LayersPlus className="w-4 h-4 mr-2" /> <span>Create brand</span>
                         </Link>
                     )}
 
@@ -182,7 +182,7 @@ export default function BrandsPage() {
                             variant="secondary"
                             onClick={() => navigate("/brands/restore")}
                         >
-                            Restore deleted brand
+                            <ArchiveArrowUp className="w-4 h-4 mr-2" /> <span>Restore deleted brand</span>
                         </Button>
                     )}
                 </div>
@@ -298,9 +298,10 @@ export default function BrandsPage() {
                                                 <Link
                                                     to={`/brands/${encodeURIComponent(brand.publicId)}`}
                                                     // className="mt-3 inline-flex text-sm font-medium text-emerald-700 underline underline-offset-2 hover:text-emerald-900"
-                                                    className="inline-flex items-center justify-center w-full rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                                                    // className="inline-flex items-center justify-center w-full rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                                                    className="inline-flex items-center justify-center w-full rounded-lg border px-4 py-2.5 border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50"
                                                 >
-                                                    <Eye className="w-4 h-4 mr-2" /> <span>View details</span>
+                                                    <Eye className="w-4 h-4 mr-2" /> <span>View Details</span>
                                                 </Link>
                                             )}
                                         </div>
@@ -310,9 +311,10 @@ export default function BrandsPage() {
                                             {canEditBrands && brand.publicId && (
                                                 <Link
                                                     to={`/brands/${encodeURIComponent(brand.publicId)}/edit`}
-                                                    className="inline-flex items-center justify-center rounded-lg bg-amber-400 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-500"
+                                                    // className="inline-flex items-center justify-center rounded-lg bg-amber-400 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-500"
+                                                    className="inline-flex items-center justify-center rounded-lg border px-4 py-2.5 border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50"
                                                 >
-                                                    <SquarePen className="w-4 h-4 mr-2" /> <span>Edit Brand</span>
+                                                    <SquarePen className="w-4 h-4 mr-2" /> <span>Edit Order</span>
                                                 </Link>
                                             )}
 
@@ -322,7 +324,7 @@ export default function BrandsPage() {
                                                     variant="danger"
                                                     onClick={() => setSelectedBrand(brand)}
                                                 >
-                                                    <Trash className="w-4 h-4 mr-2" /> <span>Delete Brand</span>
+                                                    <Trash className="w-4 h-4 mr-2" /> <span>Delete Order</span>
                                                 </Button>
                                             )}
 
