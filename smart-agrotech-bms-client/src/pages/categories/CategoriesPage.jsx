@@ -1,5 +1,6 @@
 // src/pages/categories/categoriesPage.jsx
 
+import { ArchiveRestore } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useCallback, useEffect, useState } from "react";
 import { CategoryService } from "../../services/categoryService";
@@ -235,21 +236,10 @@ export function CategoriesPage() {
           </p>
         </div>
 
-        {/* <p className="text-sm text-slate-600">
-          {meta.total} {meta.total === 1 ? "category" : "categories"}
-        </p> */}
-
         <div className="flex flex-wrap items-center gap-3">
           <p className="text-sm text-slate-600">
             {meta.total} {meta.total === 1 ? "category" : "categories"}
           </p>
-
-          {/* <Link
-            to="/categories/new"
-            className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-800"
-          >
-            Create Category
-          </Link> */}
 
           {canCreate && (
             <Link
@@ -257,6 +247,16 @@ export function CategoriesPage() {
               className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 transition-colors"
             >
               Create Category
+            </Link>
+          )}
+
+          {canDeleteCategory && (
+            <Link
+              to="/categories/restore"
+              className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+            >
+              <ArchiveRestore className="mr-2 h-4 w-4" />
+              Restore deleted categories
             </Link>
           )}
         </div>

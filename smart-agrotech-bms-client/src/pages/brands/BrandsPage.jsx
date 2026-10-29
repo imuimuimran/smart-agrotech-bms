@@ -120,13 +120,6 @@ export default function BrandsPage() {
         }
     }, [page, search, status, country]);
 
-    // useEffect(() => {
-    //     async function fetchData() {
-    //         await loadBrands(1, searchInput);
-    //     }
-    //     fetchData();
-    // }, [loadBrands, searchInput]);
-
     useEffect(() => {
         async function fetchData() {
             await loadBrands();
@@ -297,8 +290,6 @@ export default function BrandsPage() {
                                             {brand.publicId && (
                                                 <Link
                                                     to={`/brands/${encodeURIComponent(brand.publicId)}`}
-                                                    // className="mt-3 inline-flex text-sm font-medium text-emerald-700 underline underline-offset-2 hover:text-emerald-900"
-                                                    // className="inline-flex items-center justify-center w-full rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
                                                     className="inline-flex items-center justify-center w-full rounded-lg border px-4 py-2.5 border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50"
                                                 >
                                                     <Eye className="w-4 h-4 mr-2" /> <span>View Details</span>
@@ -306,15 +297,16 @@ export default function BrandsPage() {
                                             )}
                                         </div>
 
-                                        <div className="mt-3 flex items-center justify-between">
+                                        <div 
+                                        className="mt-3 flex items-center justify-between"
+                                        >
 
                                             {canEditBrands && brand.publicId && (
                                                 <Link
                                                     to={`/brands/${encodeURIComponent(brand.publicId)}/edit`}
-                                                    // className="inline-flex items-center justify-center rounded-lg bg-amber-400 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-500"
                                                     className="inline-flex items-center justify-center rounded-lg border px-4 py-2.5 border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50"
                                                 >
-                                                    <SquarePen className="w-4 h-4 mr-2" /> <span>Edit Order</span>
+                                                    <SquarePen className="w-4 h-4 mr-2" /> <span>Edit Brand</span>
                                                 </Link>
                                             )}
 
@@ -324,7 +316,7 @@ export default function BrandsPage() {
                                                     variant="danger"
                                                     onClick={() => setSelectedBrand(brand)}
                                                 >
-                                                    <Trash className="w-4 h-4 mr-2" /> <span>Delete Order</span>
+                                                    <Trash className="w-4 h-4 mr-2" /> <span>Delete Brand</span>
                                                 </Button>
                                             )}
 
@@ -332,7 +324,6 @@ export default function BrandsPage() {
 
                                     </div>
                                 </article>
-
 
                             </Card>
                         ))}

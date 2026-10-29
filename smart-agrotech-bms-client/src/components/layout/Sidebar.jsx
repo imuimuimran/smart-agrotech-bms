@@ -14,14 +14,14 @@ const navigationItems = [
     end: false
   },
   {
-    label: "Products",
-    to: "/products",
-    end: false
-  },
-  {
     label: "Categories",
     to: "/categories",
     end: false,
+  },
+  {
+    label: "Products",
+    to: "/products",
+    end: false
   },
 ];
 

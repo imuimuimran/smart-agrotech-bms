@@ -12,6 +12,7 @@ import CategoriesPage from "./pages/categories/CategoriesPage.jsx";
 import CategoryDetailsPage from "./pages/categories/CategoryDetailsPage";
 import CategoryCreatePage from "./pages/categories/CategoryCreatePage";
 import CategoryEditPage from "./pages/categories/CategoryEditPage";
+import CategoryRestoreByIdPage from "./pages/categories/CategoryRestoreByIdPage.jsx";
 
 import BrandsPage from "./pages/brands/BrandsPage";
 import BrandDetailsPage from "./pages/brands/BrandDetailsPage.jsx";
@@ -59,6 +60,8 @@ export function App() {
         <Route path="/categories/new" element={<CategoryCreatePage />} />
 
         <Route path="/categories/:publicId/edit" element={<CategoryEditPage />} />
+
+        <Route path="/categories/restore" element={<CategoryRestoreByIdPage />} />
 
         <Route path="/brands" element={<BrandsPage />} />
 
