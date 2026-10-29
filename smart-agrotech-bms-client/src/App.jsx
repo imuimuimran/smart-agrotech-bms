@@ -5,9 +5,7 @@ import { ProtectedRoute } from "./routes/ProtectedRoute.jsx";
 import { AppLayout } from "./layouts/AppLayout.jsx"
 import { DashboardPage } from "./pages/dashboard/DashboardPage.jsx";
 import { ProductsPage } from "./pages/products/ProductsPage";
-// import ProductCreatePage from "./pages/products/ProductCreatePage.jsx";
-// import ProductDetailsPage from "./pages/products/ProductDetailsPage.jsx";
-// import ProductEditPage from "./pages/products/ProductEditPage.jsx";
+
 import CategoriesPage from "./pages/categories/CategoriesPage.jsx";
 import CategoryDetailsPage from "./pages/categories/CategoryDetailsPage";
 import CategoryCreatePage from "./pages/categories/CategoryCreatePage";
@@ -46,12 +44,6 @@ export function App() {
         <Route index element={<DashboardPage />} />
 
         <Route path="/products" element={<ProductsPage />} />
-
-        {/* <Route path="/products/new" element={<ProductCreatePage />} />
-
-        <Route path="/products/:id" element={<ProductDetailsPage />} />
-
-        <Route path="/products/:id/edit" element={<ProductEditPage />} /> */}
 
         <Route path="/categories" element={<CategoriesPage />} />
 

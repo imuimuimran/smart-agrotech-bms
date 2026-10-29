@@ -67,6 +67,16 @@ export const CategoryService = {
   },
 
   /**
+   * Fetch soft-deleted categories. The backend restricts this to admins.
+   */
+  async getDeletedCategories(params = {}) {
+    const response = await apiClient.get(API_ENDPOINTS.CATEGORIES.DELETED, {
+      params,
+    });
+    return response.data;
+  },
+
+  /**
    * Restore a soft-deleted category. The backend restricts this to admins.
    */
   async restoreCategory(publicId) {

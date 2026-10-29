@@ -46,14 +46,6 @@ const BrandService = {
     return response.data;
   },
 
-  // async restoreBrand(publicId) {
-  //   const response = await apiClient.patch(
-  //     API_ENDPOINTS.BRANDS.RESTORE(encodeURIComponent(publicId))
-  //   );
-
-  //   return response.data;
-  // },
-
   async restoreBrand(publicId) {
   const response = await apiClient.patch(
     API_ENDPOINTS.BRANDS.RESTORE(publicId)

@@ -1,9 +1,10 @@
-// src/pages/categories/categoryRestoreByIdPage.jsx
+// // src/pages/categories/categoryRestoreByIdPage.jsx
 
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { Button } from "../../components/ui/Button";
+// import { CategoryService } from "../../service/categoryService";
 import { CategoryService } from "../../services/categoryService";
 
 function getUserRole(user) {
@@ -64,14 +65,13 @@ export default function CategoryRestoreByIdPage() {
     }, []);
 
     useEffect(() => {
-        if (!isAdmin) return;
+        if (!isAdmin) return undefined;
 
         let cancelled = false;
 
         async function fetchDeletedCategories() {
             try {
-                const response =
-                    await CategoryService.getDeletedCategories();
+                const response = await CategoryService.getDeletedCategories();
 
                 if (!cancelled) {
                     setCategories(getDeletedCategoryList(response));
@@ -94,7 +94,6 @@ export default function CategoryRestoreByIdPage() {
             cancelled = true;
         };
     }, [isAdmin]);
-
 
     async function handleRestore(category) {
         if (!isAdmin || !category?.publicId || restoringId) return;
@@ -136,7 +135,7 @@ export default function CategoryRestoreByIdPage() {
                 <Button
                     type="button"
                     variant="secondary"
-                    onClick={() => navigate("/product-categories")}
+                    onClick={() => navigate("/categories")}
                 >
                     Back to categories
                 </Button>
@@ -159,7 +158,7 @@ export default function CategoryRestoreByIdPage() {
                 <Button
                     type="button"
                     variant="secondary"
-                    onClick={() => navigate("/product-categories")}
+                    onClick={() => navigate("/categories")}
                 >
                     Back to categories
                 </Button>

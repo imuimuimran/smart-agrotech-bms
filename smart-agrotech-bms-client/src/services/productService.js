@@ -26,14 +26,6 @@ export const ProductService = {
     return response.data;
   },
 
-  // async getProductById(publicId) {
-  //   const response = await apiClient.get(
-  //     API_ENDPOINTS.PRODUCTS.DETAILS(encodeURIComponent(publicId))
-  //   );
-
-  //   return response.data;
-  // },
-
   /**
    * Submits a fresh product validation payload block to the server.
    */
@@ -57,15 +49,6 @@ export const ProductService = {
     return response.data;
   },
 
-  // async updateProduct(publicId, payload) {
-  //   const response = await apiClient.patch(
-  //     API_ENDPOINTS.PRODUCTS.UPDATE(encodeURIComponent(publicId)),
-  //     payload
-  //   );
-
-  //   return response.data;
-  // },
-
   /**
    * Directs the backend server to trigger a soft-delete execution toggle against a target record.
    */
@@ -75,21 +58,5 @@ export const ProductService = {
     );
     return response.data;
   },
-
-  // async deleteProduct(publicId) {
-  //   const response = await apiClient.delete(
-  //     API_ENDPOINTS.PRODUCTS.DELETE(encodeURIComponent(publicId))
-  //   );
-
-  //   return response.data;
-  // },
-
-  // async restoreProduct(publicId) {
-  //   const response = await apiClient.patch(
-  //     API_ENDPOINTS.PRODUCTS.RESTORE(encodeURIComponent(publicId))
-  //   );
-
-  //   return response.data;
-  // },
 
 };
