@@ -1,6 +1,6 @@
 // src/pages/brands/BrandsPage.jsx
 
-import { LayersPlus, ArchiveArrowUp, Eye, SquarePen, Trash } from 'lucide-react';
+import { LayersPlus, ArchiveArrowUp, Eye, SquarePen, Trash, Search } from 'lucide-react';
 import { Link, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../../hooks/useAuth";
@@ -221,7 +221,7 @@ export default function BrandsPage() {
                         />
                     </div>
                     <div className="flex flex-col gap-2 sm:flex-row md:col-span-12">
-                        <Button type="submit">Search</Button>
+                        <Button type="submit"><Search className="w-4 h-4 mr-2" /> <span>Search</span></Button>
                         <Button type="button" variant="secondary" onClick={handleClearFilters}>Clear filters</Button>
                     </div>
                 </form>

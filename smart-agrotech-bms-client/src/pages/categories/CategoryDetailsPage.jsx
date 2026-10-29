@@ -1,5 +1,6 @@
 // src/pages/categories/categoryDetailsPage.jsx
 
+import { SquarePen, Trash } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
@@ -239,7 +240,7 @@ const CategoryDetailsPage = () => {
               to={`/categories/${encodeURIComponent(category.publicId)}/edit`}
               className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 transition-colors"
             >
-              Edit Category
+              <SquarePen className="w-4 h-4 mr-2" /> <span>Edit Category</span>
             </Link>
           )}
 
@@ -251,7 +252,11 @@ const CategoryDetailsPage = () => {
               disabled={isDeleting}
               onClick={handleDelete}
             >
-              {isDeleting ? "Deleting..." : "Delete Category"}
+              <Trash className="w-4 h-4 mr-2" />
+              <span>
+                {isDeleting ? "Deleting..." : "Delete Category"}
+              </span>
+              
             </Button>
           )}
 

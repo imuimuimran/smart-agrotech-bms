@@ -1,5 +1,6 @@
 // src/pages/products/ProductCreatePage.jsx
 
+import { LayersPlus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ProductService } from "../../services/productService";
 import { LookupService } from "../../services/lookupService";
@@ -888,7 +889,11 @@ export function ProductCreatePage({ onBack, onSuccess }) {
             type="submit"
             disabled={isSubmitting || !hasValidLookups || Boolean(lookupError)}
           >
-            {isSubmitting ? "Creating product..." : "Create product"}
+            <LayersPlus className="w-4 h-4 mr-2" /> 
+            <span>
+              {isSubmitting ? "Creating product..." : "Create product"}
+            </span>
+            
           </Button>
         </div>
       </form>

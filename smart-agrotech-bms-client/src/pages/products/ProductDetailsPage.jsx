@@ -1,5 +1,6 @@
 // src/pages/products/ProductDetailsPage.jsx
 
+import { SquarePen } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ProductService } from "../../services/productService";
 import { Button } from "../../components/ui/Button";
@@ -161,7 +162,7 @@ export function ProductDetailsPage({ productId, onBack, onEdit }) {
               variant="primary"
               onClick={() => onEdit(product._id || productId)}
             >
-              Edit Product
+              <SquarePen className="w-4 h-4 mr-2" /> <span>Edit Product</span>
             </Button>
           )}
           <Button type="button" variant="secondary" onClick={onBack}>

@@ -1,6 +1,6 @@
 // src/pages/categories/categoriesPage.jsx
 
-import { ArchiveRestore } from "lucide-react";
+import { LayersPlus, ArchiveRestore, Eye, SquarePen, Trash, Search } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useCallback, useEffect, useState } from "react";
 import { CategoryService } from "../../services/categoryService";
@@ -246,7 +246,7 @@ export function CategoriesPage() {
               to={`/categories/new`}
               className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 transition-colors"
             >
-              Create Category
+              <LayersPlus className="w-4 h-4 mr-2" /> <span>Create Category</span>
             </Link>
           )}
 
@@ -255,8 +255,7 @@ export function CategoriesPage() {
               to="/categories/restore"
               className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
             >
-              <ArchiveRestore className="mr-2 h-4 w-4" />
-              Restore deleted categories
+              <ArchiveRestore className="mr-2 h-4 w-4" /> <span>Restore deleted categories</span>
             </Link>
           )}
         </div>
@@ -286,7 +285,7 @@ export function CategoriesPage() {
 
           <div className="flex gap-2">
             <Button type="submit" disabled={isLoading}>
-              Search
+              <Search className="w-4 h-4 mr-2" /> <span>Search</span>
             </Button>
             <Button
               type="button"
@@ -442,7 +441,7 @@ export function CategoriesPage() {
                             // className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 transition-colors"
                             className="inline-flex items-center justify-center rounded-lg border px-4 py-2.5 border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50"
                           >
-                            View
+                            <Eye className="w-4 h-4 mr-2" /> <span>View</span>
                           </Link>
                         )}
 
@@ -452,7 +451,7 @@ export function CategoriesPage() {
                             // className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 transition-colors"
                             className="inline-flex items-center justify-center rounded-lg border px-4 py-2.5 border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50"
                           >
-                            Edit
+                            <SquarePen className="w-4 h-4 mr-2" /> <span>Edit</span>
                           </Link>
                         )}
 
@@ -463,9 +462,13 @@ export function CategoriesPage() {
                             disabled={deletingId !== null}
                             onClick={() => handleDeleteCategory(category)}
                           >
-                            {deletingId === category.publicId
+                            <Trash className="w-4 h-4 mr-2" />
+                            <span>
+                              {deletingId === category.publicId
                               ? "Deleting..."
                               : "Delete"}
+                            </span>
+                            
                           </Button>
                         )}
                       </div>

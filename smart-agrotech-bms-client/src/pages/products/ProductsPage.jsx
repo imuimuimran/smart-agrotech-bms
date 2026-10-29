@@ -1,5 +1,6 @@
 // src/pages/products/ProductsPage.jsx
 
+import { LayersPlus, ArchiveRestore, Eye, SquarePen, SquareStop, SquarePlay, Trash, Funnel } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { ProductService } from "../../services/productService";
 import { LookupService } from "../../services/lookupService";
@@ -564,16 +565,16 @@ export function ProductsPage({
 
 
         <div className="flex flex-wrap gap-2">
-          
+
           {canCreate && (
             <Button
               type="button"
               onClick={() => setIsCreating(true)}
             >
-              Create product
+              <LayersPlus className="w-4 h-4 mr-2" /> <span>Create product</span>
             </Button>
           )}
-          
+
           {canDelete && (
             <Button
               type="button"
@@ -590,9 +591,13 @@ export function ProductsPage({
                 }
               }}
             >
-              {showRestorePanel
-                ? "Hide Deleted Products"
-                : "Restore Deleted Products"}
+              <ArchiveRestore className="mr-2 h-4 w-4" />
+              <span>
+                {showRestorePanel
+                  ? "Hide Deleted Products"
+                  : "Restore Deleted Products"}
+              </span>
+
             </Button>
           )}
 
@@ -831,7 +836,7 @@ export function ProductsPage({
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button type="submit">Apply filters</Button>
+            <Button type="submit"><Funnel className="w-4 h-4 mr-2" /> <span>Apply filters</span></Button>
             <Button type="button" variant="secondary" onClick={handleResetFilters}>
               Reset
             </Button>
@@ -941,7 +946,7 @@ export function ProductsPage({
                             onClick={() => openDetails(product)}
                             disabled={!id}
                           >
-                            View
+                            <Eye className="w-4 h-4 mr-2" /> <span>View</span>
                           </Button>
                           {canUpdate && (
                             <Button
@@ -951,7 +956,7 @@ export function ProductsPage({
                               onClick={() => openEdit(id)}
                               disabled={!id}
                             >
-                              Edit
+                              <SquarePen className="w-4 h-4 mr-2" /> <span>Edit</span>
                             </Button>
                           )}
 
@@ -969,7 +974,11 @@ export function ProductsPage({
                               </Button>
                             )} */}
 
-                          {(product.status === "discontinued"
+
+
+
+
+                          {/* {(product.status === "discontinued"
                             ? canContinueProduct
                             : canUpdate) && (
                               <Button
@@ -985,7 +994,36 @@ export function ProductsPage({
                                     ? "Continue"
                                     : "Discontinue"}
                               </Button>
-                            )}
+                            )} */}
+
+
+                          {(product.status === "discontinued" ? canContinueProduct : canUpdate) && (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              disabled={Boolean(updatingStatusId)}
+                              onClick={() => handleDiscontinueProduct(product)}
+                              className="flex items-center"
+                            >
+                              {/* Dynamic Icon */}
+                              {updatingStatusId !== getProductId(product) && (
+                                product.status === "discontinued"
+                                  ? <SquarePlay className="w-4 h-4 mr-2" />
+                                  : <SquareStop className="w-4 h-4 mr-2" />
+                              )}
+
+                              {/* Dynamic Text */}
+                              <span>
+                                {updatingStatusId === getProductId(product)
+                                  ? "Updating..."
+                                  : product.status === "discontinued"
+                                    ? "Continue"
+                                    : "Discontinue"}
+                              </span>
+                            </Button>
+                          )}
+
 
                           {canDelete && (
                             <Button
@@ -997,7 +1035,7 @@ export function ProductsPage({
                                 setDeleteTarget(product);
                               }}
                             >
-                              Delete
+                              <Trash className="w-4 h-4 mr-2" /> <span>Delete</span>
                             </Button>
                           )}
                         </div>
