@@ -69,10 +69,41 @@ const deleteProduct = catchAsync(async (req, res) => {
   });
 });
 
+
+const getDeletedProducts = catchAsync(async (req, res) => {
+  const result = await ProductService.getDeletedProducts();
+
+  sendResponse({
+    res,
+    statusCode: HTTP_STATUS.OK,
+    success: true,
+    message: PRODUCT_MESSAGES.FETCHED,
+    data: result,
+  });
+});
+
+const restoreProduct = catchAsync(async (req, res) => {
+  const result = await ProductService.restoreProduct(
+    req.params.id,
+    req.user
+  );
+
+  sendResponse({
+    res,
+    statusCode: HTTP_STATUS.OK,
+    success: true,
+    message: PRODUCT_MESSAGES.RESTORED,
+    data: result,
+  });
+});
+
+
 export const ProductController = {
   createProduct,
   getProducts,
   getProductById,
   updateProduct,
   deleteProduct,
+  getDeletedProducts,
+  restoreProduct,
 };

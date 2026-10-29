@@ -5,11 +5,11 @@ import validateRequest from "../../middlewares/validate.middleware.js";
 import validateQuery from "../../middlewares/validate.middleware.js";
 import ROLES from "../../constants/roles.js";
 import { ProductController } from "./product.controller.js";
-import { 
+import {
   createProductSchema,
   productListQuerySchema,
   productIdParamSchema,
-  updateProductSchema,   
+  updateProductSchema,
 } from "./product.validation.js";
 
 const router = express.Router();
@@ -35,6 +35,24 @@ router.get(
   validateQuery(productListQuerySchema),
   ProductController.getProducts
 );
+
+
+router.get(
+  "/deleted",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  ProductController.getDeletedProducts
+);
+
+
+router.patch(
+  "/:id/restore",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  validateRequest(productIdParamSchema),
+  ProductController.restoreProduct
+);
+
 
 router.get(
   "/:id",

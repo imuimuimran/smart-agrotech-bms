@@ -1,8 +1,8 @@
 import HTTP_STATUS from "../../constants/httpStatus.js";
 import Product from "./product.model.js";
 import ApiError from "../../shared/ApiError.js";
-import ProductCategory from "../product-categories/productCategory.model.js"; 
-import Brand from "../brands/brand.model.js"; 
+import ProductCategory from "../product-categories/productCategory.model.js";
+import Brand from "../brands/brand.model.js";
 import { getNextSequence } from "../../utils/sequence.util.js";
 import { PRODUCT_MESSAGES } from "./product.constants.js";
 import { ActivityLogService } from "../activity-logs/activityLog.service.js";
@@ -12,7 +12,7 @@ import {
   normalizeProductImages,
   sanitizeProduct,
   formatProductPublicId,
-  buildProductFilter, 
+  buildProductFilter,
   buildProductSort,
   getProductUsage,
 } from "./product.utils.js";
@@ -327,12 +327,67 @@ const deleteProduct = async (productId, reqUser) => {
 };
 
 
+
+/**
+ * Get all soft-deleted products for the admin restore screen.
+ */
+const getDeletedProducts = async () => {
+  const products = await Product.find({ isDeleted: true })
+    .withDeleted()
+    .sort({ deletedAt: -1 })
+    .lean();
+
+  return products.map(sanitizeProduct);
+};
+
+/**
+ * Restore a previously soft-deleted product.
+ */
+const restoreProduct = async (productId, reqUser) => {
+  const product = await Product.findOne({
+    _id: productId,
+    isDeleted: true,
+  }).withDeleted();
+
+  if (!product) {
+    throw new ApiError(
+      HTTP_STATUS.NOT_FOUND,
+      PRODUCT_MESSAGES.NOT_DELETED
+    );
+  }
+
+  product.isDeleted = false;
+  product.deletedAt = null;
+  product.deletedBy = null;
+  product.updatedBy = reqUser.publicId;
+
+  await product.save();
+
+  await ActivityLogService.logActivity({
+    user: reqUser._id || reqUser.id,
+    action: ACTIVITY_ACTIONS.UPDATE,
+    module: ACTIVITY_MODULES.PRODUCT,
+    entityId: product._id,
+    description: `Restored product ${product.publicId}`,
+    metadata: {
+      publicId: product.publicId,
+      productName: product.productName,
+    },
+  });
+
+  return sanitizeProduct(product);
+};
+
+
+
 export const ProductService = {
   createProduct,
   getProducts,
   getProductById,
   updateProduct,
   deleteProduct,
+  getDeletedProducts,
+  restoreProduct,
 };
 
 
