@@ -143,6 +143,15 @@ export function ProductsPage({
   const [actionError, setActionError] = useState("");
   const [updatingStatusId, setUpdatingStatusId] = useState(null);
 
+
+  const [showRestorePanel, setShowRestorePanel] = useState(false);
+  const [deletedProducts, setDeletedProducts] = useState([]);
+  const [isLoadingDeleted, setIsLoadingDeleted] = useState(false);
+  const [restoringProductId, setRestoringProductId] = useState(null);
+  const [restoreError, setRestoreError] = useState("");
+  const [restoreMessage, setRestoreMessage] = useState("");
+
+
   const effectiveUser = currentUser ?? user ?? authenticatedUser;
   const role = getRole(effectiveUser, userRole);
   const roleCanCreate = ["admin", "super_admin", "inventory_manager", "manager"].includes(role);
@@ -317,6 +326,66 @@ export function ProductsPage({
     }
   }
 
+
+  async function loadDeletedProducts() {
+    if (!canDelete || isLoadingDeleted) return;
+
+    setIsLoadingDeleted(true);
+    setRestoreError("");
+    setRestoreMessage("");
+
+    try {
+      const response = await ProductService.getDeletedProducts();
+      setDeletedProducts(unwrapList(response));
+    } catch (error) {
+      setRestoreError(
+        getErrorMessage(error, "Unable to load deleted products.")
+      );
+      setDeletedProducts([]);
+    } finally {
+      setIsLoadingDeleted(false);
+    }
+  }
+
+
+  async function handleRestoreProduct(product) {
+    const productId = getProductId(product);
+
+    if (!canDelete || !productId || restoringProductId) return;
+
+    const confirmed = window.confirm(
+      `Restore "${product.productName || "this product"}"?\n\n` +
+      "The product will return to the normal Products list."
+    );
+
+    if (!confirmed) return;
+
+    setRestoringProductId(productId);
+    setRestoreError("");
+    setRestoreMessage("");
+
+    try {
+      await ProductService.restoreProduct(productId);
+
+      setRestoreMessage(
+        `${product.productName || "Product"} restored successfully.`
+      );
+
+      // Refresh both the deleted-products panel and normal product list.
+      const response = await ProductService.getDeletedProducts();
+      setDeletedProducts(unwrapList(response));
+      await loadProducts(pagination.page, activeParams);
+    } catch (error) {
+      setRestoreError(
+        getErrorMessage(error, "Unable to restore this product.")
+      );
+    } finally {
+      setRestoringProductId(null);
+    }
+  }
+
+
+
   // async function handleDiscontinueProduct(product) {
   //   const productId = product?._id;
 
@@ -485,11 +554,51 @@ export function ProductsPage({
           <h1 className="text-2xl font-bold text-gray-900">Products</h1>
           <p className="mt-1 text-sm text-gray-600">View and manage your product catalog.</p>
         </div>
-        {canCreate && (
+
+        {/* {canCreate && (
           <Button type="button" onClick={() => setIsCreating(true)}>
             Create product
           </Button>
-        )}
+        )} */}
+
+
+
+        <div className="flex flex-wrap gap-2">
+          
+          {canCreate && (
+            <Button
+              type="button"
+              onClick={() => setIsCreating(true)}
+            >
+              Create product
+            </Button>
+          )}
+          
+          {canDelete && (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                const nextOpen = !showRestorePanel;
+                setShowRestorePanel(nextOpen);
+
+                if (nextOpen) {
+                  loadDeletedProducts();
+                } else {
+                  setRestoreError("");
+                  setRestoreMessage("");
+                }
+              }}
+            >
+              {showRestorePanel
+                ? "Hide Deleted Products"
+                : "Restore Deleted Products"}
+            </Button>
+          )}
+
+        </div>
+
+
       </header>
 
 
@@ -510,6 +619,99 @@ export function ProductsPage({
           {actionError}
         </div>
       )}
+
+
+
+      {canDelete && showRestorePanel && (
+        <Card className="space-y-4 bg-white">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Restore Deleted Products
+            </h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Review soft-deleted products and restore a product when needed.
+            </p>
+          </div>
+
+          {restoreMessage && (
+            <div role="status" className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+              {restoreMessage}
+            </div>
+          )}
+
+          {restoreError && (
+            <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+              {restoreError}
+            </div>
+          )}
+
+          {isLoadingDeleted ? (
+            <div className="flex justify-center py-6">
+              <LoadingSpinner label="Loading deleted products..." />
+            </div>
+          ) : deletedProducts.length === 0 ? (
+            <p className="py-4 text-sm text-gray-600">
+              No deleted products found.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-200">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Product
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Product ID
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Deleted at
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-slate-100">
+                  {deletedProducts.map((product) => {
+                    const id = getProductId(product);
+
+                    return (
+                      <tr key={id}>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                          {product.productName || "Unnamed product"}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {product.publicId || id || "—"}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {product.deletedAt
+                            ? new Date(product.deletedAt).toLocaleString()
+                            : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={!id || Boolean(restoringProductId)}
+                            onClick={() => handleRestoreProduct(product)}
+                          >
+                            {restoringProductId === id
+                              ? "Restoring..."
+                              : "Restore"}
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      )}
+
 
 
       <Card className="bg-white">

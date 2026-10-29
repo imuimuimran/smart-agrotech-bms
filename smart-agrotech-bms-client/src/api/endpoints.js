@@ -14,7 +14,8 @@ export const API_ENDPOINTS = {
     CREATE: "/products",
     UPDATE: (id) => `/products/${id}`,
     DELETE: (id) => `/products/${id}`,
-    // RESTORE: (publicId) => `/products/${publicId}/restore`,
+    DELETED: "/products/deleted",
+    RESTORE: (id) => `/products/${id}/restore`,
   },
   CATEGORIES: {
     LIST: "/product-categories",

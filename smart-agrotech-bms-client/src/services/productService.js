@@ -59,4 +59,22 @@ export const ProductService = {
     return response.data;
   },
 
+
+  async getDeletedProducts() {
+    const response = await apiClient.get(
+      API_ENDPOINTS.PRODUCTS.DELETED
+    );
+
+    return response.data;
+  },
+
+  async restoreProduct(id) {
+    const response = await apiClient.patch(
+      API_ENDPOINTS.PRODUCTS.RESTORE(id)
+    );
+
+    return response.data;
+  },
+
+
 };
