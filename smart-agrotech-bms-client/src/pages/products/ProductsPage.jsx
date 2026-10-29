@@ -152,6 +152,8 @@ export function ProductsPage({
       : roleCanCreate;
   // Only ADMIN and MANAGER (and the supported super-admin alias) may enter edit mode.
   const canUpdate = ["admin", "super_admin", "manager"].includes(role);
+
+  const canContinueProduct = role === "admin";
   // Deletion is restricted to ADMIN only.
   const canDelete = role === "admin";
 
@@ -315,20 +317,70 @@ export function ProductsPage({
     }
   }
 
+  // async function handleDiscontinueProduct(product) {
+  //   const productId = product?._id;
+
+  //   if (!canUpdate || !productId || updatingStatusId) {
+  //     return;
+  //   }
+
+  //   if (product.status === "discontinued") {
+  //     return;
+  //   }
+
+  //   const confirmed = window.confirm(
+  //     `Discontinue "${product.productName}"?\n\n` +
+  //     "The product record will remain in the system, but its status will change to discontinued."
+  //   );
+
+  //   if (!confirmed) return;
+
+  //   setUpdatingStatusId(productId);
+  //   setActionMessage("");
+  //   setActionError("");
+
+  //   try {
+  //     await ProductService.updateProduct(productId, {
+  //       status: "discontinued",
+  //     });
+
+  //     setActionMessage(
+  //       `${product.productName} was discontinued successfully.`
+  //     );
+
+  //     await loadProducts(pagination.page, activeParams);
+  //   } catch (error) {
+  //     setActionError(
+  //       getProductActionError(
+  //         error,
+  //         "Unable to discontinue this product."
+  //       )
+  //     );
+  //   } finally {
+  //     setUpdatingStatusId(null);
+  //   }
+  // }
+
   async function handleDiscontinueProduct(product) {
-    const productId = product?._id;
+    const productId = getProductId(product);
 
-    if (!canUpdate || !productId || updatingStatusId) {
+    if (!productId || updatingStatusId) {
       return;
     }
 
-    if (product.status === "discontinued") {
+    const isDiscontinued = product.status === "discontinued";
+
+    // Only admins may continue a discontinued product.
+    if (isDiscontinued ? !canContinueProduct : !canUpdate) {
       return;
     }
+
+    const nextStatus = isDiscontinued ? "active" : "discontinued";
+    const actionLabel = isDiscontinued ? "Continue" : "Discontinue";
 
     const confirmed = window.confirm(
-      `Discontinue "${product.productName}"?\n\n` +
-      "The product record will remain in the system, but its status will change to discontinued."
+      `${actionLabel} "${product.productName}"?\n\n` +
+      `The product status will change to ${nextStatus}.`
     );
 
     if (!confirmed) return;
@@ -339,11 +391,11 @@ export function ProductsPage({
 
     try {
       await ProductService.updateProduct(productId, {
-        status: "discontinued",
+        status: nextStatus,
       });
 
       setActionMessage(
-        `${product.productName} was discontinued successfully.`
+        `${product.productName} was ${isDiscontinued ? "continued" : "discontinued"} successfully.`
       );
 
       await loadProducts(pagination.page, activeParams);
@@ -351,7 +403,7 @@ export function ProductsPage({
       setActionError(
         getProductActionError(
           error,
-          "Unable to discontinue this product."
+          `Unable to ${actionLabel.toLowerCase()} this product.`
         )
       );
     } finally {
@@ -701,7 +753,7 @@ export function ProductsPage({
                             </Button>
                           )}
 
-                          {canUpdate &&
+                          {/* {canUpdate &&
                             product.status !== "discontinued" && (
                               <Button
                                 type="button"
@@ -712,6 +764,24 @@ export function ProductsPage({
                                 {updatingStatusId === product._id
                                   ? "Updating..."
                                   : "Discontinue"}
+                              </Button>
+                            )} */}
+
+                          {(product.status === "discontinued"
+                            ? canContinueProduct
+                            : canUpdate) && (
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                disabled={Boolean(updatingStatusId)}
+                                onClick={() => handleDiscontinueProduct(product)}
+                              >
+                                {updatingStatusId === getProductId(product)
+                                  ? "Updating..."
+                                  : product.status === "discontinued"
+                                    ? "Continue"
+                                    : "Discontinue"}
                               </Button>
                             )}
 
