@@ -13,6 +13,13 @@ import { ProductCategoryController } from "./productCategory.controller.js";
 const router = express.Router();
 
 router.get(
+  "/deleted",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  ProductCategoryController.getDeletedProductCategories
+);
+
+router.get(
   "/",
   verifyToken,
   authorize(

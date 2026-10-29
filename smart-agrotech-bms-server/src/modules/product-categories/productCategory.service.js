@@ -85,6 +85,39 @@ const getProductCategories = async (query) => {
   };
 };
 
+const getDeletedProductCategories = async (query = {}) => {
+  const page = Math.max(1, Number.parseInt(query.page, 10) || 1);
+  const limit = Math.min(
+    100,
+    Math.max(1, Number.parseInt(query.limit, 10) || 10)
+  );
+
+  const filter = { isDeleted: true };
+
+  const [categories, total] = await Promise.all([
+    ProductCategory.find(filter)
+      .withDeleted()
+      .populate("parentCategory", "publicId categoryName categoryCode")
+      .sort({ deletedAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit),
+
+    ProductCategory.countDocuments(filter).setOptions({
+      withDeleted: true,
+    }),
+  ]);
+
+  return {
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+    data: categories.map(sanitizeProductCategory),
+  };
+};
+
 const getProductCategory = async (publicId) => {
   const category = await ProductCategory.findOne({ publicId }).populate(
     "parentCategory",
@@ -258,6 +291,7 @@ const restoreProductCategory = async (publicId, reqUser) => {
 export const ProductCategoryService = {
   createProductCategory,
   getProductCategories,
+  getDeletedProductCategories,
   getProductCategory,
   updateProductCategory,
   deleteProductCategory,

@@ -39,6 +39,21 @@ const getProductCategories = catchAsync(async (req, res) => {
   });
 });
 
+const getDeletedProductCategories = catchAsync(async (req, res) => {
+  const result = await ImportedService.getDeletedProductCategories(
+    req.query
+  );
+
+  sendResponse({
+    res,
+    statusCode: HTTP_STATUS.OK,
+    success: true,
+    message: "Deleted product categories retrieved successfully.",
+    meta: result.meta,
+    data: result.data,
+  });
+});
+
 const getProductCategory = catchAsync(async (req, res) => {
   // const result = await ProductCategoryService.getProductCategory(
   //   req.params.publicId
@@ -96,6 +111,7 @@ const restoreProductCategory = catchAsync(async (req, res) => {
 export const ProductCategoryController = {
   createProductCategory,
   getProductCategories,
+  getDeletedProductCategories,
   getProductCategory,
   updateProductCategory,
   deleteProductCategory,
