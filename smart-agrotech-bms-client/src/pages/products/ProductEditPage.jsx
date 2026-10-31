@@ -1,6 +1,7 @@
 // src/pages/products/ProductEditPage.jsx
 
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { ProductService } from "../../services/productService";
 import { LookupService } from "../../services/lookupService";
 import { Button } from "../../components/ui/Button";
@@ -59,7 +60,10 @@ const fieldClassName =
   "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50";
 const labelClassName = "mb-1 block text-sm font-medium text-slate-700";
 
-export function ProductEditPage({ productId, onBack, onSuccess }) {
+// export function ProductEditPage({ productId, onBack, onSuccess }) {
+export function ProductEditPage() {
+  const { productId } = useParams();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState(null);
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
@@ -243,11 +247,14 @@ export function ProductEditPage({ productId, onBack, onSuccess }) {
 
     setIsSubmitting(true);
     try {
+      // await ProductService.updateProduct(productId, payload);
+      // setSuccessMessage("Product updated successfully.");
+      // if (typeof onSuccess === "function") {
+      //   await onSuccess();
+      // }
       await ProductService.updateProduct(productId, payload);
-      setSuccessMessage("Product updated successfully.");
-      if (typeof onSuccess === "function") {
-        await onSuccess();
-      }
+      navigate(`/products/${encodeURIComponent(productId)}`);
+
     } catch (error) {
       setApiError(getErrorMessage(error, "Product update failed. Please try again."));
     } finally {
@@ -269,7 +276,14 @@ export function ProductEditPage({ productId, onBack, onSuccess }) {
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">
           {apiError || "Product details are unavailable."}
         </div>
-        <Button type="button" variant="secondary" onClick={onBack}>Back</Button>
+        <Button 
+          type="button" 
+          variant="secondary" 
+          // onClick={onBack}
+          onClick={() => navigate(`/products/${encodeURIComponent(productId)}`)}
+        >
+          Back
+        </Button>
       </div>
     );
   }
@@ -281,7 +295,14 @@ export function ProductEditPage({ productId, onBack, onSuccess }) {
           <h1 className="text-2xl font-bold text-gray-900">Edit Product</h1>
           <p className="mt-1 text-sm text-gray-600">Update product details supported by the Products API.</p>
         </div>
-        <Button type="button" variant="secondary" onClick={onBack} disabled={isSubmitting}>Cancel</Button>
+        <Button 
+          type="button" 
+          variant="secondary" 
+          // onClick={onBack} disabled={isSubmitting}
+          onClick={() => navigate(`/products/${encodeURIComponent(productId)}`)}
+        >
+          Cancel
+        </Button>
       </header>
 
       {validationError && <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="alert">{validationError}</div>}
@@ -425,7 +446,14 @@ export function ProductEditPage({ productId, onBack, onSuccess }) {
         </Card>
 
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <Button type="button" variant="secondary" onClick={onBack} disabled={isSubmitting}>Cancel</Button>
+          <Button 
+            type="button" 
+            variant="secondary" 
+            // onClick={onBack} disabled={isSubmitting}
+            onClick={() => navigate(`/products/${encodeURIComponent(productId)}`)}
+          >
+            Cancel
+          </Button>
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? "Saving changes..." : "Save changes"}
           </Button>
