@@ -4,7 +4,11 @@ import { LoginPage } from "./pages/auth/LoginPage.jsx";
 import { ProtectedRoute } from "./routes/ProtectedRoute.jsx";
 import { AppLayout } from "./layouts/AppLayout.jsx"
 import { DashboardPage } from "./pages/dashboard/DashboardPage.jsx";
+
 import { ProductsPage } from "./pages/products/ProductsPage";
+import { ProductDetailsPage } from "./pages/products/ProductDetailsPage";
+import { ProductCreatePage } from "./pages/products/ProductCreatePage";
+import { ProductEditPage } from "./pages/products/ProductEditPage";
 
 import CategoriesPage from "./pages/categories/CategoriesPage.jsx";
 import CategoryDetailsPage from "./pages/categories/CategoryDetailsPage";
@@ -45,6 +49,12 @@ export function App() {
 
         <Route path="/products" element={<ProductsPage />} />
 
+        <Route path="/products/new" element={<ProductCreatePage />} />
+
+        <Route path="/products/:productId" element={<ProductDetailsPage />} />
+
+        <Route path="/products/:productId/edit" element={<ProductEditPage />} />
+
         <Route path="/categories" element={<CategoriesPage />} />
 
         <Route path="/categories/:publicId" element={<CategoryDetailsPage />} />
@@ -58,7 +68,7 @@ export function App() {
         <Route path="/brands" element={<BrandsPage />} />
 
         <Route path="/brands/:publicId" element={<BrandDetailsPage />} />
-        
+
         <Route path="/brands/new" element={<BrandCreatePage />} />
 
         <Route path="/brands/:publicId/edit" element={<BrandEditPage />} />
