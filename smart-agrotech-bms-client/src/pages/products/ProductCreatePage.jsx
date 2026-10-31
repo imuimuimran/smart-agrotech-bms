@@ -2,6 +2,7 @@
 
 import { LayersPlus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ProductService } from "../../services/productService";
 import { LookupService } from "../../services/lookupService";
 import { Button } from "../../components/ui/Button";
@@ -116,7 +117,9 @@ function FieldError({ children }) {
   ) : null;
 }
 
-export function ProductCreatePage({ onBack, onSuccess }) {
+// export function ProductCreatePage({ onBack, onSuccess }) {
+export function ProductCreatePage() {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({ ...INITIAL_FORM_STATE });
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
@@ -404,14 +407,18 @@ export function ProductCreatePage({ onBack, onSuccess }) {
     setIsSubmitting(true);
 
     try {
+      // await ProductService.createProduct(payload);
+
+      // setSuccessMessage("Product created successfully.");
+      // setFormData({ ...INITIAL_FORM_STATE });
+
+      // if (typeof onSuccess === "function") {
+      //   await onSuccess();
+      // }
+
       await ProductService.createProduct(payload);
+      navigate("/products");
 
-      setSuccessMessage("Product created successfully.");
-      setFormData({ ...INITIAL_FORM_STATE });
-
-      if (typeof onSuccess === "function") {
-        await onSuccess();
-      }
     } catch (error) {
       setApiError(getErrorMessage(error));
     } finally {
@@ -445,7 +452,8 @@ export function ProductCreatePage({ onBack, onSuccess }) {
         <Button
           type="button"
           variant="secondary"
-          onClick={onBack}
+          // onClick={onBack}
+          onClick={() => navigate("/products")}
           disabled={isSubmitting}
         >
           Cancel
@@ -879,7 +887,8 @@ export function ProductCreatePage({ onBack, onSuccess }) {
           <Button
             type="button"
             variant="secondary"
-            onClick={onBack}
+            // onClick={onBack}
+            onClick={() => navigate("/products")}
             disabled={isSubmitting}
           >
             Cancel
