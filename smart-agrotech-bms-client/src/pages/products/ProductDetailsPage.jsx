@@ -2,6 +2,7 @@
 
 import { SquarePen } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { ProductService } from "../../services/productService";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
@@ -44,7 +45,10 @@ function Field({ label, children }) {
   );
 }
 
-export function ProductDetailsPage({ productId, onBack, onEdit }) {
+// export function ProductDetailsPage({ productId, onBack, onEdit }) {
+export function ProductDetailsPage() {
+  const { productId } = useParams();
+  const navigate = useNavigate();
   const { user: authenticatedUser } = useAuth();
   const [product, setProduct] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -122,7 +126,12 @@ export function ProductDetailsPage({ productId, onBack, onEdit }) {
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">
           {error || "The requested product could not be found."}
         </div>
-        <Button type="button" variant="secondary" onClick={onBack}>
+        <Button 
+          type="button" 
+          variant="secondary" 
+          // onClick={onBack}
+          onClick={() => navigate("/products")}
+        >
           Back to Products
         </Button>
       </div>
@@ -156,16 +165,24 @@ export function ProductDetailsPage({ productId, onBack, onEdit }) {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {canUpdate && typeof onEdit === "function" && (
+          {/* {canUpdate && typeof onEdit === "function" && (
+           */}
+          {canUpdate && (
             <Button
               type="button"
               variant="primary"
-              onClick={() => onEdit(product._id || productId)}
+              // onClick={() => onEdit(product._id || productId)}
+              onClick={() => navigate(`/products/${encodeURIComponent(product._id || productId)}/edit`)}
             >
               <SquarePen className="w-4 h-4 mr-2" /> <span>Edit Product</span>
             </Button>
           )}
-          <Button type="button" variant="secondary" onClick={onBack}>
+          <Button 
+            type="button" 
+            variant="secondary" 
+            // onClick={onBack}
+            onClick={() => navigate("/products")}
+          >
             &larr; Back to Products
           </Button>
         </div>

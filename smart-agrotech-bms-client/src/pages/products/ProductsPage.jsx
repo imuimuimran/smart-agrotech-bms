@@ -2,15 +2,16 @@
 
 import { LayersPlus, ArchiveRestore, Eye, SquarePen, SquareStop, SquarePlay, Trash, Funnel } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ProductService } from "../../services/productService";
 import { LookupService } from "../../services/lookupService";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
 import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
-import { ProductDetailsPage } from "./ProductDetailsPage";
-import { ProductCreatePage } from "./ProductCreatePage";
-import { ProductEditPage } from "./ProductEditPage";
+// import { ProductDetailsPage } from "./ProductDetailsPage";
+// import { ProductCreatePage } from "./ProductCreatePage";
+// import { ProductEditPage } from "./ProductEditPage";
 import { useAuth } from "../../hooks/useAuth";
 
 const PAGE_SIZE = 20;
@@ -129,14 +130,15 @@ export function ProductsPage({
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  const [selectedProductId, setSelectedProductId] = useState(null);
-  const [isCreating, setIsCreating] = useState(false);
-  const [editingProductId, setEditingProductId] = useState(null);
+  // const [selectedProductId, setSelectedProductId] = useState(null);
+  // const [isCreating, setIsCreating] = useState(false);
+  // const [editingProductId, setEditingProductId] = useState(null);
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
   const [filters, setFilters] = useState({ ...INITIAL_FILTERS });
   const [activeParams, setActiveParams] = useState({ ...INITIAL_FILTERS });
   const [pagination, setPagination] = useState({ ...INITIAL_PAGINATION });
+  const navigate = useNavigate();
 
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -278,20 +280,20 @@ export function ProductsPage({
     setError("");
   }
 
-  async function handleCreated() {
-    setIsCreating(false);
-    setSelectedProductId(null);
-    setEditingProductId(null);
-    await loadProducts(1, activeParams);
-  }
+  // async function handleCreated() {
+  //   setIsCreating(false);
+  //   setSelectedProductId(null);
+  //   setEditingProductId(null);
+  //   await loadProducts(1, activeParams);
+  // }
 
-  async function handleUpdated() {
-    // Return to the edited product's details when possible.
-    const detailsId = selectedProductId || editingProductId;
-    setEditingProductId(null);
-    if (detailsId) setSelectedProductId(detailsId);
-    await loadProducts(pagination.page, activeParams);
-  }
+  // async function handleUpdated() {
+  //   // Return to the edited product's details when possible.
+  //   const detailsId = selectedProductId || editingProductId;
+  //   setEditingProductId(null);
+  //   if (detailsId) setSelectedProductId(detailsId);
+  //   await loadProducts(pagination.page, activeParams);
+  // }
 
   async function handleDeleteProduct() {
     if (!canDelete || !deleteTarget?._id || isDeleting) {
@@ -481,20 +483,34 @@ export function ProductsPage({
     }
   }
 
+  // function openDetails(product) {
+  //   const id = getProductId(product);
+  //   if (id) setSelectedProductId(id);
+  // }
+
   function openDetails(product) {
     const id = getProductId(product);
-    if (id) setSelectedProductId(id);
+
+    if (id) {
+      navigate(`/products/${encodeURIComponent(id)}`);
+    }
   }
+
+  // function openEdit(id) {
+  //   // Defense-in-depth UI gate; backend authorization remains authoritative.
+  //   if (!canUpdate || !id) return;
+  //   setEditingProductId(id);
+  // }
 
   function openEdit(id) {
-    // Defense-in-depth UI gate; backend authorization remains authoritative.
     if (!canUpdate || !id) return;
-    setEditingProductId(id);
+
+    navigate(`/products/${encodeURIComponent(id)}/edit`);
   }
 
-  function returnFromEdit() {
-    setEditingProductId(null);
-  }
+  // function returnFromEdit() {
+  //   setEditingProductId(null);
+  // }
 
   function getProductActionError(error, fallback) {
     return (
@@ -505,48 +521,48 @@ export function ProductsPage({
     );
   }
 
-  if (editingProductId) {
-    if (!canUpdate) {
-      // Prevent an unauthorized user from entering edit mode, even if state is triggered unexpectedly.
-      return (
-        <div className="space-y-4">
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">
-            You do not have permission to edit products.
-          </div>
-          <Button type="button" variant="secondary" onClick={returnFromEdit}>
-            Back
-          </Button>
-        </div>
-      );
-    }
+  // if (editingProductId) {
+  //   if (!canUpdate) {
+  //     // Prevent an unauthorized user from entering edit mode, even if state is triggered unexpectedly.
+  //     return (
+  //       <div className="space-y-4">
+  //         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">
+  //           You do not have permission to edit products.
+  //         </div>
+  //         <Button type="button" variant="secondary" onClick={returnFromEdit}>
+  //           Back
+  //         </Button>
+  //       </div>
+  //     );
+  //   }
 
-    return (
-      <ProductEditPage
-        productId={editingProductId}
-        onBack={returnFromEdit}
-        onSuccess={handleUpdated}
-      />
-    );
-  }
+  //   return (
+  //     <ProductEditPage
+  //       productId={editingProductId}
+  //       onBack={returnFromEdit}
+  //       onSuccess={handleUpdated}
+  //     />
+  //   );
+  // }
 
-  if (selectedProductId) {
-    return (
-      <ProductDetailsPage
-        productId={selectedProductId}
-        onBack={() => setSelectedProductId(null)}
-        onEdit={openEdit}
-      />
-    );
-  }
+  // if (selectedProductId) {
+  //   return (
+  //     <ProductDetailsPage
+  //       productId={selectedProductId}
+  //       onBack={() => setSelectedProductId(null)}
+  //       onEdit={openEdit}
+  //     />
+  //   );
+  // }
 
-  if (isCreating) {
-    return (
-      <ProductCreatePage
-        onBack={() => setIsCreating(false)}
-        onSuccess={handleCreated}
-      />
-    );
-  }
+  // if (isCreating) {
+  //   return (
+  //     <ProductCreatePage
+  //       onBack={() => setIsCreating(false)}
+  //       onSuccess={handleCreated}
+  //     />
+  //   );
+  // }
 
   return (
     <div className="space-y-6">
@@ -569,7 +585,8 @@ export function ProductsPage({
           {canCreate && (
             <Button
               type="button"
-              onClick={() => setIsCreating(true)}
+              // onClick={() => setIsCreating(true)}
+              onClick={() => navigate("/products/new")}
             >
               <LayersPlus className="w-4 h-4 mr-2" /> <span>Create product</span>
             </Button>
