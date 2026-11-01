@@ -30,7 +30,10 @@ const getProducts = catchAsync(async (req, res) => {
 });
 
 const getProductById = catchAsync(async (req, res) => {
-  const result = await ProductService.getProductById(req.params.id);
+  const result = await ProductService.getProductById(
+    // req.params.id
+    req.params.publicId
+  );
 
   sendResponse({
     res,
@@ -43,7 +46,8 @@ const getProductById = catchAsync(async (req, res) => {
 
 const updateProduct = catchAsync(async (req, res) => {
   const result = await ProductService.updateProduct(
-    req.params.id,
+    // req.params.id,
+    req.params.publicId,
     req.body,
     req.user
   );
@@ -59,7 +63,11 @@ const updateProduct = catchAsync(async (req, res) => {
 
 // New Controller function to parse parameters and direct removal passes cleanly
 const deleteProduct = catchAsync(async (req, res) => {
-  await ProductService.deleteProduct(req.params.id, req.user);
+  await ProductService.deleteProduct(
+    // req.params.id,
+    req.params.publicId, 
+    req.user
+  );
 
   sendResponse({
     res,
@@ -84,7 +92,8 @@ const getDeletedProducts = catchAsync(async (req, res) => {
 
 const restoreProduct = catchAsync(async (req, res) => {
   const result = await ProductService.restoreProduct(
-    req.params.id,
+    // req.params.id,
+    req.params.publicId,
     req.user
   );
 
