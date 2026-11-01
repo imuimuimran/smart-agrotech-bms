@@ -148,7 +148,8 @@ const getProducts = async (query) => {
  */
 const getProductById = async (productId) => {
   const product = await Product.findOne({
-    _id: productId,
+    // _id: productId,
+    publicId,
     isDeleted: false,
   })
     .populate("categoryId", "publicId categoryName categoryCode status") // Clean project projection mapping
@@ -167,10 +168,12 @@ const getProductById = async (productId) => {
 /**
  * Enterprise Core Service for Defensive Product Modifications
  */
-const updateProduct = async (productId, updateData, reqUser) => {
+// const updateProduct = async (productId, updateData, reqUser) => {
+const updateProduct = async (publicId, updateData, reqUser) => {
   // Fetch current product record state securely
   const product = await Product.findOne({
-    _id: productId,
+    // _id: productId,
+    publicId,
     isDeleted: false,
   });
 
@@ -279,10 +282,12 @@ const updateProduct = async (productId, updateData, reqUser) => {
  * Product Delete Service Core
  * Performs conditional isolation state mapping based on historical ledger status.
  */
-const deleteProduct = async (productId, reqUser) => {
+// const deleteProduct = async (productId, reqUser) => {
+const deleteProduct = async (publicId, reqUser) => {
   // Target item verification matching active context parameters
   const product = await Product.findOne({
-    _id: productId,
+    // _id: productId,
+    publicId,
     isDeleted: false,
   });
 
@@ -291,7 +296,8 @@ const deleteProduct = async (productId, reqUser) => {
   }
 
   // Fetch structural usage mapping blocks across historical collections (Rule 8.9.6)
-  const usage = await getProductUsage(productId);
+  // const usage = await getProductUsage(productId);
+  const usage = await getProductUsage(product._id);
   const hasHistory = Object.values(usage).some(Boolean);
 
   // Enforce relational blocking integrity protections (Rule 8.9.11)
@@ -343,9 +349,11 @@ const getDeletedProducts = async () => {
 /**
  * Restore a previously soft-deleted product.
  */
-const restoreProduct = async (productId, reqUser) => {
+// const restoreProduct = async (productId, reqUser) => {
+const restoreProduct = async (publicId, reqUser) => {
   const product = await Product.findOne({
-    _id: productId,
+    // _id: productId,
+    publicId,
     isDeleted: true,
   }).withDeleted();
 
