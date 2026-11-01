@@ -8,7 +8,8 @@ import { ProductController } from "./product.controller.js";
 import {
   createProductSchema,
   productListQuerySchema,
-  productIdParamSchema,
+  // productIdParamSchema,
+  productPublicIdParamSchema,
   updateProductSchema,
 } from "./product.validation.js";
 
@@ -50,7 +51,8 @@ router.patch(
   "/:publicId/restore",
   verifyToken,
   authorize(ROLES.ADMIN),
-  validateRequest(productIdParamSchema),
+  // validateRequest(productIdParamSchema),
+  validateRequest(productPublicIdParamSchema),
   ProductController.restoreProduct
 );
 
@@ -66,7 +68,8 @@ router.get(
     ROLES.SALES,
     ROLES.PURCHASE
   ),
-  validateRequest(productIdParamSchema),
+  // validateRequest(productIdParamSchema),
+  validateRequest(productPublicIdParamSchema),
   ProductController.getProductById
 );
 
@@ -75,7 +78,8 @@ router.patch(
   "/:publicId",
   verifyToken,
   authorize(ROLES.ADMIN, ROLES.MANAGER), // Restricted to Admin/Manager per spec doc
-  validateRequest(productIdParamSchema),
+  // validateRequest(productIdParamSchema),
+  validateRequest(productPublicIdParamSchema),
   validateRequest(updateProductSchema),  // Validate Body criteria boundaries next
   ProductController.updateProduct
 );
@@ -85,7 +89,8 @@ router.delete(
   "/:publicId",
   verifyToken,
   authorize(ROLES.ADMIN), // Admin authorization lock enforced for structural safety
-  validateRequest(productIdParamSchema),
+  // validateRequest(productIdParamSchema),
+  validateRequest(productPublicIdParamSchema),
   ProductController.deleteProduct
 );
 

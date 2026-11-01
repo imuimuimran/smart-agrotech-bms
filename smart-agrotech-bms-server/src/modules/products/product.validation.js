@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PRODUCT_PUBLIC_ID_PREFIX } from "./product.constants.js";
 
 /**
  * Reusable ObjectId Validation
@@ -309,11 +310,26 @@ export const productListQuerySchema = z
  * Product ID Parameter Validator
  * Prevents CastErrors from bubbling up by validating format structures beforehand
  */
-export const productIdParamSchema = z.object({
+// export const productIdParamSchema = z.object({
+//   params: z.object({
+//     id: z
+//       .string()
+//       .regex(/^[0-9a-fA-F]{24}$/, "Invalid Product ID format. Must be a 24-character hex string."),
+//   }),
+// });
+
+/**
+ * Product Public ID Parameter Validator
+ * Validates IDs such as PRD-000001.
+ */
+export const productPublicIdParamSchema = z.object({
   params: z.object({
-    id: z
+    publicId: z
       .string()
-      .regex(/^[0-9a-fA-F]{24}$/, "Invalid Product ID format. Must be a 24-character hex string."),
+      .regex(
+        new RegExp(`^${PRODUCT_PUBLIC_ID_PREFIX}-\\d{6,}$`),
+        `Invalid Product Public ID format. Expected ${PRODUCT_PUBLIC_ID_PREFIX}-000001.`
+      ),
   }),
 });
 
