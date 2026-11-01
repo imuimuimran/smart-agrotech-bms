@@ -46,7 +46,8 @@ router.get(
 
 
 router.patch(
-  "/:id/restore",
+  // "/:id/restore",
+  "/:publicId/restore",
   verifyToken,
   authorize(ROLES.ADMIN),
   validateRequest(productIdParamSchema),
@@ -55,7 +56,8 @@ router.patch(
 
 
 router.get(
-  "/:id",
+  // "/:id",
+  "/:publicId",
   verifyToken,
   authorize(
     ROLES.ADMIN,
@@ -64,24 +66,26 @@ router.get(
     ROLES.SALES,
     ROLES.PURCHASE
   ),
-  validateRequest(productIdParamSchema), // Validates format layout properties cleanly
+  validateRequest(productIdParamSchema),
   ProductController.getProductById
 );
 
 router.patch(
-  "/:id",
+  // "/:id",
+  "/:publicId",
   verifyToken,
   authorize(ROLES.ADMIN, ROLES.MANAGER), // Restricted to Admin/Manager per spec doc
-  validateRequest(productIdParamSchema),  // Validate ID format structure first
+  validateRequest(productIdParamSchema),
   validateRequest(updateProductSchema),  // Validate Body criteria boundaries next
   ProductController.updateProduct
 );
 
 router.delete(
-  "/:id",
+  // "/:id",
+  "/:publicId",
   verifyToken,
   authorize(ROLES.ADMIN), // Admin authorization lock enforced for structural safety
-  validateRequest(productIdParamSchema), // Validates format property structures beforehand
+  validateRequest(productIdParamSchema),
   ProductController.deleteProduct
 );
 
