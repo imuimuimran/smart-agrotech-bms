@@ -8,15 +8,30 @@ export const API_ENDPOINTS = {
     CURRENT_USER: "/auth/me",
   },
   // Aligned exactly with your audited backend route signatures
+  // PRODUCTS: {
+  //   LIST: "/products",
+  //   DETAILS: (id) => `/products/${id}`,
+  //   CREATE: "/products",
+  //   UPDATE: (id) => `/products/${id}`,
+  //   DELETE: (id) => `/products/${id}`,
+  //   DELETED: "/products/deleted",
+  //   RESTORE: (id) => `/products/${id}/restore`,
+  // },
+
   PRODUCTS: {
     LIST: "/products",
-    DETAILS: (id) => `/products/${id}`,
+    DETAILS: (publicId) =>
+      `/products/${encodeURIComponent(publicId)}`,
     CREATE: "/products",
-    UPDATE: (id) => `/products/${id}`,
-    DELETE: (id) => `/products/${id}`,
+    UPDATE: (publicId) =>
+      `/products/${encodeURIComponent(publicId)}`,
+    DELETE: (publicId) =>
+      `/products/${encodeURIComponent(publicId)}`,
     DELETED: "/products/deleted",
-    RESTORE: (id) => `/products/${id}/restore`,
+    RESTORE: (publicId) =>
+      `/products/${encodeURIComponent(publicId)}/restore`,
   },
+
   CATEGORIES: {
     LIST: "/product-categories",
     DETAILS: (publicId) => `/product-categories/${encodeURIComponent(publicId)}`,
