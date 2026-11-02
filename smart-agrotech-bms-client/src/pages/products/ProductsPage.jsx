@@ -9,9 +9,6 @@ import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
 import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
-// import { ProductDetailsPage } from "./ProductDetailsPage";
-// import { ProductCreatePage } from "./ProductCreatePage";
-// import { ProductEditPage } from "./ProductEditPage";
 import { useAuth } from "../../hooks/useAuth";
 
 const PAGE_SIZE = 20;
@@ -45,7 +42,8 @@ function unwrapList(result) {
 }
 
 function getProductId(product) {
-  return product?._id || product?.id || product?.productId || "";
+  // return product?._id || product?.id || product?.productId || "";
+  return product?.publicId || "";
 }
 
 function getSellingPrice(product) {
@@ -130,9 +128,7 @@ export function ProductsPage({
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  // const [selectedProductId, setSelectedProductId] = useState(null);
-  // const [isCreating, setIsCreating] = useState(false);
-  // const [editingProductId, setEditingProductId] = useState(null);
+
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
   const [filters, setFilters] = useState({ ...INITIAL_FILTERS });
@@ -280,23 +276,14 @@ export function ProductsPage({
     setError("");
   }
 
-  // async function handleCreated() {
-  //   setIsCreating(false);
-  //   setSelectedProductId(null);
-  //   setEditingProductId(null);
-  //   await loadProducts(1, activeParams);
-  // }
-
-  // async function handleUpdated() {
-  //   // Return to the edited product's details when possible.
-  //   const detailsId = selectedProductId || editingProductId;
-  //   setEditingProductId(null);
-  //   if (detailsId) setSelectedProductId(detailsId);
-  //   await loadProducts(pagination.page, activeParams);
-  // }
-
   async function handleDeleteProduct() {
-    if (!canDelete || !deleteTarget?._id || isDeleting) {
+    // if (!canDelete || !deleteTarget?._id || isDeleting) {
+    //   return;
+    // }
+
+    const publicId = getProductId(deleteTarget);
+
+    if (!canDelete || !publicId || isDeleting) {
       return;
     }
 
@@ -305,7 +292,8 @@ export function ProductsPage({
     setActionError("");
 
     try {
-      await ProductService.deleteProduct(deleteTarget._id);
+      // await ProductService.deleteProduct(deleteTarget._id);
+      await ProductService.deleteProduct(publicId);
 
       const deletedName = deleteTarget.productName || "Product";
 
@@ -387,52 +375,6 @@ export function ProductsPage({
     }
   }
 
-
-
-  // async function handleDiscontinueProduct(product) {
-  //   const productId = product?._id;
-
-  //   if (!canUpdate || !productId || updatingStatusId) {
-  //     return;
-  //   }
-
-  //   if (product.status === "discontinued") {
-  //     return;
-  //   }
-
-  //   const confirmed = window.confirm(
-  //     `Discontinue "${product.productName}"?\n\n` +
-  //     "The product record will remain in the system, but its status will change to discontinued."
-  //   );
-
-  //   if (!confirmed) return;
-
-  //   setUpdatingStatusId(productId);
-  //   setActionMessage("");
-  //   setActionError("");
-
-  //   try {
-  //     await ProductService.updateProduct(productId, {
-  //       status: "discontinued",
-  //     });
-
-  //     setActionMessage(
-  //       `${product.productName} was discontinued successfully.`
-  //     );
-
-  //     await loadProducts(pagination.page, activeParams);
-  //   } catch (error) {
-  //     setActionError(
-  //       getProductActionError(
-  //         error,
-  //         "Unable to discontinue this product."
-  //       )
-  //     );
-  //   } finally {
-  //     setUpdatingStatusId(null);
-  //   }
-  // }
-
   async function handleDiscontinueProduct(product) {
     const productId = getProductId(product);
 
@@ -483,34 +425,18 @@ export function ProductsPage({
     }
   }
 
-  // function openDetails(product) {
-  //   const id = getProductId(product);
-  //   if (id) setSelectedProductId(id);
-  // }
-
   function openDetails(product) {
-    const id = getProductId(product);
+    const publicId = getProductId(product);
 
-    if (id) {
-      navigate(`/products/${encodeURIComponent(id)}`);
+    if (publicId) {
+      navigate(`/products/${encodeURIComponent(publicId)}`);
     }
   }
 
-  // function openEdit(id) {
-  //   // Defense-in-depth UI gate; backend authorization remains authoritative.
-  //   if (!canUpdate || !id) return;
-  //   setEditingProductId(id);
-  // }
-
-  function openEdit(id) {
-    if (!canUpdate || !id) return;
-
-    navigate(`/products/${encodeURIComponent(id)}/edit`);
+  function openEdit(publicId) {
+    if (!canUpdate || !publicId) return;
+    navigate(`/products/${encodeURIComponent(publicId)}/edit`);
   }
-
-  // function returnFromEdit() {
-  //   setEditingProductId(null);
-  // }
 
   function getProductActionError(error, fallback) {
     return (
@@ -521,49 +447,6 @@ export function ProductsPage({
     );
   }
 
-  // if (editingProductId) {
-  //   if (!canUpdate) {
-  //     // Prevent an unauthorized user from entering edit mode, even if state is triggered unexpectedly.
-  //     return (
-  //       <div className="space-y-4">
-  //         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">
-  //           You do not have permission to edit products.
-  //         </div>
-  //         <Button type="button" variant="secondary" onClick={returnFromEdit}>
-  //           Back
-  //         </Button>
-  //       </div>
-  //     );
-  //   }
-
-  //   return (
-  //     <ProductEditPage
-  //       productId={editingProductId}
-  //       onBack={returnFromEdit}
-  //       onSuccess={handleUpdated}
-  //     />
-  //   );
-  // }
-
-  // if (selectedProductId) {
-  //   return (
-  //     <ProductDetailsPage
-  //       productId={selectedProductId}
-  //       onBack={() => setSelectedProductId(null)}
-  //       onEdit={openEdit}
-  //     />
-  //   );
-  // }
-
-  // if (isCreating) {
-  //   return (
-  //     <ProductCreatePage
-  //       onBack={() => setIsCreating(false)}
-  //       onSuccess={handleCreated}
-  //     />
-  //   );
-  // }
-
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -571,14 +454,6 @@ export function ProductsPage({
           <h1 className="text-2xl font-bold text-gray-900">Products</h1>
           <p className="mt-1 text-sm text-gray-600">View and manage your product catalog.</p>
         </div>
-
-        {/* {canCreate && (
-          <Button type="button" onClick={() => setIsCreating(true)}>
-            Create product
-          </Button>
-        )} */}
-
-
 
         <div className="flex flex-wrap gap-2">
 
@@ -619,7 +494,6 @@ export function ProductsPage({
           )}
 
         </div>
-
 
       </header>
 
@@ -733,8 +607,6 @@ export function ProductsPage({
           )}
         </Card>
       )}
-
-
 
       <Card className="bg-white">
         <form onSubmit={handleApplyFilters} className="space-y-4">
@@ -977,43 +849,6 @@ export function ProductsPage({
                             </Button>
                           )}
 
-                          {/* {canUpdate &&
-                            product.status !== "discontinued" && (
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                disabled={Boolean(updatingStatusId)}
-                                onClick={() => handleDiscontinueProduct(product)}
-                              >
-                                {updatingStatusId === product._id
-                                  ? "Updating..."
-                                  : "Discontinue"}
-                              </Button>
-                            )} */}
-
-
-
-
-
-                          {/* {(product.status === "discontinued"
-                            ? canContinueProduct
-                            : canUpdate) && (
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                size="sm"
-                                disabled={Boolean(updatingStatusId)}
-                                onClick={() => handleDiscontinueProduct(product)}
-                              >
-                                {updatingStatusId === getProductId(product)
-                                  ? "Updating..."
-                                  : product.status === "discontinued"
-                                    ? "Continue"
-                                    : "Discontinue"}
-                              </Button>
-                            )} */}
-
-
                           {(product.status === "discontinued" ? canContinueProduct : canUpdate) && (
                             <Button
                               type="button"
@@ -1041,7 +876,6 @@ export function ProductsPage({
                             </Button>
                           )}
 
-
                           {canDelete && (
                             <Button
                               type="button"
@@ -1057,7 +891,6 @@ export function ProductsPage({
                           )}
                         </div>
 
-
                       </td>
 
                     </tr>
@@ -1065,8 +898,6 @@ export function ProductsPage({
                 })}
               </tbody>
             </table>
-
-
 
             {canDelete && deleteTarget && (
               <div
@@ -1124,9 +955,6 @@ export function ProductsPage({
                 </section>
               </div>
             )}
-
-
-
 
           </div>
         )}

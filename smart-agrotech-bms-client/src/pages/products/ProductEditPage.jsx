@@ -247,11 +247,6 @@ export function ProductEditPage() {
 
     setIsSubmitting(true);
     try {
-      // await ProductService.updateProduct(productId, payload);
-      // setSuccessMessage("Product updated successfully.");
-      // if (typeof onSuccess === "function") {
-      //   await onSuccess();
-      // }
       await ProductService.updateProduct(productId, payload);
       navigate(`/products/${encodeURIComponent(productId)}`);
 

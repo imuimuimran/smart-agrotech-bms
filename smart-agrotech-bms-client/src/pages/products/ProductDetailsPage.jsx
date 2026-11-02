@@ -85,6 +85,7 @@ export function ProductDetailsPage() {
       try {
         // productId must be the MongoDB _id, not publicId.
         // The ID passed here must be the MongoDB _id.
+        // const response = await ProductService.getProductById(productId);
         const response = await ProductService.getProductById(productId);
         const data = response?.data?.data ?? response?.data ?? null;
         if (cancelled) return;
@@ -171,8 +172,8 @@ export function ProductDetailsPage() {
             <Button
               type="button"
               variant="primary"
-              // onClick={() => onEdit(product._id || productId)}
-              onClick={() => navigate(`/products/${encodeURIComponent(product._id || productId)}/edit`)}
+              onClick={() => navigate(`/products/${encodeURIComponent(product.publicId || productId)}/edit`)}
+              
             >
               <SquarePen className="w-4 h-4 mr-2" /> <span>Edit Product</span>
             </Button>

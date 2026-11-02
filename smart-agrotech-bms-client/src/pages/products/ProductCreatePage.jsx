@@ -407,15 +407,6 @@ export function ProductCreatePage() {
     setIsSubmitting(true);
 
     try {
-      // await ProductService.createProduct(payload);
-
-      // setSuccessMessage("Product created successfully.");
-      // setFormData({ ...INITIAL_FORM_STATE });
-
-      // if (typeof onSuccess === "function") {
-      //   await onSuccess();
-      // }
-
       await ProductService.createProduct(payload);
       navigate("/products");
 
