@@ -146,13 +146,12 @@ const getProducts = async (query) => {
 /**
  * Fetch Single Product by MongoDB ID with Core Relationship Population
  */
-const getProductById = async (productId) => {
+const getProductById = async (publicId) => {
   const product = await Product.findOne({
-    // _id: productId,
     publicId,
     isDeleted: false,
   })
-    .populate("categoryId", "publicId categoryName categoryCode status") // Clean project projection mapping
+    .populate("categoryId", "publicId categoryName categoryCode status")
     .populate("brandId", "publicId brandName brandCode status");
 
   if (!product) {
@@ -278,46 +277,39 @@ const updateProduct = async (publicId, updateData, reqUser) => {
   return sanitizeProduct(updatedProduct);
 };
 
-/**
- * Product Delete Service Core
- * Performs conditional isolation state mapping based on historical ledger status.
- */
-// const deleteProduct = async (productId, reqUser) => {
 const deleteProduct = async (publicId, reqUser) => {
-  // Target item verification matching active context parameters
   const product = await Product.findOne({
-    // _id: productId,
     publicId,
     isDeleted: false,
   });
 
   if (!product) {
-    throw new ApiError(HTTP_STATUS.NOT_FOUND, PRODUCT_MESSAGES.NOT_FOUND);
+    throw new ApiError(
+      HTTP_STATUS.NOT_FOUND,
+      PRODUCT_MESSAGES.NOT_FOUND
+    );
   }
 
-  // Fetch structural usage mapping blocks across historical collections (Rule 8.9.6)
-  // const usage = await getProductUsage(productId);
+  // Internal relationship checks continue using MongoDB _id.
   const usage = await getProductUsage(product._id);
   const hasHistory = Object.values(usage).some(Boolean);
 
-  // Enforce relational blocking integrity protections (Rule 8.9.11)
   if (hasHistory) {
     throw new ApiError(
-      HTTP_STATUS.CONFLICT, // 409 Conflict represents state clashes appropriately
+      HTTP_STATUS.CONFLICT,
       "Product cannot be deleted because it has business history. Discontinue the product instead."
     );
   }
 
-  // Update the record state and store tracking metadata (Rule 8.9.28)
   product.isDeleted = true;
   product.deletedAt = new Date();
-  product.deletedBy = reqUser.publicId; // Links your user publicId tracker configuration
+  product.deletedBy = reqUser.publicId;
   product.updatedBy = reqUser.publicId;
 
   await product.save();
-  // Trigger after successful product persistence execution paths
+
   await ActivityLogService.logActivity({
-    user: reqUser._id || reqUser.id, // Internal user database reference tracking
+    user: reqUser._id || reqUser.id,
     action: ACTIVITY_ACTIONS.CREATE,
     module: ACTIVITY_MODULES.PRODUCT,
     entityId: product._id,
@@ -346,13 +338,8 @@ const getDeletedProducts = async () => {
   return products.map(sanitizeProduct);
 };
 
-/**
- * Restore a previously soft-deleted product.
- */
-// const restoreProduct = async (productId, reqUser) => {
 const restoreProduct = async (publicId, reqUser) => {
   const product = await Product.findOne({
-    // _id: productId,
     publicId,
     isDeleted: true,
   }).withDeleted();
