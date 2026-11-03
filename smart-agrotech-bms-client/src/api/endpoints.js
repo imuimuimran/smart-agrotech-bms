@@ -7,16 +7,6 @@ export const API_ENDPOINTS = {
     LOGOUT: "/auth/logout",
     CURRENT_USER: "/auth/me",
   },
-  // Aligned exactly with your audited backend route signatures
-  // PRODUCTS: {
-  //   LIST: "/products",
-  //   DETAILS: (id) => `/products/${id}`,
-  //   CREATE: "/products",
-  //   UPDATE: (id) => `/products/${id}`,
-  //   DELETE: (id) => `/products/${id}`,
-  //   DELETED: "/products/deleted",
-  //   RESTORE: (id) => `/products/${id}/restore`,
-  // },
 
   PRODUCTS: {
     LIST: "/products",
@@ -51,4 +41,23 @@ export const API_ENDPOINTS = {
     RESTORE: (publicId) => `/brands/${encodeURIComponent(publicId)}/restore`,
     DELETED: "/brands/deleted",
   },
+
+  SUPPLIERS: {
+  LIST: "/suppliers",
+
+  DETAILS: (publicId) =>
+    `/suppliers/${encodeURIComponent(publicId)}`,
+
+  CREATE: "/suppliers",
+
+  UPDATE: (publicId) =>
+    `/suppliers/${encodeURIComponent(publicId)}`,
+
+  DELETE: (publicId) =>
+    `/suppliers/${encodeURIComponent(publicId)}`,
+
+  STATISTICS: "/suppliers/statistics/overview",
+
+  DASHBOARD_SUMMARY: "/suppliers/dashboard/summary",
+},
 };
