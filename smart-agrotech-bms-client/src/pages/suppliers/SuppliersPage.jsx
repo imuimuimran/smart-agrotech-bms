@@ -1,4 +1,5 @@
 
+import { Link } from "react-router-dom";
 import { useCallback, useEffect, useState } from "react";
 import { SupplierService } from "../../services/supplierService";
 import { Card } from "../../components/ui/Card";
@@ -213,6 +214,16 @@ function SupplierCard({ supplier }) {
           </p>
         </div>
       </div>
+
+      {supplier.publicId && (
+  <Link
+    to={`/suppliers/${encodeURIComponent(supplier.publicId)}`}
+    className="mt-3 inline-flex text-sm font-medium text-emerald-700 underline underline-offset-2 hover:text-emerald-900"
+  >
+    View Details
+  </Link>
+)}
+
     </Card>
   );
 }
@@ -274,11 +285,17 @@ export default function SuppliersPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, appliedFilters, retry]);
+  }, [page, appliedFilters]);
 
   useEffect(() => {
-    void loadSuppliers();
-  }, [loadSuppliers]);
+    const timer = setTimeout(() => {
+        void loadSuppliers();
+    }, 0);
+
+    return () => {
+        clearTimeout(timer);
+    };
+  }, [loadSuppliers, retry]);
 
   function handleFilterChange(event) {
     const { name, value } = event.target;
