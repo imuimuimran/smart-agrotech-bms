@@ -22,6 +22,8 @@ import BrandCreatePage from "./pages/brands/BrandCreatePage.jsx";
 import BrandEditPage from "./pages/brands/BrandEditPage";
 import BrandRestoreByIdPage from "./pages/brands/BrandRestoreByIdPage";
 
+import SuppliersPage from "./pages/suppliers/SuppliersPage.jsx";
+
 function ForbiddenPage() {
   return (
     <main className="p-8">
@@ -74,6 +76,8 @@ export function App() {
         <Route path="/brands/:publicId/edit" element={<BrandEditPage />} />
 
         <Route path="/brands/restore" element={<BrandRestoreByIdPage />} />
+
+        <Route path="/suppliers" element={<SuppliersPage />} />
 
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -23,6 +23,11 @@ const navigationItems = [
     to: "/products",
     end: false
   },
+  {
+    label: "Suppliers",
+    to: "/suppliers",
+    end: false
+  },
 ];
 
 export function Sidebar({ isOpen, onClose }) {
