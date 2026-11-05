@@ -334,6 +334,12 @@ export default function SuppliersPage() {
         <p className="mt-1 text-sm text-slate-500">
           View and search registered suppliers.
         </p>
+        <Link
+  to="/suppliers/create"
+  className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700"
+>
+  + Create Supplier
+</Link>
       </div>
 
       <Card className="p-5">

@@ -562,15 +562,28 @@ export default function SupplierDetailsPage() {
     }
   }, [id]);
 
+  // useEffect(() => {
+  //   let active = true;
+
+  //   void loadSupplier(() => active);
+
+  //   return () => {
+  //     active = false;
+  //   };
+  // }, [loadSupplier, retry]);
+
   useEffect(() => {
-    let active = true;
+  let active = true;
 
+  const timer = setTimeout(() => {
     void loadSupplier(() => active);
+  }, 0);
 
-    return () => {
-      active = false;
-    };
-  }, [loadSupplier, retry]);
+  return () => {
+    active = false;
+    clearTimeout(timer);
+  };
+}, [loadSupplier, retry]);
 
   const handleRetry = () => {
     setIsLoading(true);
