@@ -680,6 +680,15 @@ export default function SupplierDetailsPage() {
         </div>
 
         <Button
+  type="button"
+  onClick={() =>
+    navigate(`/suppliers/${encodeURIComponent(supplier.publicId)}/edit`)
+  }
+>
+  Edit Supplier
+</Button>
+
+        <Button
           type="button"
           variant="secondary"
           onClick={() => navigate("/suppliers")}

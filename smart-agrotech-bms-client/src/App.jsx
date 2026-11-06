@@ -25,6 +25,7 @@ import BrandRestoreByIdPage from "./pages/brands/BrandRestoreByIdPage";
 import SuppliersPage from "./pages/suppliers/SuppliersPage.jsx";
 import SupplierDetailsPage from "./pages/suppliers/SupplierDetailsPage.jsx";
 import SupplierCreatePage from "./pages/suppliers/SupplierCreatePage.jsx";
+import SupplierEditPage from "./pages/suppliers/SupplierEditPage.jsx";
 
 function ForbiddenPage() {
   return (
@@ -84,6 +85,8 @@ export function App() {
         <Route path="/suppliers/:id" element={<SupplierDetailsPage />} />
 
         <Route path="/suppliers/create" element={<SupplierCreatePage />} />
+
+        <Route path="/suppliers/:publicId/edit" element={<SupplierEditPage />} />
 
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
