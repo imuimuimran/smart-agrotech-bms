@@ -107,22 +107,40 @@ export default function SupplierEditPage() {
 
   useEffect(() => {
     let active = true;
+
     if (!publicId) {
-      setError("Supplier ID is missing from the URL.");
-      setLoading(false);
-      return () => { active = false; };
+      return () => {
+        active = false;
+      };
     }
+
     SupplierService.getSupplierById(publicId)
       .then((response) => {
         if (!active) return;
+
         const supplier = response?.data;
-        if (!supplier) throw new Error("Supplier not found.");
+
+        if (!supplier) {
+          throw new Error("Supplier not found.");
+        }
+
         setForm(toForm(supplier));
         setSupplierName(str(supplier.supplierName));
       })
-      .catch((err) => { if (active) setError(getError(err)); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+      .catch((err) => {
+        if (active) {
+          setError(getError(err));
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
   }, [publicId]);
 
   const change = (event) => {
@@ -141,15 +159,19 @@ export default function SupplierEditPage() {
     setFieldErrors((old) => ({ ...old, [name]: "" }));
   };
   const changeBank = (index, key, value) => {
-    setForm((old) => ({ ...old, bankAccounts: old.bankAccounts.map((account, i) => {
-      if (i === index) return { ...account, [key]: value };
-      return key === "isDefault" && value ? { ...account, isDefault: false } : account;
-    }) }));
+    setForm((old) => ({
+      ...old, bankAccounts: old.bankAccounts.map((account, i) => {
+        if (i === index) return { ...account, [key]: value };
+        return key === "isDefault" && value ? { ...account, isDefault: false } : account;
+      })
+    }));
   };
-  const addBank = () => setForm((old) => ({ ...old, bankAccounts: [...old.bankAccounts, {
-    bankName: "", accountName: "", accountNumber: "", routingNumber: "", branchName: "",
-    isDefault: old.bankAccounts.length === 0,
-  }] }));
+  const addBank = () => setForm((old) => ({
+    ...old, bankAccounts: [...old.bankAccounts, {
+      bankName: "", accountName: "", accountNumber: "", routingNumber: "", branchName: "",
+      isDefault: old.bankAccounts.length === 0,
+    }]
+  }));
 
   function validate() {
     const e = {};
