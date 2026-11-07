@@ -1,10 +1,11 @@
-
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useCallback, useEffect, useState } from "react";
 import { SupplierService } from "../../services/supplierService";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
+import { useAuth } from "../../hooks/useAuth";
+import SupplierDeleteDialog from "./SupplierDeleteDialog";
 
 const PAGE_SIZE = 10;
 
@@ -61,6 +62,19 @@ function getErrorMessage(error) {
   }
 
   return error?.message || "Unable to load suppliers. Please try again.";
+}
+
+function getRole(user) {
+  const rawRole =
+    user?.role?.name ??
+    user?.role ??
+    user?.user?.role?.name ??
+    user?.user?.role ??
+    user?.userRole ??
+    user?.roleName ??
+    "";
+
+  return String(rawRole).trim().toLowerCase().replace(/[\s-]+/g, "_");
 }
 
 function displayValue(value) {
@@ -120,7 +134,7 @@ function SupplierTypeLabel({ value }) {
   return labels[value] || displayValue(value);
 }
 
-function SupplierCard({ supplier }) {
+function SupplierCard({ supplier, canDelete, onDelete }) {
   const contactName =
     supplier?.contactPerson?.name ||
     supplier?.contactPerson?.designation ||
@@ -215,21 +229,41 @@ function SupplierCard({ supplier }) {
         </div>
       </div>
 
-      {supplier.publicId && (
-  <Link
-    to={`/suppliers/${encodeURIComponent(supplier.publicId)}`}
-    className="mt-3 inline-flex text-sm font-medium text-emerald-700 underline underline-offset-2 hover:text-emerald-900"
-  >
-    View Details
-  </Link>
-)}
+      <div className="mt-3 flex flex-wrap items-center gap-4">
+        {supplier.publicId && (
+          <Link
+            to={`/suppliers/${encodeURIComponent(supplier.publicId)}`}
+            className="inline-flex text-sm font-medium text-emerald-700 underline underline-offset-2 hover:text-emerald-900"
+          >
+            View Details
+          </Link>
+        )}
+
+        {canDelete && (
+          <Button
+            type="button"
+            variant="danger"
+            onClick={() => onDelete?.(supplier)}
+          >
+            Delete Supplier
+          </Button>
+        )}
+      </div>
 
     </Card>
   );
 }
 
 export default function SuppliersPage() {
+  const { user: authenticatedUser } = useAuth();
+  const location = useLocation();
+  const canDeleteSupplier = getRole(authenticatedUser) === "admin";
+
   const [suppliers, setSuppliers] = useState([]);
+  const [supplierToDelete, setSupplierToDelete] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(
+    location.state?.message || ""
+  );
   const [meta, setMeta] = useState({ ...INITIAL_META });
 
   const [filters, setFilters] = useState({ ...INITIAL_FILTERS });
@@ -487,6 +521,15 @@ export default function SuppliersPage() {
         </form>
       </Card>
 
+      {successMessage && (
+        <div
+          className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800"
+          role="status"
+        >
+          {successMessage}
+        </div>
+      )}
+
       {error && (
         <div
           className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700"
@@ -516,6 +559,8 @@ export default function SuppliersPage() {
                 <SupplierCard
                   key={supplier.publicId}
                   supplier={supplier}
+                  canDelete={canDeleteSupplier}
+                  onDelete={setSupplierToDelete}
                 />
               ))}
             </div>
@@ -569,6 +614,20 @@ export default function SuppliersPage() {
             </div>
           </div>
         </>
+      )}
+
+      {canDeleteSupplier && supplierToDelete && (
+        <SupplierDeleteDialog
+          supplier={supplierToDelete}
+          onClose={() => setSupplierToDelete(null)}
+          onDeleted={(deletedSupplier) => {
+            setSupplierToDelete(null);
+            setSuccessMessage(
+              `${deletedSupplier.supplierName || "Supplier"} was deleted successfully.`
+            );
+            setRetry((value) => value + 1);
+          }}
+        />
       )}
     </main>
   );

@@ -1,11 +1,26 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
 
 import { SupplierService } from "../../services/supplierService";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
 import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
+import SupplierDeleteDialog from "./SupplierDeleteDialog";
+
+function getRole(user) {
+  const rawRole =
+    user?.role?.name ??
+    user?.role ??
+    user?.user?.role?.name ??
+    user?.user?.role ??
+    user?.userRole ??
+    user?.roleName ??
+    "";
+
+  return String(rawRole).trim().toLowerCase().replace(/[\s-]+/g, "_");
+}
 
 const display = (value, fallback = "—") => {
   if (value === undefined || value === null || value === "") {
@@ -198,7 +213,10 @@ function getErrorMessage(error) {
 export default function SupplierDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user: authenticatedUser } = useAuth();
+  const canDeleteSupplier = getRole(authenticatedUser) === "admin";
 
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [supplier, setSupplier] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -349,22 +367,34 @@ export default function SupplierDetailsPage() {
           </p>
         </div>
 
-        <Button
-  type="button"
-  onClick={() =>
-    navigate(`/suppliers/${encodeURIComponent(supplier.publicId)}/edit`)
-  }
->
-  Edit Supplier
-</Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            onClick={() =>
+              navigate(`/suppliers/${encodeURIComponent(supplier.publicId)}/edit`)
+            }
+          >
+            Edit Supplier
+          </Button>
 
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => navigate("/suppliers")}
-        >
-          Back to Suppliers
-        </Button>
+          {canDeleteSupplier && (
+            <Button
+              type="button"
+              variant="danger"
+              onClick={() => setShowDeleteDialog(true)}
+            >
+              Delete Supplier
+            </Button>
+          )}
+
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => navigate("/suppliers")}
+          >
+            Back to Suppliers
+          </Button>
+        </div>
       </header>
 
       {/* Supplier information */}
@@ -465,6 +495,20 @@ export default function SupplierDetailsPage() {
         </dl>
       </Section>
 
+      {canDeleteSupplier && showDeleteDialog && (
+        <SupplierDeleteDialog
+          supplier={supplier}
+          onClose={() => setShowDeleteDialog(false)}
+          onDeleted={(deletedSupplier) => {
+            navigate("/suppliers", {
+              replace: true,
+              state: {
+                message: `${deletedSupplier.supplierName || "Supplier"} was deleted successfully.`,
+              },
+            });
+          }}
+        />
+      )}
     </main>
   );
 }
