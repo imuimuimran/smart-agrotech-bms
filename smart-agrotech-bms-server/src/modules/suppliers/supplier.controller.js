@@ -132,6 +132,33 @@ res
 
 });
 
+const getDeletedSuppliers = catchAsync(async (req, res) => {
+  const result = await SupplierService.getDeletedSuppliers();
+
+  sendResponse({
+    res,
+    statusCode: 200,
+    success: true,
+    message: SUPPLIER_MESSAGES.FETCH_DELETED_SUCCESS,
+    data: result,
+  });
+});
+
+const restoreSupplier = catchAsync(async (req, res) => {
+  const result = await SupplierService.restoreSupplier(
+    req.params.publicId,
+    req.user
+  );
+
+  sendResponse({
+    res,
+    statusCode: 200,
+    success: true,
+    message: SUPPLIER_MESSAGES.RESTORED_SUCCESS,
+    data: result,
+  });
+});
+
 const getSupplierStatistics =
 catchAsync(
 async (
@@ -180,6 +207,8 @@ export const SupplierController = {
   getSupplier,
   updateSupplier,
   deleteSupplier,
+  getDeletedSuppliers,
+  restoreSupplier,
   getSupplierStatistics,
   getSupplierDashboardSummary,
 };

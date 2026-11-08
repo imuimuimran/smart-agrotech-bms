@@ -49,6 +49,22 @@ router.get(
   SupplierController.getSupplierDashboardSummary
 );
 
+// ADMIN-only soft-deleted supplier management endpoints.
+// Keep the static /deleted route before /:publicId.
+router.get(
+  "/deleted",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  SupplierController.getDeletedSuppliers
+);
+
+router.patch(
+  "/:publicId/restore",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  SupplierController.restoreSupplier
+);
+
 // 3. Dynamic Parameter Endpoints 
 router.get(
   "/:publicId",

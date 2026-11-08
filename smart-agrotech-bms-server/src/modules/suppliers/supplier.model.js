@@ -83,8 +83,16 @@ supplierSchema.virtual("availableCredit").get(function () {
   return this.creditLimit - this.currentPayable;
 });
 
+// Allow explicitly authorized service queries to include soft-deleted suppliers.
+supplierSchema.query.withDeleted = function () {
+  return this.setOptions({ withDeleted: true });
+};
+
+// Keep soft-deleted suppliers hidden from all ordinary find queries.
 supplierSchema.pre(/^find/, function () {
-  this.find({ isDeleted: false });
+  if (!this.getOptions().withDeleted) {
+    this.where({ isDeleted: false });
+  }
 });
 
 const Supplier = model("Supplier", supplierSchema);

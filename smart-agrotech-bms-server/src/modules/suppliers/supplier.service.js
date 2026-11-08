@@ -44,6 +44,21 @@ const getSuppliers = async (query) => {
   };
 };
 
+/**
+ * Return soft-deleted suppliers for the ADMIN restore screen.
+ * The withDeleted query option bypasses the model's default soft-delete filter.
+ */
+const getDeletedSuppliers = async () => {
+  const suppliers = await Supplier.find({ isDeleted: true })
+    .withDeleted()
+    .sort({ deletedAt: -1 });
+
+  return suppliers.map((supplier) => ({
+    ...sanitizeSupplier(supplier),
+    deletedAt: supplier.deletedAt,
+  }));
+};
+
 const getSupplier = async (
   publicId
 ) => {
@@ -236,6 +251,35 @@ const deleteSupplier = async (
 
 };
 
+
+/**
+ * Restore a soft-deleted supplier using its publicId.
+ * Only the ADMIN-protected route exposes this operation.
+ */
+const restoreSupplier = async (publicId, reqUser) => {
+  const supplier = await Supplier.findOne({
+    publicId,
+    isDeleted: true,
+  }).withDeleted();
+
+  if (!supplier) {
+    throw new ApiError(
+      HTTP_STATUS.NOT_FOUND,
+      SUPPLIER_MESSAGES.SUPPLIER_NOT_DELETED
+    );
+  }
+
+  supplier.isDeleted = false;
+  supplier.deletedAt = null;
+  supplier.deletedBy = null;
+  supplier.updatedBy = reqUser.publicId;
+
+  await supplier.save();
+
+  return sanitizeSupplier(supplier);
+};
+
+
 const getSupplierStatistics =
 async () => {
 
@@ -338,6 +382,8 @@ export const SupplierService = {
   getSupplier,
   updateSupplier,
   deleteSupplier,
+  getDeletedSuppliers,
+  restoreSupplier,
   getSupplierStatistics,
   getSuppliersNearCreditLimit,
   getSupplierDashboard,
