@@ -368,12 +368,22 @@ export default function SuppliersPage() {
         <p className="mt-1 text-sm text-slate-500">
           View and search registered suppliers.
         </p>
-        <Link
-  to="/suppliers/create"
-  className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700"
->
-  + Create Supplier
-</Link>
+        <div className="mt-3 flex flex-wrap gap-3">
+          <Link
+            to="/suppliers/create"
+            className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700"
+          >
+            + Create Supplier
+          </Link>
+          {canDeleteSupplier && (
+            <Link
+              to="/suppliers/restore"
+              className="inline-flex items-center justify-center rounded-lg border border-emerald-700 px-4 py-2.5 text-sm font-medium text-emerald-800 hover:bg-emerald-50"
+            >
+              Restore Deleted Suppliers
+            </Link>
+          )}
+        </div>
       </div>
 
       <Card className="p-5">
