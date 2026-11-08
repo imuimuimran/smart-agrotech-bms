@@ -43,21 +43,14 @@ export const API_ENDPOINTS = {
   },
 
   SUPPLIERS: {
-  LIST: "/suppliers",
-
-  DETAILS: (publicId) =>
-    `/suppliers/${encodeURIComponent(publicId)}`,
-
-  CREATE: "/suppliers",
-
-  UPDATE: (publicId) =>
-    `/suppliers/${encodeURIComponent(publicId)}`,
-
-  DELETE: (publicId) =>
-    `/suppliers/${encodeURIComponent(publicId)}`,
-
-  STATISTICS: "/suppliers/statistics/overview",
-
-  DASHBOARD_SUMMARY: "/suppliers/dashboard/summary",
-},
+    LIST: "/suppliers",
+    DETAILS: (publicId) => `/suppliers/${encodeURIComponent(publicId)}`,
+    CREATE: "/suppliers",
+    UPDATE: (publicId) => `/suppliers/${encodeURIComponent(publicId)}`,
+    DELETE: (publicId) => `/suppliers/${encodeURIComponent(publicId)}`,
+    DELETED: "/suppliers/deleted",
+    RESTORE: (publicId) => `/suppliers/${encodeURIComponent(publicId)}/restore`,
+    STATISTICS: "/suppliers/statistics/overview",
+    DASHBOARD_SUMMARY: "/suppliers/dashboard/summary",
+  },
 };
