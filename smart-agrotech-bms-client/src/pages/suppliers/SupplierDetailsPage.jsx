@@ -1,3 +1,4 @@
+import { Trash, SquarePen } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
@@ -374,7 +375,7 @@ export default function SupplierDetailsPage() {
               navigate(`/suppliers/${encodeURIComponent(supplier.publicId)}/edit`)
             }
           >
-            Edit Supplier
+            <SquarePen className="w-4 h-4 mr-2" /> <span>Edit Supplier</span>
           </Button>
 
           {canDeleteSupplier && (
@@ -383,7 +384,7 @@ export default function SupplierDetailsPage() {
               variant="danger"
               onClick={() => setShowDeleteDialog(true)}
             >
-              Delete Supplier
+              <Trash className="w-4 h-4 mr-2" /> <span>Delete Supplier</span>
             </Button>
           )}
 

@@ -1,3 +1,4 @@
+import { LayersPlus, ArchiveRestore, Eye, Trash, SquarePen, Funnel } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useCallback, useEffect, useState } from "react";
 import { SupplierService } from "../../services/supplierService";
@@ -233,11 +234,20 @@ function SupplierCard({ supplier, canDelete, onDelete }) {
         {supplier.publicId && (
           <Link
             to={`/suppliers/${encodeURIComponent(supplier.publicId)}`}
-            className="inline-flex text-sm font-medium text-emerald-700 underline underline-offset-2 hover:text-emerald-900"
+            // className="inline-flex text-sm font-medium text-emerald-700 underline underline-offset-2 hover:text-emerald-900"
+            className="inline-flex items-center justify-center rounded-lg border px-4 py-2.5 border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >
-            View Details
+            {/* View Details */}
+            <Eye className="w-4 h-4 mr-2" /> <span>View Details</span>
           </Link>
         )}
+        
+        <Link
+          to={`/suppliers/${encodeURIComponent(supplier.publicId)}/edit`}
+          className="inline-flex items-center justify-center rounded-lg border px-4 py-2.5 border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          <SquarePen className="w-4 h-4 mr-2" /> <span>Edit Supplier</span>
+        </Link>
 
         {canDelete && (
           <Button
@@ -245,7 +255,8 @@ function SupplierCard({ supplier, canDelete, onDelete }) {
             variant="danger"
             onClick={() => onDelete?.(supplier)}
           >
-            Delete Supplier
+            {/* Delete Supplier */}
+            <Trash className="w-4 h-4 mr-2" /> <span>Delete Supplier</span>
           </Button>
         )}
       </div>
@@ -361,30 +372,31 @@ export default function SuppliersPage() {
 
   return (
     <main className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">
-          Suppliers
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          View and search registered suppliers.
-        </p>
-        <div className="mt-3 flex flex-wrap gap-3">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Suppliers</h1>
+          <p className="mt-1 text-sm text-gray-600">View and search registered suppliers.</p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
           <Link
             to="/suppliers/create"
             className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700"
           >
-            + Create Supplier
+            {/* + Create Supplier */}
+            <LayersPlus className="w-4 h-4 mr-2" /> <span>Create product</span>
           </Link>
           {canDeleteSupplier && (
             <Link
               to="/suppliers/restore"
               className="inline-flex items-center justify-center rounded-lg border border-emerald-700 px-4 py-2.5 text-sm font-medium text-emerald-800 hover:bg-emerald-50"
             >
-              Restore Deleted Suppliers
+              {/* Restore Deleted Suppliers */}
+              <ArchiveRestore className="w-4 h-4 mr-2" /> <span>Restore Deleted Suppliers</span>
             </Link>
           )}
         </div>
-      </div>
+      </header>
 
       <Card className="p-5">
         <form onSubmit={handleApplyFilters} className="space-y-4">
@@ -516,9 +528,7 @@ export default function SuppliersPage() {
               </select>
             </div>
 
-            <Button type="submit">
-              Apply Filters
-            </Button>
+            <Button type="submit"><Funnel className="w-4 h-4 mr-2" /> <span>Apply filters</span></Button>
 
             <Button
               type="button"

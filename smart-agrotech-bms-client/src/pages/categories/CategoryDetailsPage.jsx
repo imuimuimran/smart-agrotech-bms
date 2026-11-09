@@ -177,7 +177,7 @@ const CategoryDetailsPage = () => {
     return (
       <div className="space-y-4 p-6">
         <Button onClick={() => navigate("/categories")} variant="secondary">
-          Back to Categories
+          Back to Categories 
         </Button>
 
         <Card>
