@@ -369,7 +369,8 @@ export default function SupplierDetailsPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button
+          {canDeleteSupplier && (
+            <Button
             type="button"
             onClick={() =>
               navigate(`/suppliers/${encodeURIComponent(supplier.publicId)}/edit`)
@@ -377,6 +378,8 @@ export default function SupplierDetailsPage() {
           >
             <SquarePen className="w-4 h-4 mr-2" /> <span>Edit Supplier</span>
           </Button>
+          )}
+          
 
           {canDeleteSupplier && (
             <Button

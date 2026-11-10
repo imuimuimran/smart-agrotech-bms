@@ -242,12 +242,15 @@ function SupplierCard({ supplier, canDelete, onDelete }) {
           </Link>
         )}
         
-        <Link
+        {canDelete && (
+          <Link
           to={`/suppliers/${encodeURIComponent(supplier.publicId)}/edit`}
           className="inline-flex items-center justify-center rounded-lg border px-4 py-2.5 border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50"
         >
           <SquarePen className="w-4 h-4 mr-2" /> <span>Edit Supplier</span>
         </Link>
+        )}
+        
 
         {canDelete && (
           <Button
@@ -379,13 +382,16 @@ export default function SuppliersPage() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Link
+          {canDeleteSupplier &&(
+            <Link
             to="/suppliers/create"
             className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700"
           >
             {/* + Create Supplier */}
-            <LayersPlus className="w-4 h-4 mr-2" /> <span>Create product</span>
+            <LayersPlus className="w-4 h-4 mr-2" /> <span>Create Supplier</span>
           </Link>
+          )}
+          
           {canDeleteSupplier && (
             <Link
               to="/suppliers/restore"
