@@ -80,6 +80,7 @@ export function CategoriesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [actionError, setActionError] = useState("");
   const [actionSuccess, setActionSuccess] = useState("");
 
@@ -179,31 +180,26 @@ export function CategoriesPage() {
   const hasPreviousPage = meta.page > 1;
   const hasNextPage = meta.page < meta.totalPages;
 
-  async function handleDeleteCategory(category) {
+  async function handleDeleteCategory() {
     if (
       !canDeleteCategory ||
-      !category?.publicId ||
+      !deleteTarget?.publicId ||
       deletingId !== null
     ) {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Delete category "${category.categoryName}"? This action may affect related records.`
-    );
-
-    if (!confirmed) return;
-
-    setDeletingId(category.publicId);
+    setDeletingId(deleteTarget.publicId);
     setActionError("");
     setActionSuccess("");
 
     try {
-      await CategoryService.deleteCategory(category.publicId);
+      await CategoryService.deleteCategory(deleteTarget.publicId);
 
       setActionSuccess(
-        `Category "${category.categoryName}" deleted successfully.`
+        `Category "${deleteTarget.categoryName}" deleted successfully.`
       );
+      setDeleteTarget(null);
 
       const nextTotal = Math.max(0, meta.total - 1);
       const nextTotalPages = Math.ceil(nextTotal / PAGE_SIZE);
@@ -460,7 +456,11 @@ export function CategoriesPage() {
                             type="button"
                             variant="danger"
                             disabled={deletingId !== null}
-                            onClick={() => handleDeleteCategory(category)}
+                            onClick={() => {
+                              setActionError("");
+                              setActionSuccess("");
+                              setDeleteTarget(category);
+                            }}
                           >
                             <Trash className="w-4 h-4 mr-2" />
                             <span>
@@ -481,6 +481,42 @@ export function CategoriesPage() {
           </div>
         )}
       </Card>
+
+      {canDeleteCategory && deleteTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={(event) => {
+            if (event.target === event.currentTarget && deletingId === null) {
+              setDeleteTarget(null);
+            }
+          }}
+        >
+          <section role="dialog" aria-modal="true" aria-labelledby="delete-category-title" className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h2 id="delete-category-title" className="text-lg font-semibold text-gray-900">
+              Delete category?
+            </h2>
+            <p className="mt-3 text-sm text-gray-700">
+              You are about to soft-delete <strong>{deleteTarget.categoryName || "this category"}</strong>.
+            </p>
+            <p className="mt-2 text-sm text-gray-600">
+              The category will be marked as deleted rather than permanently removed. Deletion may be blocked if related records depend on this category.
+            </p>
+            {actionError && (
+              <div role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                {actionError}
+              </div>
+            )}
+            <div className="mt-6 flex justify-end gap-3">
+              <Button type="button" variant="secondary" disabled={deletingId !== null} onClick={() => setDeleteTarget(null)}>
+                Cancel
+              </Button>
+              <Button type="button" variant="danger" disabled={deletingId !== null} onClick={handleDeleteCategory}>
+                {deletingId !== null ? "Deleting..." : "Confirm delete"}
+              </Button>
+            </div>
+          </section>
+        </div>
+      )}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-slate-600">

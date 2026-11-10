@@ -36,8 +36,9 @@ const CategoryDetailsPage = () => {
   const [error, setError] = useState("");
 
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteError, setDeleteError] = useState("");
-  const [deleteSuccess, setDeleteSuccess] = useState(""); 
+  // const [deleteSuccess, setDeleteSuccess] = useState(""); 
 
   const rawRole =
     user?.role?.name ??
@@ -115,25 +116,16 @@ const CategoryDetailsPage = () => {
   const handleDelete = async () => {
     if (!category?.publicId || isDeleting || !canDeleteCategory) return;
 
-    const confirmed = window.confirm(
-      `Delete category "${category.categoryName}"?`
-    );
-
-    if (!confirmed) return;
-
     setIsDeleting(true);
     setDeleteError("");
-    setDeleteSuccess("");
+    // setDeleteSuccess("");
 
     try {
       await CategoryService.deleteCategory(category.publicId);
 
-      setDeleteSuccess("Category deleted successfully.");
-
-      // Return to the listing after a successful deletion.
       navigate("/categories", {
         replace: true,
-        state: { successMessage: "Category deleted successfully." },
+        state: { successMessage: `Category "${category.categoryName}" deleted successfully.` },
       });
     } catch (error) {
       setDeleteError(
@@ -250,7 +242,10 @@ const CategoryDetailsPage = () => {
               type="button"
               variant="danger"
               disabled={isDeleting}
-              onClick={handleDelete}
+              onClick={() => {
+                setDeleteError("");
+                setShowDeleteDialog(true);
+              }}
             >
               <Trash className="w-4 h-4 mr-2" />
               <span>
@@ -269,16 +264,9 @@ const CategoryDetailsPage = () => {
 
 
       {/* 4. VISUAL ACTION LAYER FOR INLINE BACKEND ERROR RESPONSE ALERTS */}
-      {deleteError && (
+      {deleteError && !showDeleteDialog && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">
-          <p className="font-semibold">Action Blocked by Server Logic:</p>
-          <p className="mt-1">{deleteError}</p>
-        </div>
-      )}
-
-      {deleteSuccess && (
-        <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800" role="status">
-          {deleteSuccess}
+          {deleteError}
         </div>
       )}
       
@@ -323,6 +311,42 @@ const CategoryDetailsPage = () => {
       >
         Return to category list
       </Link>
+
+      {canDeleteCategory && showDeleteDialog && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={(event) => {
+            if (event.target === event.currentTarget && !isDeleting) {
+              setShowDeleteDialog(false);
+            }
+          }}
+        >
+          <section role="dialog" aria-modal="true" aria-labelledby="delete-category-detail-title" className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h2 id="delete-category-detail-title" className="text-lg font-semibold text-gray-900">
+              Delete category?
+            </h2>
+            <p className="mt-3 text-sm text-gray-700">
+              You are about to soft-delete <strong>{category.categoryName || "this category"}</strong>.
+            </p>
+            <p className="mt-2 text-sm text-gray-600">
+              The category will be marked as deleted rather than permanently removed. Deletion may be blocked if related records depend on this category.
+            </p>
+            {deleteError && (
+              <div role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                {deleteError}
+              </div>
+            )}
+            <div className="mt-6 flex justify-end gap-3">
+              <Button type="button" variant="secondary" disabled={isDeleting} onClick={() => setShowDeleteDialog(false)}>
+                Cancel
+              </Button>
+              <Button type="button" variant="danger" disabled={isDeleting} onClick={handleDelete}>
+                {isDeleting ? "Deleting..." : "Confirm delete"}
+              </Button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 };

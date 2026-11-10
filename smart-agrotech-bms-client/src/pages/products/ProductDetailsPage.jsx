@@ -1,6 +1,6 @@
 // src/pages/products/ProductDetailsPage.jsx
 
-import { SquarePen } from "lucide-react";
+import { SquarePen, Trash } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ProductService } from "../../services/productService";
@@ -53,6 +53,9 @@ export function ProductDetailsPage() {
   const [product, setProduct] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   // Support the role shapes used by the auth API while keeping the permission
   // check local to the UI. The backend must still enforce update authorization.
@@ -66,6 +69,32 @@ export function ProductDetailsPage() {
     "";
   const role = String(rawRole).trim().toLowerCase().replace(/[\s-]+/g, "_");
   const canUpdate = ["admin", "super_admin", "manager"].includes(role);
+  const canDelete = role === "admin";
+
+  async function handleDeleteProduct() {
+    const publicId = product?.publicId;
+    if (!canDelete || !publicId || isDeleting) return;
+
+    setIsDeleting(true);
+    setDeleteError("");
+
+    try {
+      await ProductService.deleteProduct(publicId);
+      navigate("/products", {
+        replace: true,
+        state: { successMessage: `${product.productName || "Product"} was deleted successfully.` },
+      });
+    } catch (deleteErr) {
+      setDeleteError(
+        deleteErr?.response?.data?.message ||
+        deleteErr?.response?.data?.error?.message ||
+        deleteErr?.message ||
+        "Unable to delete this product."
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -176,6 +205,18 @@ export function ProductDetailsPage() {
               
             >
               <SquarePen className="w-4 h-4 mr-2" /> <span>Edit Product</span>
+            </Button>
+          )}
+          {canDelete && (
+            <Button
+              type="button"
+              variant="danger"
+              onClick={() => {
+                setDeleteError("");
+                setShowDeleteDialog(true);
+              }}
+            >
+              <Trash className="w-4 h-4 mr-2" /> <span>Delete Product</span>
             </Button>
           )}
           <Button 
@@ -299,11 +340,58 @@ export function ProductDetailsPage() {
           </Card>
         </aside>
       </div>
+
+      {deleteError && (
+        <div
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800"
+        >
+          {deleteError}
+        </div>
+      )}
+
+      {canDelete && showDeleteDialog && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={(event) => {
+            if (event.target === event.currentTarget && !isDeleting) {
+              setShowDeleteDialog(false);
+            }
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-product-detail-title"
+            className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+          >
+            <h2 id="delete-product-detail-title" className="text-lg font-semibold text-gray-900">
+              Delete product?
+            </h2>
+            <p className="mt-3 text-sm text-gray-700">
+              You are about to soft-delete <strong>{product.productName || "this product"}</strong>.
+            </p>
+            <p className="mt-2 text-sm text-gray-600">
+              This marks the product as deleted; it does not permanently remove the database record. Deletion may be blocked if the product has business history. If so, discontinue the product instead.
+            </p>
+            {deleteError && (
+              <div role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                {deleteError}
+              </div>
+            )}
+            <div className="mt-6 flex justify-end gap-3">
+              <Button type="button" variant="secondary" disabled={isDeleting} onClick={() => setShowDeleteDialog(false)}>
+                Cancel
+              </Button>
+              <Button type="button" variant="danger" disabled={isDeleting} onClick={handleDeleteProduct}>
+                {isDeleting ? "Deleting..." : "Confirm delete"}
+              </Button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
 
 export default ProductDetailsPage;
-
-
-
