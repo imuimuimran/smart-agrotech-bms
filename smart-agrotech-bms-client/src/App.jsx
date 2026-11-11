@@ -28,6 +28,8 @@ import SupplierCreatePage from "./pages/suppliers/SupplierCreatePage.jsx";
 import SupplierEditPage from "./pages/suppliers/SupplierEditPage.jsx";
 import SupplierRestorePage from "./pages/suppliers/SupplierRestorePage.jsx";
 
+import { CustomersPage } from "./pages/customers/CustomersPage.jsx";
+
 function ForbiddenPage() {
   return (
     <main className="p-8">
@@ -54,42 +56,29 @@ export function App() {
         <Route index element={<DashboardPage />} />
 
         <Route path="/products" element={<ProductsPage />} />
-
         <Route path="/products/new" element={<ProductCreatePage />} />
-
         <Route path="/products/:productId" element={<ProductDetailsPage />} />
-
         <Route path="/products/:productId/edit" element={<ProductEditPage />} />
 
         <Route path="/categories" element={<CategoriesPage />} />
-
         <Route path="/categories/:publicId" element={<CategoryDetailsPage />} />
-
         <Route path="/categories/new" element={<CategoryCreatePage />} />
-
         <Route path="/categories/:publicId/edit" element={<CategoryEditPage />} />
-
         <Route path="/categories/restore" element={<CategoryRestoreByIdPage />} />
 
         <Route path="/brands" element={<BrandsPage />} />
-
         <Route path="/brands/:publicId" element={<BrandDetailsPage />} />
-
         <Route path="/brands/new" element={<BrandCreatePage />} />
-
         <Route path="/brands/:publicId/edit" element={<BrandEditPage />} />
-
         <Route path="/brands/restore" element={<BrandRestoreByIdPage />} />
 
         <Route path="/suppliers" element={<SuppliersPage />} />
-
         <Route path="/suppliers/:id" element={<SupplierDetailsPage />} />
-
         <Route path="/suppliers/create" element={<SupplierCreatePage />} />
-
         <Route path="/suppliers/:publicId/edit" element={<SupplierEditPage />} />
-
         <Route path="/suppliers/restore" element={<SupplierRestorePage />} />
+
+        <Route path="/customers" element={<CustomersPage />} />
 
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
