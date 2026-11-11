@@ -53,4 +53,13 @@ export const API_ENDPOINTS = {
     STATISTICS: "/suppliers/statistics/overview",
     DASHBOARD_SUMMARY: "/suppliers/dashboard/summary",
   },
+
+  CUSTOMERS: {
+    LIST: "/customers",
+    DETAILS: (publicId) => `/customers/${encodeURIComponent(publicId)}`,
+    CREATE: "/customers",
+    UPDATE: (publicId) => `/customers/${encodeURIComponent(publicId)}`,
+    DELETE: (publicId) => `/customers/${encodeURIComponent(publicId)}`,
+    STATISTICS: "/customers/statistics/overview",
+  },
 };
