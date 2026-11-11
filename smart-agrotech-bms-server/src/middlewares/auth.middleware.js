@@ -1,7 +1,6 @@
 import ApiError from "../shared/ApiError.js";
 import HTTP_STATUS from "../constants/httpStatus.js";
-
-import { USER_STATUS } from "../modules/users/index.js";
+import USER_STATUS from "../constants/userStatus.js";
 import { User } from "../modules/users/index.js";
 import {
     verifyAccessToken,
