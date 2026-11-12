@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
 import { CustomerService } from "../../services/customerService";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
@@ -164,6 +165,23 @@ export function CustomersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
+  const { user } = useAuth();
+
+  const rawRole =
+    user?.role?.name ??
+    user?.role ??
+    user?.user?.role?.name ??
+    user?.user?.role ??
+    user?.userRole ??
+    user?.roleName ??
+    "";
+
+  const role = String(rawRole)
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+
+  const canCreateCustomer = ["admin", "moderator"].includes(role);
 
   const loadCustomers = useCallback(async () => {
     setIsLoading(true);
@@ -256,11 +274,29 @@ export function CustomersPage() {
 
   return (
     <main className="space-y-6">
-      <header>
+      {/* <header>
         <h1 className="text-2xl font-bold text-slate-900">Customers</h1>
         <p className="mt-1 text-sm text-slate-500">
           View and search registered customers.
         </p>
+      </header> */}
+
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Customers</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            View and search registered customers.
+          </p>
+        </div>
+
+        {canCreateCustomer && (
+          <Link
+            to="/customers/new"
+            className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700"
+          >
+            + Create Customer
+          </Link>
+        )}
       </header>
 
       <Card className="p-5">
