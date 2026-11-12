@@ -29,6 +29,7 @@ import SupplierEditPage from "./pages/suppliers/SupplierEditPage.jsx";
 import SupplierRestorePage from "./pages/suppliers/SupplierRestorePage.jsx";
 
 import { CustomersPage } from "./pages/customers/CustomersPage.jsx";
+import CustomerDetailsPage from "./pages/customers/CustomerDetailsPage.jsx";
 
 function ForbiddenPage() {
   return (
@@ -79,6 +80,7 @@ export function App() {
         <Route path="/suppliers/restore" element={<SupplierRestorePage />} />
 
         <Route path="/customers" element={<CustomersPage />} />
+        <Route path="/customers/:publicId" element={<CustomerDetailsPage />} />
 
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

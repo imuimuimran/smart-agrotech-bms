@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-
+import { Link } from "react-router-dom";
 import { CustomerService } from "../../services/customerService";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
@@ -68,8 +68,8 @@ function formatMoney(value, currency = "BDT") {
   const amount = Number(value);
   return Number.isFinite(amount)
     ? `${currency} ${amount.toLocaleString("en-BD", {
-        maximumFractionDigits: 2,
-      })}`
+      maximumFractionDigits: 2,
+    })}`
     : "—";
 }
 
@@ -142,6 +142,15 @@ function CustomerCard({ customer }) {
           <dd className="mt-1 text-sm text-slate-800">{formatDate(customer.createdAt)}</dd>
         </div>
       </dl>
+
+      {customer.publicId && (
+        <Link
+          to={`/customers/${encodeURIComponent(customer.publicId)}`}
+          className="mt-3 inline-flex text-sm font-medium text-emerald-700 underline underline-offset-2 hover:text-emerald-900"
+        >
+          View details
+        </Link>
+      )}
     </Card>
   );
 }
