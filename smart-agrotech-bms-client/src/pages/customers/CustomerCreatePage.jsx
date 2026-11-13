@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { CustomerService } from "../../services/customerService";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
-import { Card } from "../../components/ui/Card"; 
+import { Card } from "../../components/ui/Card";
 
 const CUSTOMER_TYPES = [
   ["individual", "Individual"],
@@ -264,8 +264,11 @@ function validateForm(formData) {
     errors.status = "Select a valid customer status.";
   }
 
-  if (!/^[A-Za-z]{3}$/.test(formData.currency.trim())) {
-    errors.currency = "Currency must contain exactly 3 letters.";
+  // if (!/^[A-Za-z]{3}$/.test(formData.currency.trim())) {
+  //   errors.currency = "Currency must contain exactly 3 letters.";
+  // }
+  if (formData.currency.trim().length !== 3) {
+    errors.currency = "Currency must contain exactly 3 characters.";
   }
 
   const creditLimit = Number(formData.creditLimit);
@@ -521,7 +524,7 @@ export default function CustomerCreatePage() {
       if (!response?.success || !createdCustomer?.publicId) {
         throw new Error(
           response?.message ||
-            "The customer may have been created, but the response did not contain a customer public ID."
+          "The customer may have been created, but the response did not contain a customer public ID."
         );
       }
 

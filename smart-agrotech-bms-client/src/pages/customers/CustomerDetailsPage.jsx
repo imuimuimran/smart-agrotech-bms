@@ -1,6 +1,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
 
 import { CustomerService } from "../../services/customerService";
 
@@ -99,6 +100,23 @@ export default function CustomerDetailsPage() {
   const [retryKey, setRetryKey] = useState(0);
   const location = useLocation();
   const successMessage = location.state?.successMessage;
+  const { user } = useAuth();
+
+  const rawRole =
+    user?.role?.name ??
+    user?.role ??
+    user?.user?.role?.name ??
+    user?.user?.role ??
+    user?.userRole ??
+    user?.roleName ??
+    "";
+
+  const normalizedRole = String(rawRole)
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+
+  const canEditCustomer = ["admin", "moderator"].includes(normalizedRole);
 
   const loadCustomer = useCallback(async () => {
     if (!publicId) {
@@ -227,6 +245,15 @@ export default function CustomerDetailsPage() {
             Customer ID: {customer.publicId}
           </p>
         </div>
+
+        {canEditCustomer && (
+          <Link
+            to={`/customers/${encodeURIComponent(customer.publicId)}/edit`}
+            className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700"
+          >
+            Edit Customer
+          </Link>
+        )}
 
         <span
           className={`inline-flex w-fit rounded-full px-3 py-1 text-sm font-medium capitalize ${statusClass}`}
