@@ -1,6 +1,6 @@
 
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 
 import { CustomerService } from "../../services/customerService";
 
@@ -97,6 +97,8 @@ export default function CustomerDetailsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [retryKey, setRetryKey] = useState(0);
+  const location = useLocation();
+  const successMessage = location.state?.successMessage;
 
   const loadCustomer = useCallback(async () => {
     if (!publicId) {
@@ -232,6 +234,15 @@ export default function CustomerDetailsPage() {
           {customer.status || "Unknown"}
         </span>
       </div>
+
+      {successMessage && (
+        <div
+          className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800"
+          role="status"
+        >
+          {successMessage}
+        </div>
+      )}
 
       {/* Basic information */}
       <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
