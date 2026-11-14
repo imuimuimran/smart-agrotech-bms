@@ -7,6 +7,7 @@ import { Button } from "../../components/ui/Button";
 import { Badge } from "../../components/ui/Badge";
 import { Input } from "../../components/ui/Input";
 import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
+import CustomerDeleteDialog from "./CustomerDeleteDialog";
 
 const PAGE_SIZE = 10;
 
@@ -91,7 +92,7 @@ function getStatusVariant(status) {
   }
 }
 
-function CustomerCard({ customer }) {
+function CustomerCard({ customer, canDelete, onDelete, }) {
   return (
     <Card className="space-y-4 p-5 sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -152,8 +153,36 @@ function CustomerCard({ customer }) {
           View details
         </Link>
       )}
+
+      {canDelete && (
+        <div className="flex justify-end border-t border-slate-100 pt-4">
+          <Button
+            type="button"
+            variant="danger"
+            onClick={() => onDelete(customer)}
+          >
+            Delete Customer
+          </Button>
+        </div>
+      )}
     </Card>
   );
+}
+
+function getUserRole(user) {
+  const rawRole =
+    user?.role?.name ??
+    user?.role ??
+    user?.user?.role?.name ??
+    user?.user?.role ??
+    user?.userRole ??
+    user?.roleName ??
+    "";
+
+  return String(rawRole)
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
 }
 
 export function CustomersPage() {
@@ -166,6 +195,9 @@ export function CustomersPage() {
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
   const { user } = useAuth();
+
+  const [customerToDelete, setCustomerToDelete] = useState(null);
+  const [deleteNotice, setDeleteNotice] = useState("");
 
   const rawRole =
     user?.role?.name ??
@@ -182,6 +214,8 @@ export function CustomersPage() {
     .replace(/[\s-]+/g, "_");
 
   const canCreateCustomer = ["admin", "moderator"].includes(role);
+
+  const canDeleteCustomers = getUserRole(user) === "admin";
 
   const loadCustomers = useCallback(async () => {
     setIsLoading(true);
@@ -267,6 +301,30 @@ export function CustomersPage() {
     setRetry((current) => current + 1);
   }
 
+  function handleCustomerDeleted() {
+    const deletedName = customerToDelete?.name || "Customer";
+
+    setCustomerToDelete(null);
+    setDeleteNotice(`${deletedName} was deleted successfully.`);
+
+    // If the deleted customer was the only item on this page,
+    // move back one page when possible.
+    if (customers.length === 1 && page > 1) {
+      setPage((current) => Math.max(1, current - 1));
+    } else {
+      setRetry((current) => current + 1);
+    }
+  }
+
+  function handleStaleCustomer() {
+    setCustomerToDelete(null);
+    setDeleteNotice(
+      "This customer is no longer available. The customer list has been refreshed."
+    );
+
+    setRetry((current) => current + 1);
+  }
+
   const currentPage = Number(meta.page) || page;
   const totalPages = Number(meta.totalPages) || 0;
   const total = Number(meta.total) || 0;
@@ -298,6 +356,23 @@ export function CustomersPage() {
           </Link>
         )}
       </header>
+
+      {deleteNotice && (
+        <div
+          className="flex flex-col gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 sm:flex-row sm:items-center sm:justify-between"
+          role="status"
+        >
+          <p>{deleteNotice}</p>
+
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setDeleteNotice("")}
+          >
+            Dismiss
+          </Button>
+        </div>
+      )}
 
       <Card className="p-5">
         <form onSubmit={handleApplyFilters} className="space-y-4">
@@ -364,8 +439,19 @@ export function CustomersPage() {
         <div className="flex justify-center py-12"><LoadingSpinner label="Loading customers..." /></div>
       ) : customers.length > 0 ? (
         <div className="space-y-4">
-          {customers.map((customer, index) => (
+          {/* {customers.map((customer, index) => (
             <CustomerCard key={customer.publicId || `${customer.phone || "customer"}-${index}`} customer={customer} />
+          ))} */}
+          {customers.map((customer, index) => (
+            <CustomerCard
+              key={customer.publicId || `${customer.phone || "customer"}-${index}`}
+              customer={customer}
+              canDelete={canDeleteCustomers}
+              onDelete={(selectedCustomer) => {
+                setDeleteNotice("");
+                setCustomerToDelete(selectedCustomer);
+              }}
+            />
           ))}
         </div>
       ) : !error ? (
@@ -387,6 +473,15 @@ export function CustomersPage() {
             <Button type="button" variant="secondary" disabled={totalPages === 0 || currentPage >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>Next</Button>
           </div>
         </div>
+      )}
+
+      {customerToDelete && (
+        <CustomerDeleteDialog
+          customer={customerToDelete}
+          onClose={() => setCustomerToDelete(null)}
+          onDeleted={handleCustomerDeleted}
+          onStale={handleStaleCustomer}
+        />
       )}
 
     </main>
