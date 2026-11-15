@@ -79,6 +79,18 @@ export const CustomerService = {
     return response.data;
   },
 
+  async getDeletedCustomers() {
+    const response = await apiClient.get(API_ENDPOINTS.CUSTOMERS.DELETED);
+    return response.data;
+  },
+
+  async restoreCustomer(publicId) {
+    const response = await apiClient.patch(
+      API_ENDPOINTS.CUSTOMERS.RESTORE(publicId)
+    );
+    return response.data;
+  },
+
   /**
    * Get customer statistics. This endpoint is available to ADMIN and MODERATOR.
    */

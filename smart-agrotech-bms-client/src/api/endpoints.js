@@ -60,6 +60,8 @@ export const API_ENDPOINTS = {
     CREATE: "/customers",
     UPDATE: (publicId) => `/customers/${encodeURIComponent(publicId)}`,
     DELETE: (publicId) => `/customers/${encodeURIComponent(publicId)}`,
+    DELETED: "/customers/deleted",
+    RESTORE: (publicId) => `/customers/${encodeURIComponent(publicId)}/restore`,
     STATISTICS: "/customers/statistics/overview",
   },
 };
