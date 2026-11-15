@@ -154,6 +154,28 @@ res
 
 });
 
+const getDeletedCustomers = catchAsync(async (req, res) => {
+  const result = await CustomerService.getDeletedCustomers();
+  sendResponse({
+    res,
+    statusCode: HTTP_STATUS.OK,
+    success: true,
+    message: "Deleted customers retrieved successfully.",
+    data: result,
+  });
+});
+
+const restoreCustomer = catchAsync(async (req, res) => {
+  const result = await CustomerService.restoreCustomer(req.params.publicId, req.user);
+  sendResponse({
+    res,
+    statusCode: HTTP_STATUS.OK,
+    success: true,
+    message: "Customer restored successfully.",
+    data: result,
+  });
+});
+
 const getCustomerStatistics =
 catchAsync(
 async (
@@ -190,5 +212,7 @@ export const CustomerController = {
   getCustomer,
   updateCustomer,
   deleteCustomer,
+  getDeletedCustomers,
+  restoreCustomer,
   getCustomerStatistics,
 };

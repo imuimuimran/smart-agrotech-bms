@@ -211,6 +211,25 @@ const deleteCustomer = async (
   return null;
 };
 
+/**
+   * Get soft-deleted customers. ADMIN access is enforced by the backend.
+   */
+  const getDeletedCustomers = async () => {
+    const response = await apiClient.get(API_ENDPOINTS.CUSTOMERS.DELETED);
+    return response.data;
+  };
+
+  /**
+   * Restore a soft-deleted customer by publicId.
+   */
+  const restoreCustomer = async (publicId) => {
+  // async restoreCustomer(publicId) {
+    const response = await apiClient.patch(
+      API_ENDPOINTS.CUSTOMERS.RESTORE(publicId)
+    );
+    return response.data;
+  };
+
 const getCustomerStatistics =
 async () => {
 
@@ -290,6 +309,8 @@ export const CustomerService = {
   getCustomer,
   updateCustomer,
   deleteCustomer,
+  getDeletedCustomers,
+  restoreCustomer,
   getCustomerStatistics,
   getCustomersNearCreditLimit,
   getCustomerDashboard,

@@ -52,6 +52,14 @@ router.get(
         .getCustomers
 );
 
+// ADMIN-only deleted customer list. Keep before "/:publicId".
+router.get(
+  "/deleted",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  CustomerController.getDeletedCustomers
+);
+
 // Get Single Customer (New Route Added Here)
 router.get(
   "/:publicId",
@@ -65,6 +73,13 @@ router.get(
   ),
 
   CustomerController.getCustomer
+);
+
+router.patch(
+  "/:publicId/restore",
+  verifyToken,
+  authorize(ROLES.ADMIN),
+  CustomerController.restoreCustomer
 );
 
 router.patch(

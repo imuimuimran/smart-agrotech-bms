@@ -47,14 +47,17 @@ export const CUSTOMER_MESSAGES = Object.freeze({
   CUSTOMER_ALREADY_DELETED:
     "Customer has already been deleted.",
 
+  CUSTOMER_NOT_DELETED:
+    "Customer is not currently deleted.",
+
   CUSTOMER_HAS_OUTSTANDING_BALANCE:
     "Customer has an outstanding balance and cannot be deleted.",
 
   CUSTOMER_HAS_SALES_HISTORY:
     "Customer has sales history and cannot be deleted.",
   
-    EMAIL_ALREADY_EXISTS:
-    "Customer email already exists.",
+  EMAIL_ALREADY_EXISTS:
+  "Customer email already exists.",
 
   PHONE_ALREADY_EXISTS:
     "Customer phone number already exists.",
