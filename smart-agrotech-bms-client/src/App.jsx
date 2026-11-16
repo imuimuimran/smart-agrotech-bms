@@ -32,6 +32,7 @@ import { CustomersPage } from "./pages/customers/CustomersPage.jsx";
 import CustomerDetailsPage from "./pages/customers/CustomerDetailsPage.jsx";
 import CustomerCreatePage from "./pages/customers/CustomerCreatePage.jsx";
 import CustomerEditPage from "./pages/customers/CustomerEditPage.jsx";
+import CustomerRestorePage from "./pages/customers/CustomerRestorePage.jsx";
 
 function ForbiddenPage() {
   return (
@@ -85,6 +86,7 @@ export function App() {
         <Route path="/customers/:publicId" element={<CustomerDetailsPage />} />
         <Route path="/customers/new" element={<CustomerCreatePage />} />
         <Route path="/customers/:publicId/edit" element={<CustomerEditPage />} />
+        <Route path="/customers/restore" element={<CustomerRestorePage />} />
 
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
