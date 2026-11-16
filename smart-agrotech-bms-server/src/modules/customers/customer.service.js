@@ -211,69 +211,109 @@ const deleteCustomer = async (
   return null;
 };
 
-/**
-   * Get soft-deleted customers. ADMIN access is enforced by the backend.
-   */
-  const getDeletedCustomers = async () => {
-    const response = await apiClient.get(API_ENDPOINTS.CUSTOMERS.DELETED);
-    return response.data;
-  };
 
-  /**
-   * Restore a soft-deleted customer by publicId.
-   */
-  const restoreCustomer = async (publicId) => {
-  // async restoreCustomer(publicId) {
-    const response = await apiClient.patch(
-      API_ENDPOINTS.CUSTOMERS.RESTORE(publicId)
+/**
+ * Retrieve soft-deleted customers.
+ * Bypasses the model's normal filter that excludes deleted records.
+ */
+const getDeletedCustomers = async () => {
+  const customers = await Customer.find({ isDeleted: true })
+    .setOptions({ skipDeletedCheck: true })
+    .sort({ deletedAt: -1 });
+
+  return customers.map((customer) => ({
+    ...sanitizeCustomer(customer),
+    deletedAt: customer.deletedAt,
+    deletedBy: customer.deletedBy,
+  }));
+};
+
+
+
+/**
+ * Restore a soft-deleted customer using publicId.
+ */
+const restoreCustomer = async (publicId, reqUser) => {
+  const customer = await Customer.findOne({ publicId })
+    .setOptions({ skipDeletedCheck: true });
+
+  if (!customer || customer.isDeleted !== true) {
+    throw new ApiError(
+      HTTP_STATUS.NOT_FOUND,
+      CUSTOMER_MESSAGES.CUSTOMER_NOT_FOUND
     );
-    return response.data;
-  };
+  }
+
+  // Check whether another active customer already uses this phone.
+  const existingActiveCustomer = await Customer.findOne({
+    publicId: { $ne: publicId },
+    phone: customer.phone,
+    isDeleted: false,
+  });
+
+  if (existingActiveCustomer) {
+    throw new ApiError(
+      HTTP_STATUS.CONFLICT,
+      CUSTOMER_MESSAGES.PHONE_ALREADY_EXISTS
+    );
+  }
+
+  // Restore the customer.
+  customer.isDeleted = false;
+  customer.deletedAt = null;
+  customer.deletedBy = null;
+  customer.updatedBy = reqUser?.publicId ?? null;
+
+  await customer.save();
+
+  return sanitizeCustomer(customer);
+};
+
 
 const getCustomerStatistics =
-async () => {
+  async () => {
 
-  const totalCustomers =
-    await Customer.countDocuments();
+    const totalCustomers =
+      await Customer.countDocuments();
 
-  const activeCustomers =
-    await Customer.countDocuments({
-      status: "active",
-    });
+    const activeCustomers =
+      await Customer.countDocuments({
+        status: "active",
+      });
 
-  const inactiveCustomers =
-    await Customer.countDocuments({
-      status: "inactive",
-    });
+    const inactiveCustomers =
+      await Customer.countDocuments({
+        status: "inactive",
+      });
 
-  const totalOutstanding =
-    await Customer.aggregate([
-      {
-        $group: {
-          _id: null,
-          total: {
-            $sum:
-              "$currentBalance",
+    const totalOutstanding =
+      await Customer.aggregate([
+        {
+          $group: {
+            _id: null,
+            total: {
+              $sum:
+                "$currentBalance",
+            },
           },
         },
-      },
-    ]);
+      ]);
 
-  return {
+    return {
 
-    totalCustomers,
+      totalCustomers,
 
-    activeCustomers,
+      activeCustomers,
 
-    inactiveCustomers,
+      inactiveCustomers,
 
-    totalOutstanding:
-      totalOutstanding[0]
-        ?.total || 0,
+      totalOutstanding:
+        totalOutstanding[0]
+          ?.total || 0,
+
+    };
 
   };
-
-};
 
 const getCustomersNearCreditLimit = async () => {
   return await Customer.find({
@@ -296,9 +336,9 @@ const getCustomerDashboard = async () => {
 
   return {
     statistics,
-    recentCustomers: [], 
+    recentCustomers: [],
     topCustomers: [],
-    customersNearCreditLimit: criticalCreditRisk, 
+    customersNearCreditLimit: criticalCreditRisk,
     recentReturns: [],
   };
 };
