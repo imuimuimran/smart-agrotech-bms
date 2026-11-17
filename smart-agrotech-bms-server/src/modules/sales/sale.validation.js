@@ -51,7 +51,7 @@ const saleItemSchema = z.object({
   productId: objectIdSchema,
   quantity: z
     .number()
-    .int()
+    .int("Quantity must be a whole integer.")
     .min(1, "Ordered item quantity must be at least 1."),
   unitPrice: moneySchema,
   discount: moneySchema
@@ -72,43 +72,112 @@ const saleItemInputSchema = z.object({
 });
 
 
+// export const createSaleSchema = z.object({
+//   body: z
+//     .object({
+//       customerId: objectIdSchema,
+//       warehouseId: objectIdSchema,
+//       products: z
+//         .array(saleItemSchema)
+//         .min(1, "A sale invoice must contain at least 1 product line row."),
+//       discount: moneySchema.optional().default(0),
+//       paidAmount: moneySchema.optional().default(0),
+//       paymentMethod: z.enum(PAYMENT_METHOD_LIST).optional(),
+//       reference: z.string().trim().optional().default(""),
+//       paymentComment: z.string().trim().optional().default(""),
+//       saleDate: z
+//         .preprocess(
+//           (value) => (value ? new Date(value) : undefined),
+//           z.date().optional()
+//         ),
+//       remarks: z.string().trim().max(1000).optional().default(""),
+//     })
+//     .superRefine((data, ctx) => {
+//       // 1. Prevent duplicate product rows from causing inventory transaction drift
+//       const productIds = data.products.map((item) => item.productId.toString());
+//       const uniqueProductIds = new Set(productIds);
+//       if (uniqueProductIds.size !== productIds.length) {
+//         ctx.addIssue({
+//           code: z.ZodIssueCode.custom,
+//           message: "Duplicate product items identified. Combine metrics into a flat row configuration.",
+//           path: ["products"],
+//         });
+//       }
+
+//       // 2. Financial Settlement Boundary: Force payment channels validation if downpayment is present
+//       if (data.paidAmount > 0 && !data.paymentMethod) {
+//         ctx.addIssue({
+//           code: z.ZodIssueCode.custom,
+//           message: "Payment method channel is mandatory when an initial downpayment is provided.",
+//           path: ["paymentMethod"],
+//         });
+//       }
+//     }),
+// });
+
+
 export const createSaleSchema = z.object({
   body: z
     .object({
       customerId: objectIdSchema,
+
       warehouseId: objectIdSchema,
+
       products: z
         .array(saleItemSchema)
-        .min(1, "A sale invoice must contain at least 1 product line row."),
+        .min(1, "A sale must contain at least one product."),
+
       discount: moneySchema.optional().default(0),
+
       paidAmount: moneySchema.optional().default(0),
-      paymentMethod: z.enum(PAYMENT_METHOD_LIST).optional(),
-      reference: z.string().trim().optional(),
-      paymentComment: z.string().trim().optional(),
+
+      paymentMethod: z
+        .enum(PAYMENT_METHOD_LIST)
+        .optional(),
+
+      reference: z.string().trim().optional().default(""),
+
+      paymentComment: z.string().trim().optional().default(""),
+
       saleDate: z
         .preprocess(
-          (value) => (value ? new Date(value) : undefined),
+          (value) => {
+            if (value === undefined || value === null) {
+              return undefined;
+            }
+
+            return new Date(value);
+          },
           z.date().optional()
         ),
-      remarks: z.string().trim().max(1000).optional().default(""),
+
+      remarks: z
+        .string()
+        .trim()
+        .max(1000, "Remarks cannot exceed 1000 characters.")
+        .optional()
+        .default(""),
     })
+    .strict()
     .superRefine((data, ctx) => {
-      // 1. Prevent duplicate product rows from causing inventory transaction drift
-      const productIds = data.products.map((item) => item.productId.toString());
-      const uniqueProductIds = new Set(productIds);
-      if (uniqueProductIds.size !== productIds.length) {
+      // Prevent duplicate product entries.
+      const productIds = data.products.map(
+        (item) => item.productId
+      );
+
+      if (new Set(productIds).size !== productIds.length) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "Duplicate product items identified. Combine metrics into a flat row configuration.",
+          message: "Duplicate products are not allowed.",
           path: ["products"],
         });
       }
 
-      // 2. Financial Settlement Boundary: Force payment channels validation if downpayment is present
+      // Payment method is mandatory when an initial payment exists.
       if (data.paidAmount > 0 && !data.paymentMethod) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "Payment method channel is mandatory when an initial downpayment is provided.",
+          message: "Payment method is required when paidAmount is greater than zero.",
           path: ["paymentMethod"],
         });
       }
@@ -139,14 +208,15 @@ export const recordSalePaymentSchema = z.object({
   body: z.object({
     amount: z
       .number()
-      .finite()
+      .finite("Payment amount must be a valid number.")
       .positive("Payment balance collection must be greater than zero."),
     paymentMethod: z.enum(PAYMENT_METHOD_LIST, {
       errorMap: () => ({ message: "Invalid payment method channel selection." }),
     }),
     reference: z.string().trim().optional().default(""),
     comment: z.string().trim().optional().default(""),
-  }),
+  })
+  .strict(),
 });
 
 /**
