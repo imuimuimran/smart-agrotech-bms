@@ -64,4 +64,15 @@ export const API_ENDPOINTS = {
     RESTORE: (publicId) => `/customers/${encodeURIComponent(publicId)}/restore`,
     STATISTICS: "/customers/statistics/overview",
   },
+
+
+  SALES: {
+    LIST: "/sales",
+    DETAILS: (publicId) =>
+      `/sales/${encodeURIComponent(publicId)}`,
+    CREATE: "/sales",
+    RECORD_PAYMENT: (publicId) =>
+      `/sales/${encodeURIComponent(publicId)}/payments`,
+  },
+
 };
