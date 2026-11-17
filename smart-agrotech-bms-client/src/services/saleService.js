@@ -10,6 +10,7 @@ const SALE_LIST_QUERY_PARAMS = [
   "page",
   "limit",
   "sortBy",
+  "sortOrder",
   "fields",
   "customerId",
   "warehouseId",

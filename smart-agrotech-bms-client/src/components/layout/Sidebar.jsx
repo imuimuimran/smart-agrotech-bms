@@ -33,6 +33,11 @@ const navigationItems = [
     to: "/customers", 
     end: false 
   },
+  {
+  label: "Sales",
+  to: "/sales",
+  end: false,
+},
 ];
 
 export function Sidebar({ isOpen, onClose }) {
