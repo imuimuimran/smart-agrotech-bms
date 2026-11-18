@@ -1,5 +1,7 @@
 
-import { useCallback, useEffect, useState } from "react";
+// import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+
 
 import { SaleService } from "../../services/saleService";
 
@@ -108,7 +110,65 @@ export function SalesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const loadSales = useCallback(async () => {
+  // const loadSales = useCallback(async () => {
+  //   setIsLoading(true);
+  //   setError("");
+
+  //   try {
+  //     const response = await SaleService.getSales({
+  //       search,
+  //       page: meta.page,
+  //       limit: PAGE_SIZE,
+  //       status,
+  //       sortBy,
+  //       sortOrder,
+  //     });
+
+  //     if (!response?.success) {
+  //       throw new Error(
+  //         response?.message || "The Sales request was not successful."
+  //       );
+  //     }
+
+  //     setSales(Array.isArray(response.data) ? response.data : []);
+
+  //     setMeta({
+  //       page: Number(response.meta?.page) || meta.page,
+  //       limit: Number(response.meta?.limit) || PAGE_SIZE,
+  //       total: Number(response.meta?.total) || 0,
+  //       totalPages: Math.max(
+  //         1,
+  //         Number(response.meta?.totalPages) || 1
+  //       ),
+  //     });
+  //   } catch (requestError) {
+  //     setSales([]);
+  //     setError(getErrorMessage(requestError));
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // }, [search, status, sortBy, sortOrder, meta.page]);
+
+  // useEffect(() => {
+  //   loadSales();
+  // }, [loadSales]);
+
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+// 1. Trigger manual refreshes/retries via event handler
+const handleRefresh = () => {
+  setRefreshTrigger((prev) => prev + 1);
+};
+
+// 2. Fetch inside useEffect with cleanup
+useEffect(() => {
+  let ignore = false;
+
+  async function fetchSales() {
+    // Yield to microtask queue so setState is not called synchronously
+    await Promise.resolve();
+    if (ignore) return;
+
     setIsLoading(true);
     setError("");
 
@@ -122,6 +182,8 @@ export function SalesPage() {
         sortOrder,
       });
 
+      if (ignore) return;
+
       if (!response?.success) {
         throw new Error(
           response?.message || "The Sales request was not successful."
@@ -129,27 +191,31 @@ export function SalesPage() {
       }
 
       setSales(Array.isArray(response.data) ? response.data : []);
-
-      setMeta({
-        page: Number(response.meta?.page) || meta.page,
+      setMeta((prev) => ({
+        ...prev,
         limit: Number(response.meta?.limit) || PAGE_SIZE,
         total: Number(response.meta?.total) || 0,
-        totalPages: Math.max(
-          1,
-          Number(response.meta?.totalPages) || 1
-        ),
-      });
+        totalPages: Math.max(1, Number(response.meta?.totalPages) || 1),
+      }));
     } catch (requestError) {
-      setSales([]);
-      setError(getErrorMessage(requestError));
+      if (!ignore) {
+        setSales([]);
+        setError(getErrorMessage(requestError));
+      }
     } finally {
-      setIsLoading(false);
+      if (!ignore) {
+        setIsLoading(false);
+      }
     }
-  }, [search, status, sortBy, sortOrder, meta.page]);
+  }
 
-  useEffect(() => {
-    loadSales();
-  }, [loadSales]);
+  fetchSales();
+
+  return () => {
+    ignore = true;
+  };
+}, [search, status, sortBy, sortOrder, meta.page, refreshTrigger]);
+
 
   const handleSearchSubmit = (event) => {
     event.preventDefault();
@@ -306,7 +372,7 @@ export function SalesPage() {
 
           <Button
             variant="secondary"
-            onClick={loadSales}
+            onClick={handleRefresh}
             disabled={isLoading}
           >
             Refresh
@@ -322,7 +388,7 @@ export function SalesPage() {
             <p className="text-sm text-red-600">{error}</p>
             <Button
               className="mt-4"
-              onClick={loadSales}
+              onClick={handleRefresh}
             >
               Retry
             </Button>
