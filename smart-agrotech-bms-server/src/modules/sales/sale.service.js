@@ -454,7 +454,7 @@ export const recordSalePayment = async (salePublicId, payload, reqUser) => {
   High-Throughput Read Pipeline using QueryBuilder.
 */
 export const getSales = async (queryParameters) => {
-  const queryInstance = new mongoose.QueryBuilder(
+  const queryInstance = new QueryBuilder(
     Sale.find({ isDeleted: false })
     .populate("customerId", "publicId name phone email")
     .populate("warehouseId", "publicId warehouseName warehouseCode"),
