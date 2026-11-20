@@ -75,4 +75,8 @@ export const API_ENDPOINTS = {
       `/sales/${encodeURIComponent(publicId)}/payments`,
   },
 
+  WAREHOUSES: {
+    LIST: "/warehouses",
+  },
+
 };
