@@ -519,7 +519,8 @@
 
 
 import { useEffect, useState } from "react";
-
+import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
 import { SaleService } from "../../services/saleService";
 
 import { Badge } from "../../components/ui/Badge";
@@ -609,7 +610,25 @@ const getErrorMessage = (error) => {
   );
 };
 
+function getRole(user) {
+  const rawRole =
+    user?.role?.name ??
+    user?.role ??
+    user?.user?.role?.name ??
+    user?.user?.role ??
+    user?.userRole ??
+    user?.roleName ??
+    "";
+
+  return String(rawRole).trim().toLowerCase().replace(/[\\s-]+/g, "_");
+}
+
 export function SalesPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
+  const canCreateSale = ["admin", "moderator"].includes(getRole(user));
+  const successMessage = location.state?.successMessage;
   const [sales, setSales] = useState([]);
   const [meta, setMeta] = useState({
     page: 1,
@@ -629,72 +648,72 @@ export function SalesPage() {
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-// 1. Trigger manual refreshes/retries via event handler
-const handleRefresh = () => {
-  setRefreshTrigger((prev) => prev + 1);
-};
+  // 1. Trigger manual refreshes/retries via event handler
+  const handleRefresh = () => {
+    setRefreshTrigger((prev) => prev + 1);
+  };
 
-// 2. Fetch inside useEffect with cleanup
-useEffect(() => {
-  let ignore = false;
+  // 2. Fetch inside useEffect with cleanup
+  useEffect(() => {
+    let ignore = false;
 
-  async function fetchSales() {
-    // Yield to microtask queue so setState is not called synchronously
-    await Promise.resolve();
-    if (ignore) return;
-
-    setIsLoading(true);
-    setError("");
-
-    try {
-      const response = await SaleService.getSales({
-        search,
-        page: meta.page,
-        limit: PAGE_SIZE,
-        status,
-        sortBy,
-        sortOrder,
-      });
-
+    async function fetchSales() {
+      // Yield to microtask queue so setState is not called synchronously
+      await Promise.resolve();
       if (ignore) return;
 
-      if (!response?.success) {
-        throw new Error(
-          response?.message || "The Sales request was not successful."
-        );
-      }
+      setIsLoading(true);
+      setError("");
 
-      setSales(Array.isArray(response.data) ? response.data : []);
-      const responsePage = Number(response.meta?.page) || meta.page;
-      const responseLimit = Number(response.meta?.limit) || PAGE_SIZE;
-      const responseTotal = Number(response.meta?.total) || 0;
-      const responseTotalPages = Number(response.meta?.totalPages) || 0;
+      try {
+        const response = await SaleService.getSales({
+          search,
+          page: meta.page,
+          limit: PAGE_SIZE,
+          status,
+          sortBy,
+          sortOrder,
+        });
 
-      setMeta((prev) => ({
-        ...prev,
-        page: responsePage,
-        limit: responseLimit,
-        total: responseTotal,
-        totalPages: responseTotalPages,
-      }));
-    } catch (requestError) {
-      if (!ignore) {
-        setSales([]);
-        setError(getErrorMessage(requestError));
-      }
-    } finally {
-      if (!ignore) {
-        setIsLoading(false);
+        if (ignore) return;
+
+        if (!response?.success) {
+          throw new Error(
+            response?.message || "The Sales request was not successful."
+          );
+        }
+
+        setSales(Array.isArray(response.data) ? response.data : []);
+        const responsePage = Number(response.meta?.page) || meta.page;
+        const responseLimit = Number(response.meta?.limit) || PAGE_SIZE;
+        const responseTotal = Number(response.meta?.total) || 0;
+        const responseTotalPages = Number(response.meta?.totalPages) || 0;
+
+        setMeta((prev) => ({
+          ...prev,
+          page: responsePage,
+          limit: responseLimit,
+          total: responseTotal,
+          totalPages: responseTotalPages,
+        }));
+      } catch (requestError) {
+        if (!ignore) {
+          setSales([]);
+          setError(getErrorMessage(requestError));
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoading(false);
+        }
       }
     }
-  }
 
-  fetchSales();
+    fetchSales();
 
-  return () => {
-    ignore = true;
-  };
-}, [search, status, sortBy, sortOrder, meta.page, refreshTrigger]);
+    return () => {
+      ignore = true;
+    };
+  }, [search, status, sortBy, sortOrder, meta.page, refreshTrigger]);
 
 
   const handleSearchSubmit = (event) => {
@@ -770,6 +789,12 @@ useEffect(() => {
           View and search recorded sales transactions.
         </p>
       </div>
+
+      {canCreateSale && (
+        <Button type="button" onClick={() => navigate("/sales/new")}>
+          Create Sale
+        </Button>
+      )}
 
       <Card>
         <form
@@ -1024,7 +1049,15 @@ useEffect(() => {
           </>
         )}
       </Card>
+
+      {successMessage && (
+        <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+          {successMessage}
+        </p>
+      )}
     </div>
+
+
   );
 }
 
