@@ -8,6 +8,8 @@ import customerRoutes from "../modules/customers/customer.routes.js";
 
 import { SupplierRoutes } from "../modules/suppliers/supplier.routes.js";
 
+import { warehouseRoutes } from "../modules/warehouses/warehouse.routes.js";
+
 import productCategoryRoutes from "../modules/product-categories/productCategory.routes.js";
 
 import brandRoutes from "../modules/brands/brand.routes.js";
@@ -43,6 +45,8 @@ router.use("/users", userRoutes);
 router.use("/customers", customerRoutes);
 
 router.use("/suppliers", SupplierRoutes);
+
+router.use("/warehouses", warehouseRoutes);
 
 router.use("/product-categories", productCategoryRoutes);
 

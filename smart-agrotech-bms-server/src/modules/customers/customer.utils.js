@@ -29,6 +29,8 @@ export const generateCustomerPublicId =
 
   export const sanitizeCustomer =
   (customer) => ({
+    _id: customer._id?.toString(),
+    
     publicId:
       customer.publicId,
 
