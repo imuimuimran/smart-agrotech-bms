@@ -33,6 +33,11 @@ const navigationItems = [
     to: "/customers", 
     end: false 
   },
+  { 
+    label: "Warehouses", 
+    to: "/warehouses", 
+    end: false 
+  },
   {
   label: "Sales",
   to: "/sales",

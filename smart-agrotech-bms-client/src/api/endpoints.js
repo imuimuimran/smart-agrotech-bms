@@ -77,6 +77,7 @@ export const API_ENDPOINTS = {
 
   WAREHOUSES: {
     LIST: "/warehouses",
+    CREATE: "/warehouses",
   },
 
 };

@@ -34,6 +34,9 @@ import CustomerCreatePage from "./pages/customers/CustomerCreatePage.jsx";
 import CustomerEditPage from "./pages/customers/CustomerEditPage.jsx";
 import CustomerRestorePage from "./pages/customers/CustomerRestorePage.jsx";
 
+import WarehousesPage from "./pages/warehouses/WarehousesPage.jsx";
+import WarehouseCreatePage from "./pages/warehouses/WarehouseCreatePage.jsx";
+
 import SalesPage from "./pages/sales/SalesPage.jsx";
 import SaleCreatePage from "./pages/sales/SaleCreatePage.jsx";
 
@@ -90,6 +93,9 @@ export function App() {
         <Route path="/customers/new" element={<CustomerCreatePage />} />
         <Route path="/customers/:publicId/edit" element={<CustomerEditPage />} />
         <Route path="/customers/restore" element={<CustomerRestorePage />} />
+
+        <Route path="/warehouses" element={<WarehousesPage />} />
+        <Route path="/warehouses/new" element={<WarehouseCreatePage />} />
 
         <Route path="/sales/new" element={<SaleCreatePage />} />
         <Route path="/sales" element={<SalesPage />} />
