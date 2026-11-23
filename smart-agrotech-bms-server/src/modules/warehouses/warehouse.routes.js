@@ -7,9 +7,17 @@ import validateRequest from "../../middlewares/validate.middleware.js";
 import ROLES from "../../constants/roles.js";
 
 import { WarehouseController } from "./warehouse.controller.js";
-import { getWarehousesQuerySchema } from "./warehouse.validation.js";
+import { createWarehouseSchema, getWarehousesQuerySchema } from "./warehouse.validation.js";
 
 const router = Router();
+
+router.post(
+  "/",
+  verifyToken,
+  authorize(ROLES.ADMIN, ROLES.MODERATOR),
+  validateRequest(createWarehouseSchema),
+  WarehouseController.createWarehouse
+);
 
 /**
  * Get active warehouses.

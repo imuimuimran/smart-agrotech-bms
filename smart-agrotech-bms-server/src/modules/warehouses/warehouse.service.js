@@ -1,3 +1,5 @@
+import HTTP_STATUS from "../../constants/httpStatus.js";
+import ApiError from "../../shared/ApiError.js";
 import QueryBuilder from "../../builder/QueryBuilder.js";
 import { Warehouse } from "./warehouse.model.js";
 
@@ -5,7 +7,44 @@ import {
   WAREHOUSE_STATUS,
   WAREHOUSE_SEARCHABLE_FIELDS,
   WAREHOUSE_SORTABLE_FIELDS,
+  WAREHOUSE_MESSAGES,
 } from "./warehouse.constants.js";
+
+import { generateWarehousePublicId } from "./warehouse.utils.js";
+
+const createWarehouse = async (payload, reqUser) => {
+  const warehouseCode = payload.warehouseCode.trim().toUpperCase();
+  const existingCode = await Warehouse.findOne({ warehouseCode });
+  if (existingCode) {
+    throw new ApiError(HTTP_STATUS.CONFLICT, WAREHOUSE_MESSAGES.CODE_ALREADY_EXISTS);
+  }
+
+  const warehouseName = payload.warehouseName.trim();
+  const existingName = await Warehouse.findOne({ warehouseName: { $regex: `^${warehouseName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" } });
+  if (existingName) {
+    throw new ApiError(HTTP_STATUS.CONFLICT, WAREHOUSE_MESSAGES.NAME_ALREADY_EXISTS);
+  }
+
+  const publicId = await generateWarehousePublicId();
+  try {
+    const warehouse = await Warehouse.create({
+      ...payload,
+      warehouseName,
+      warehouseCode,
+      publicId,
+      createdBy: reqUser.publicId,
+      updatedBy: reqUser.publicId,
+    });
+    return warehouse;
+  } catch (error) {
+    if (error?.code === 11000) {
+      const field = Object.keys(error.keyPattern || {})[0];
+      const message = field === "warehouseName" ? WAREHOUSE_MESSAGES.NAME_ALREADY_EXISTS : WAREHOUSE_MESSAGES.CODE_ALREADY_EXISTS;
+      throw new ApiError(HTTP_STATUS.CONFLICT, message);
+    }
+    throw error;
+  }
+};
 
 /**
  * Retrieves active, non-deleted warehouses.
@@ -39,5 +78,6 @@ const getWarehouses = async (query = {}) => {
 };
 
 export const WarehouseService = {
+  createWarehouse,
   getWarehouses,
 };
