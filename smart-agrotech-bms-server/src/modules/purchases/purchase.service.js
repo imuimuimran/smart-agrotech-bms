@@ -1,17 +1,17 @@
 import mongoose from 'mongoose';
 import { PurchaseOrder } from './purchase.model.js';
-import { 
-  PO_STATUS, 
-  APPROVAL_THRESHOLDS, 
+import {
+  PO_STATUS,
+  APPROVAL_THRESHOLDS,
   CONFIG_ALLOW_SELF_APPROVAL,
   COMM_STATUS,
   SUPPLIER_RESPONSE_TYPES,
-  GRN_LIFECYCLE, 
-  GRN_INSPECTION, 
+  GRN_LIFECYCLE,
+  GRN_INSPECTION,
   GRN_POSTING,
   DISCREPANCY_STATUS,
-  MATCH_RESULT_TYPES, 
-  MATCHING_STATUS, 
+  MATCH_RESULT_TYPES,
+  MATCHING_STATUS,
   INVOICE_STATUS,
   PURCHASE_INVOICE_STATUS,
   AP_LIFECYCLE,
@@ -33,6 +33,7 @@ import { PurchaseInvoice } from './purchaseInvoice.model.js';
 import { InvoiceMatchResult } from './invoiceMatchResult.model.js';
 import { Supplier } from '../suppliers/supplier.model.js';
 import { comparePurchaseInvoiceMatrix } from './purchase.utils.js';
+import { InventoryService } from "../inventory/inventory.service.js";
 
 export const createPurchaseOrder = async (poInput, userId) => {
   const session = await mongoose.startSession(); // Phase 9.4.32 Transaction Control
@@ -91,7 +92,7 @@ export const createPurchaseOrder = async (poInput, userId) => {
     // 6. Concurrency-Safe Generation of Sequenced Reference Identification
     const currentYear = new Date(poInput.orderDate).getFullYear();
     const counterKey = `purchase-order-${currentYear}`;
-    
+
     const counterDoc = await Counter.findOneAndUpdate(
       { key: counterKey },
       { $inc: { sequence: 1 } },
@@ -117,7 +118,7 @@ export const createPurchaseOrder = async (poInput, userId) => {
     });
 
     const savedPO = await newPurchaseOrder.save({ session });
-    
+
     await session.commitTransaction();
     session.endSession();
     return savedPO;
@@ -151,7 +152,7 @@ const runMidFlightSanityRecheck = async (po, session) => {
 
   const productIds = po.items.map(item => item.productId);
   const products = await Product.find({ _id: { $in: productIds } }).session(session);
-  
+
   if (products.length !== productIds.length) {
     throw new Error('Procurement Blocked: One or more products inside this PO have been deleted.');
   }
@@ -455,7 +456,7 @@ export const getPurchaseOrders = async (filters = {}) => {
   if (filters.status) query.status = filters.status;
   if (filters.supplierId) query.supplierId = filters.supplierId;
   if (filters.poNumber) query.poNumber = { $regex: filters.poNumber, $options: 'i' };
-  
+
   return await PurchaseOrder.find(query)
     .populate('supplierId', 'name email')
     .populate('createdBy', 'name')
@@ -478,8 +479,8 @@ export const processSupplierResponse = async (poId, inputData, executionUserId) 
 
     // Strict Idempotency Check Layer
     if (inputData.idempotencyKey) {
-      const duplicateCheck = await SupplierResponse.findOne({ 
-        idempotencyKey: inputData.idempotencyKey 
+      const duplicateCheck = await SupplierResponse.findOne({
+        idempotencyKey: inputData.idempotencyKey
       }).session(session);
       if (duplicateCheck) return duplicateCheck; // Gracefully bypass re-processing
     }
@@ -510,7 +511,7 @@ export const processSupplierResponse = async (poId, inputData, executionUserId) 
     } else {
       // Blocks modifications from directly altering core parameters
       // Retain baseline parameters. Force human decision review gates.
-      po.status = PO_STATUS.UNDER_REVIEW; 
+      po.status = PO_STATUS.UNDER_REVIEW;
     }
 
     await po.save({ session });
@@ -579,7 +580,7 @@ export const initializeGoodsReceipt = async (receiptInput, executionUserId) => {
   try {
     const po = await PurchaseOrder.findById(receiptInput.purchaseOrderId).session(session);
     if (!po) throw new Error('Target validation baseline Purchase Order not found.');
-    
+
     // Enforce business workflow bounds: Check if PO is commercialized and cleared
     if (po.status !== 'READY_FOR_FULFILLMENT' && po.status !== 'SENT_TO_SUPPLIER') {
       throw new Error(`Workflow Error: PO must be accepted by supplier before receiving items.`);
@@ -726,46 +727,73 @@ export const postInspectionAndFinalizeReceipt = async (receiptId, inspectionInpu
     await grn.save({ session });
 
     // Orchestrate Isolated Downstream Inventory Ledger Allocations
+    // for (const finishedItem of grn.items) {
+    //   if (finishedItem.acceptedQuantity > 0) {
+    //     // Execute clean structural insertion without touching core metrics calculation variables directly
+    //     const transactionLedgerRecord = new InventoryTransaction({
+    //       productId: finishedItem.productId,
+    //       warehouseId: grn.warehouseId,
+    //       quantity: finishedItem.acceptedQuantity, // Only clear quality-passed volume entries 
+    //       transactionType: 'PURCHASE_RECEIPT',
+    //       referenceType: 'GOODS_RECEIPT',
+    //       referenceId: grn._id,
+    //       unitCost: finishedItem.unitCost,
+    //       batchNumber: finishedItem.batchNumber,
+    //       serialNumbers: finishedItem.serialNumbers,
+    //       postedBy: executionUserId
+    //     });
+    //     await transactionLedgerRecord.save({ session });
+
+    //     /**
+    //      * NOTE: Connect your core Stock / ProductWarehouse collection updates here:
+    //      * await ProductWarehouseStock.updateOne(
+    //      *   { productId: finishedItem.productId, warehouseId: grn.warehouseId },
+    //      *   { $inc: { physicalOnHand: finishedItem.acceptedQuantity } },
+    //      *   { session, upsert: true }
+    //      * );
+    //      */
+    //   }
+    // }
+
+
+
+    // Orchestrate Downstream Inventory Posting
+    // Stock balance, inventory transaction, inventory log, and
+    // product currentStock are updated through the central InventoryService.
+
     for (const finishedItem of grn.items) {
       if (finishedItem.acceptedQuantity > 0) {
-        // Execute clean structural insertion without touching core metrics calculation variables directly
-        const transactionLedgerRecord = new InventoryTransaction({
+        await InventoryService.increaseStock({
           productId: finishedItem.productId,
           warehouseId: grn.warehouseId,
-          quantity: finishedItem.acceptedQuantity, // Only clear quality-passed volume entries 
-          transactionType: 'PURCHASE_RECEIPT',
-          referenceType: 'GOODS_RECEIPT',
-          referenceId: grn._id,
+          quantity: finishedItem.acceptedQuantity,
           unitCost: finishedItem.unitCost,
+          referenceType: "GOODS_RECEIPT",
+          referenceId: grn._id,
+          postedBy: executionUserId,
+          transactionType: "PURCHASE_RECEIPT",
+          remarks: `Stock received through Goods Receipt ${grn.receiptNumber}`,
           batchNumber: finishedItem.batchNumber,
-          serialNumbers: finishedItem.serialNumbers,
-          postedBy: executionUserId
+          serialNumbers: finishedItem.serialNumbers || [],
+          session,
         });
-        await transactionLedgerRecord.save({ session });
-
-        /**
-         * NOTE: Connect your core Stock / ProductWarehouse collection updates here:
-         * await ProductWarehouseStock.updateOne(
-         *   { productId: finishedItem.productId, warehouseId: grn.warehouseId },
-         *   { $inc: { physicalOnHand: finishedItem.acceptedQuantity } },
-         *   { session, upsert: true }
-         * );
-         */
       }
     }
+
+
 
     // Dynamically summarize receiving activities back on the origin PO tracking dashboard
     let allProductsFullyReceived = true;
     for (const poItem of po.items) {
-      const currentAcceptedVolume = (historicReceivedMap[poItem.productId.toString()] || 0) + 
-                                    (inspectionItemMap[poItem.productId.toString()]?.acceptedQuantity || 0);
-      
+      const currentAcceptedVolume = (historicReceivedMap[poItem.productId.toString()] || 0) +
+        (inspectionItemMap[poItem.productId.toString()]?.acceptedQuantity || 0);
+
       if (currentAcceptedVolume < poItem.orderedQuantity) {
         allProductsFullyReceived = false;
       }
     }
 
-    po.receivingStatus = allProductsFullyReceived ? 'FULLY_RECEIVED' : 'PARTIALLY_RECEIVED'; 
+    po.receivingStatus = allProductsFullyReceived ? 'FULLY_RECEIVED' : 'PARTIALLY_RECEIVED';
     await po.save({ session });
 
     await session.commitTransaction();
@@ -909,7 +937,7 @@ export const proposeCaseResolution = async (discrepancyId, resolutionInput, exec
 const runAutomatedThreeWayMatch = async (invoiceDoc, session, executionUserId) => {
   const po = await PurchaseOrder.findById(invoiceDoc.purchaseOrderId).session(session);
   const receipts = await GoodsReceipt.find({ _id: { $in: invoiceDoc.goodsReceiptIds } }).session(session);
-  
+
   // Cross-reference Exception records to check for un-resolved disputes 
   const unresolvedDiscrepancies = await PurchaseReceivingDiscrepancy.find({
     goodsReceiptId: { $in: invoiceDoc.goodsReceiptIds },
@@ -919,7 +947,7 @@ const runAutomatedThreeWayMatch = async (invoiceDoc, session, executionUserId) =
   let quantityMatch = true;
   let priceMatch = true;
   let taxMatch = true;
-  let discrepancyCheck = unresolvedDiscrepancies.length === 0; 
+  let discrepancyCheck = unresolvedDiscrepancies.length === 0;
 
   const varianceItems = [];
 
@@ -993,13 +1021,13 @@ const runAutomatedThreeWayMatch = async (invoiceDoc, session, executionUserId) =
   // System Approval Flow Mapping
   invoiceDoc.matchingStatus = outcomeResult === MATCH_RESULT_TYPES.FULL_MATCH ? MATCHING_STATUS.MATCHED : MATCHING_STATUS.VARIANCE;
   invoiceDoc.matchingResult = matchLog._id;
-  
+
   if (outcomeResult === MATCH_RESULT_TYPES.FULL_MATCH) {
     invoiceDoc.approvalStatus = INVOICE_STATUS.APPROVED; // Straight Auto Approval Pass
   } else {
     invoiceDoc.approvalStatus = INVOICE_STATUS.UNDER_REVIEW; // Retain case for manual inspection gates
   }
-  
+
   await invoiceDoc.save({ session });
   return matchLog;
 };
@@ -1212,11 +1240,11 @@ export const createPurchaseInvoice = async (invoiceInput, executionUserId) => {
     const totalChargesNum = Number(invoiceInput.additionalCharges || 0);
 
     // Global Financial Summary Formulation (Page 10)
-    const globalGrandTotalNum = 
-      totalSubtotalNum - 
-      totalDiscountNum + 
-      totalTaxNum + 
-      totalShippingNum + 
+    const globalGrandTotalNum =
+      totalSubtotalNum -
+      totalDiscountNum +
+      totalTaxNum +
+      totalShippingNum +
       totalChargesNum;
 
     const finalizeDecimal = (num) => mongoose.Types.Decimal128.fromString(num.toFixed(2));
@@ -1262,7 +1290,7 @@ export const createPurchaseInvoice = async (invoiceInput, executionUserId) => {
     // 11. Save and Atomically Commit Transaction (Page 12)
     await newInvoice.save({ session });
     await session.commitTransaction();
-    
+
     return newInvoice;
 
   } catch (error) {
@@ -1316,7 +1344,7 @@ export const processThreeWayInvoiceMatch = async (invoiceId, executionUserId) =>
     // 5. Update State vectors based on findings (Page 16)
     invoice.matchingStatus = auditReport.status;
     invoice.matchingResult = auditReport.result;
-    
+
     // Explicit Invoice workflow transition mapping (Page 16)
     if (auditReport.status === 'MATCHED') {
       invoice.approvalStatus = PURCHASE_INVOICE_STATUS.MATCHED;
@@ -1489,13 +1517,13 @@ export const revisePurchaseInvoice = async (invoiceId, updatedItems, updatedTota
     }
 
     // Increment document version to protect data history branching (Page 8)
-    parentInvoice.purchaseOrderVersion += 1; 
+    parentInvoice.purchaseOrderVersion += 1;
     parentInvoice.items = updatedItems;
-    
+
     // Inject recalculations from backend precision engine utilities (Page 8)
     parentInvoice.subtotal = mongoose.Types.Decimal128.fromString(Number(updatedTotals.subtotal).toFixed(2));
     parentInvoice.grandTotal = mongoose.Types.Decimal128.fromString(Number(updatedTotals.grandTotal).toFixed(2));
-    
+
     // Core Reset Rule: Force a complete clear of matching states (Page 8-9)
     parentInvoice.status = PURCHASE_INVOICE_STATUS.DRAFT;
     parentInvoice.approvalStatus = 'PENDING';
@@ -1605,7 +1633,7 @@ export const postInvoiceToAccountsPayable = async (invoiceId, executionUserId) =
  */
 export const getSupplierDueDashboardSummary = async (filters = {}) => {
   const matchStage = { status: { $ne: 'PAID' } }; // Filter for un-settled outstanding liabilities (Page 12-13)
-  
+
   if (filters.supplierId) {
     matchStage.supplierId = new mongoose.Types.ObjectId(filters.supplierId);
   }
