@@ -1,140 +1,393 @@
-import express from 'express';
-import * as poController from './purchase.controller.js';
-import * as approvalController from './purchase.controller.js';
-import * as commController from './purchase.controller.js';
-import * as controller from './purchase.controller.js'; 
-import * as receiptController from './purchase.controller.js';
-import * as discrepancyController from './purchase.controller.js';
-import * as purchaseController from './purchase.controller.js';
-import * as invoiceController from './purchase.controller.js'; // Aligned command boundary import (Page 2)
-import { createPurchaseInvoiceSchema } from './purchase.validation.js';
-import verifyToken from '../../middlewares/auth.middleware.js';
-import authorize from '../../middlewares/authorize.middleware.js';
-import validateRequest from '../../middlewares/validate.middleware.js';
-import ROLES from '../../constants/roles.js'; // Reuses your project's active roles enum matrix 
+// import express from 'express';
+// import * as poController from './purchase.controller.js';
+// import * as approvalController from './purchase.controller.js';
+// import * as commController from './purchase.controller.js';
+// import * as controller from './purchase.controller.js'; 
+// import * as receiptController from './purchase.controller.js';
+// import * as discrepancyController from './purchase.controller.js';
+// import * as purchaseController from './purchase.controller.js';
+// import * as invoiceController from './purchase.controller.js'; // Aligned command boundary import (Page 2)
+// import { createPurchaseInvoiceSchema } from './purchase.validation.js';
+// import verifyToken from '../../middlewares/auth.middleware.js';
+// import authorize from '../../middlewares/authorize.middleware.js';
+// import validateRequest from '../../middlewares/validate.middleware.js';
+// import ROLES from '../../constants/roles.js'; // Reuses your project's active roles enum matrix 
 
+
+// const router = express.Router();
+
+// // // Base Document Querying and Formulations
+// // router.post('/', poController.handleCreatePO);
+// // router.get('/', poController.handleGetPOs);
+
+// // // Command-Oriented State Protection Endpoints
+// // router.post('/:id/submit', poController.handleSubmitPO);
+// // router.post('/:id/approve', poController.handleApprovePO); // e.g., restrictTo('manager', 'admin')
+// // router.post('/:id/send', poController.handleSendPO);
+// // router.post('/:id/cancel', poController.handleCancelPO);
+
+
+// // Command-Isolated State Machine Routing Map
+// router.post('/:id/submit', approvalController.handleSubmitPO);
+// router.post('/:id/start-review', approvalController.handleStartPOReview);
+// router.post('/:id/approve', approvalController.handleApprovePO);
+// router.post('/:id/reject', approvalController.handleRejectPO);
+// router.post('/:id/revise', approvalController.handleReviseRejectedPO);
+
+// // Dedicated Command Endpoint Structure
+// router.post(
+//   '/:id/send', 
+//   // protectRoute, 
+//   // restrictTo(['staff', 'manager', 'admin']), // RBAC enforcement bounds
+//   commController.handleSendPOToSupplier
+// );
+
+// // Inward Action-Oriented Supplier Event Boundary Capture Entry point
+// router.post(
+//   '/:id/supplier-response',
+//   // protectRoute, // Injects user session verification layers
+//   controller.handleSupplierResponseSubmission
+// );
+
+// router.post('/goods-receipts', receiptController.handleInitializeReceipt);
+// router.post('/goods-receipts/:id/inspection', receiptController.handleFinalizeReceiptInspection); // Finalize action mapping
+
+// // Action-Oriented Exception Boundary Endpoints
+// router.post('/goods-receipts/:receiptId/discrepancies', discrepancyController.handleRaiseDiscrepancy);
+// router.post('/receiving-discrepancies/:id/resolve', discrepancyController.handleProposeResolution);
+
+
+
+// router.post(
+//   '/purchase-invoices',
+//   verifyToken,                                        // 1. Confirms secure token presence
+//   authorize(ROLES.ADMIN, ROLES.FINANCE_MANAGER),      // 2. Enforces RBAC permissions check (Page 3-4)
+//   validateRequest(createPurchaseInvoiceSchema),       // 3. Reusable structural data filter (Page 4)
+//   invoiceController.handleCreatePurchaseInvoice       // 4. Invokes endpoint execution handler
+// );
+
+// router.post(
+//   '/purchase-invoices/:id/match',
+//   verifyToken,                                            // 1. Decodes and confirms user tracking context (Page 4)
+//   authorize(ROLES.ADMIN, ROLES.FINANCE_MANAGER),          // 2. Restricts path access server-side (Page 4-5)
+//   purchaseController.handleMatchPurchaseInvoice           // 3. Invokes non-CRUD execution handler (Page 4)
+// );
+
+// router.post(
+//   '/purchase-invoices/:id/approve',
+//   verifyToken,                                              // 1. Decodes and confirms credentials (Page 4)
+//   authorize(ROLES.MANAGER, ROLES.ADMIN),                    // 2. Enforces baseline system RBAC bounds
+//   purchaseController.handleApprovePurchaseInvoice           // 3. Invokes lean execution handler (Page 4)
+// );
+
+// // src/modules/purchases/purchase.routes.js
+
+// // Action Command Surface Expositions (Page 4)
+// router.post(
+//   '/purchase-invoices/:id/reject',
+//   verifyToken,
+//   authorize(ROLES.MANAGER, ROLES.ADMIN), // Enforce backend RBAC (Page 4)
+//   purchaseController.handleRejectPurchaseInvoice
+// );
+
+// router.post(
+//   '/purchase-invoices/:id/revise',
+//   verifyToken,
+//   authorize(ROLES.STAFF, ROLES.MANAGER, ROLES.ADMIN),
+//   purchaseController.handleRevisePurchaseInvoice
+// ); 
+
+// // Action Command Surface Expositions (Page 10)
+// router.post(
+//   '/purchase-invoices/:id/post-to-ap',
+//   verifyToken,
+//   authorize(ROLES.ADMIN, ROLES.FINANCE_MANAGER), // Enforces strict security validation boundaries (Page 10)
+//   purchaseController.handlePostInvoiceToAP
+// );
+
+// // src/modules/purchases/purchase.routes.js
+
+// /**
+//  * Traditional Procurement Payment Action Binding Command (Page 8-9)
+//  * POST /api/purchases/purchase-invoices/:id/payment
+//  */
+// router.post(
+//   '/purchase-invoices/:id/payment',
+//   verifyToken,
+//   authorize(ROLES.ADMIN), // Rule: Restrict payment commands strictly to Admin (Page 8, 19)
+//   purchaseController.handleRecordInvoicePayment
+// );
+
+
+
+// // History Audit Log Fetching Path
+// router.get(
+//   '/:id/communications', 
+//   // protectRoute,
+//   commController.handleGetPOCommunications
+// );
+
+// // Audit History Fetch Endpoint
+// router.get('/:id/approval-history', approvalController.handleGetPOHistory);
+
+// // Accounts Payable Command & View Surface Expositions (Page 15)
+// router.get(
+//   '/accounts-payable/supplier-due',
+//   verifyToken,
+//   authorize(ROLES.MANAGER, ROLES.ADMIN), // Restricts access to sensitive corporate financial data (Page 19)
+//   purchaseController.handleGetSupplierDueDashboard
+// );
+
+// export default router;
+
+
+
+
+
+
+
+
+import express from "express";
+
+import * as purchaseController from "./purchase.controller.js";
+
+import { createPurchaseInvoiceSchema } from "./purchase.validation.js";
+
+import verifyToken from "../../middlewares/auth.middleware.js";
+import authorize from "../../middlewares/authorize.middleware.js";
+import validateRequest from "../../middlewares/validate.middleware.js";
+
+import ROLES from "../../constants/roles.js";
 
 const router = express.Router();
 
-// // Base Document Querying and Formulations
-// router.post('/', poController.handleCreatePO);
-// router.get('/', poController.handleGetPOs);
+/*
+|--------------------------------------------------------------------------
+| Purchase Order - Base Routes
+|--------------------------------------------------------------------------
+*/
 
-// // Command-Oriented State Protection Endpoints
-// router.post('/:id/submit', poController.handleSubmitPO);
-// router.post('/:id/approve', poController.handleApprovePO); // e.g., restrictTo('manager', 'admin')
-// router.post('/:id/send', poController.handleSendPO);
-// router.post('/:id/cancel', poController.handleCancelPO);
-
-
-// Command-Isolated State Machine Routing Map
-router.post('/:id/submit', approvalController.handleSubmitPO);
-router.post('/:id/start-review', approvalController.handleStartPOReview);
-router.post('/:id/approve', approvalController.handleApprovePO);
-router.post('/:id/reject', approvalController.handleRejectPO);
-router.post('/:id/revise', approvalController.handleReviseRejectedPO);
-
-// Dedicated Command Endpoint Structure
+// Create a new Purchase Order
 router.post(
-  '/:id/send', 
-  // protectRoute, 
-  // restrictTo(['staff', 'manager', 'admin']), // RBAC enforcement bounds
-  commController.handleSendPOToSupplier
-);
-
-// Inward Action-Oriented Supplier Event Boundary Capture Entry point
-router.post(
-  '/:id/supplier-response',
-  // protectRoute, // Injects user session verification layers
-  controller.handleSupplierResponseSubmission
-);
-
-router.post('/goods-receipts', receiptController.handleInitializeReceipt);
-router.post('/goods-receipts/:id/inspection', receiptController.handleFinalizeReceiptInspection); // Finalize action mapping
-
-// Action-Oriented Exception Boundary Endpoints
-router.post('/goods-receipts/:receiptId/discrepancies', discrepancyController.handleRaiseDiscrepancy);
-router.post('/receiving-discrepancies/:id/resolve', discrepancyController.handleProposeResolution);
-
-
-
-router.post(
-  '/purchase-invoices',
-  verifyToken,                                        // 1. Confirms secure token presence
-  authorize(ROLES.ADMIN, ROLES.FINANCE_MANAGER),      // 2. Enforces RBAC permissions check (Page 3-4)
-  validateRequest(createPurchaseInvoiceSchema),       // 3. Reusable structural data filter (Page 4)
-  invoiceController.handleCreatePurchaseInvoice       // 4. Invokes endpoint execution handler
-);
-
-router.post(
-  '/purchase-invoices/:id/match',
-  verifyToken,                                            // 1. Decodes and confirms user tracking context (Page 4)
-  authorize(ROLES.ADMIN, ROLES.FINANCE_MANAGER),          // 2. Restricts path access server-side (Page 4-5)
-  purchaseController.handleMatchPurchaseInvoice           // 3. Invokes non-CRUD execution handler (Page 4)
-);
-
-router.post(
-  '/purchase-invoices/:id/approve',
-  verifyToken,                                              // 1. Decodes and confirms credentials (Page 4)
-  authorize(ROLES.MANAGER, ROLES.ADMIN),                    // 2. Enforces baseline system RBAC bounds
-  purchaseController.handleApprovePurchaseInvoice           // 3. Invokes lean execution handler (Page 4)
-);
-
-// src/modules/purchases/purchase.routes.js
-
-// Action Command Surface Expositions (Page 4)
-router.post(
-  '/purchase-invoices/:id/reject',
+  "/",
   verifyToken,
-  authorize(ROLES.MANAGER, ROLES.ADMIN), // Enforce backend RBAC (Page 4)
+  purchaseController.handleCreatePO
+);
+
+// Get Purchase Orders
+router.get(
+  "/",
+  verifyToken,
+  purchaseController.handleGetPOs
+);
+
+/*
+|--------------------------------------------------------------------------
+| Purchase Order - Lifecycle Commands
+|--------------------------------------------------------------------------
+*/
+
+// Submit Purchase Order for review
+router.post(
+  "/:id/submit",
+  verifyToken,
+  purchaseController.handleSubmitPO
+);
+
+// Start Purchase Order review
+router.post(
+  "/:id/start-review",
+  verifyToken,
+  purchaseController.handleStartPOReview
+);
+
+// Approve Purchase Order
+// The service applies its amount-based approval-role rule.
+router.post(
+  "/:id/approve",
+  verifyToken,
+  purchaseController.handleApprovePO
+);
+
+// Reject Purchase Order
+router.post(
+  "/:id/reject",
+  verifyToken,
+  purchaseController.handleRejectPO
+);
+
+// Revise a rejected Purchase Order
+router.post(
+  "/:id/revise",
+  verifyToken,
+  purchaseController.handleReviseRejectedPO
+);
+
+/*
+|--------------------------------------------------------------------------
+| Purchase Order - Supplier Communication
+|--------------------------------------------------------------------------
+*/
+
+// Send Purchase Order to supplier
+router.post(
+  "/:id/send",
+  verifyToken,
+  purchaseController.handleSendPOToSupplier
+);
+
+/*
+ * Supplier response currently uses the existing controller contract.
+ *
+ * IMPORTANT:
+ * The controller accepts req.body.supplierId as a fallback when
+ * req.supplier is unavailable. verifyToken authenticates a normal user,
+ * but does not prove that the caller represents that supplier.
+ *
+ * Before enabling supplier self-service, implement supplier-specific
+ * authentication that sets req.supplier, and remove the body fallback
+ * from handleSupplierResponseSubmission.
+ */
+router.post(
+  "/:id/supplier-response",
+  verifyToken,
+  purchaseController.handleSupplierResponseSubmission
+);
+
+/*
+|--------------------------------------------------------------------------
+| Goods Receipt Note (GRN)
+|--------------------------------------------------------------------------
+*/
+
+// Initialize a Goods Receipt
+router.post(
+  "/goods-receipts",
+  verifyToken,
+  purchaseController.handleInitializeReceipt
+);
+
+// Submit inspection and finalize Goods Receipt
+router.post(
+  "/goods-receipts/:id/inspection",
+  verifyToken,
+  purchaseController.handleFinalizeReceiptInspection
+);
+
+/*
+|--------------------------------------------------------------------------
+| Receiving Discrepancies
+|--------------------------------------------------------------------------
+*/
+
+// Raise a receiving discrepancy
+router.post(
+  "/goods-receipts/:receiptId/discrepancies",
+  verifyToken,
+  purchaseController.handleRaiseDiscrepancy
+);
+
+// Propose discrepancy resolution
+router.post(
+  "/receiving-discrepancies/:id/resolve",
+  verifyToken,
+  purchaseController.handleProposeResolution
+);
+
+/*
+|--------------------------------------------------------------------------
+| Purchase Invoices
+|--------------------------------------------------------------------------
+*/
+
+// Create Purchase Invoice
+router.post(
+  "/purchase-invoices",
+  verifyToken,
+  authorize(ROLES.ADMIN, ROLES.FINANCE_MANAGER),
+  validateRequest(createPurchaseInvoiceSchema),
+  purchaseController.handleCreatePurchaseInvoice
+);
+
+// Match Purchase Invoice
+router.post(
+  "/purchase-invoices/:id/match",
+  verifyToken,
+  authorize(ROLES.ADMIN, ROLES.FINANCE_MANAGER),
+  purchaseController.handleMatchPurchaseInvoice
+);
+
+// Approve Purchase Invoice
+router.post(
+  "/purchase-invoices/:id/approve",
+  verifyToken,
+  authorize(ROLES.MANAGER, ROLES.ADMIN),
+  purchaseController.handleApprovePurchaseInvoice
+);
+
+// Reject Purchase Invoice
+router.post(
+  "/purchase-invoices/:id/reject",
+  verifyToken,
+  authorize(ROLES.MANAGER, ROLES.ADMIN),
   purchaseController.handleRejectPurchaseInvoice
 );
 
+// Revise Purchase Invoice
 router.post(
-  '/purchase-invoices/:id/revise',
+  "/purchase-invoices/:id/revise",
   verifyToken,
   authorize(ROLES.STAFF, ROLES.MANAGER, ROLES.ADMIN),
   purchaseController.handleRevisePurchaseInvoice
-); 
+);
 
-// Action Command Surface Expositions (Page 10)
+// Post Purchase Invoice to Accounts Payable
 router.post(
-  '/purchase-invoices/:id/post-to-ap',
+  "/purchase-invoices/:id/post-to-ap",
   verifyToken,
-  authorize(ROLES.ADMIN, ROLES.FINANCE_MANAGER), // Enforces strict security validation boundaries (Page 10)
+  authorize(ROLES.ADMIN, ROLES.FINANCE_MANAGER),
   purchaseController.handlePostInvoiceToAP
 );
 
-// src/modules/purchases/purchase.routes.js
-
-/**
- * Traditional Procurement Payment Action Binding Command (Page 8-9)
- * POST /api/purchases/purchase-invoices/:id/payment
- */
+// Record Purchase Invoice Payment
 router.post(
-  '/purchase-invoices/:id/payment',
+  "/purchase-invoices/:id/payment",
   verifyToken,
-  authorize(ROLES.ADMIN), // Rule: Restrict payment commands strictly to Admin (Page 8, 19)
+  authorize(ROLES.ADMIN),
   purchaseController.handleRecordInvoicePayment
 );
 
+/*
+|--------------------------------------------------------------------------
+| Purchase Order - History and Audit
+|--------------------------------------------------------------------------
+*/
 
-
-// History Audit Log Fetching Path
+// Get Purchase Order communication history
 router.get(
-  '/:id/communications', 
-  // protectRoute,
-  commController.handleGetPOCommunications
+  "/:id/communications",
+  verifyToken,
+  purchaseController.handleGetPOCommunications
 );
 
-// Audit History Fetch Endpoint
-router.get('/:id/approval-history', approvalController.handleGetPOHistory);
-
-// Accounts Payable Command & View Surface Expositions (Page 15)
+// Get Purchase Order approval history
 router.get(
-  '/accounts-payable/supplier-due',
+  "/:id/approval-history",
   verifyToken,
-  authorize(ROLES.MANAGER, ROLES.ADMIN), // Restricts access to sensitive corporate financial data (Page 19)
+  purchaseController.handleGetPOHistory
+);
+
+/*
+|--------------------------------------------------------------------------
+| Accounts Payable
+|--------------------------------------------------------------------------
+*/
+
+// Get supplier due dashboard
+router.get(
+  "/accounts-payable/supplier-due",
+  verifyToken,
+  authorize(ROLES.MANAGER, ROLES.ADMIN),
   purchaseController.handleGetSupplierDueDashboard
 );
 
