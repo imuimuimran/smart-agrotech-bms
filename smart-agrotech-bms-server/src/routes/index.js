@@ -16,6 +16,8 @@ import brandRoutes from "../modules/brands/brand.routes.js";
 
 import productRoutes from "../modules/products/product.routes.js";
 
+import purchaseRoutes from "../modules/purchases/purchase.routes.js";
+
 import { purchaseReturnRoutes } from "../modules/purchases/purchaseReturn.routes.js";
 
 import { saleRoutes } from "../modules/sales/sale.routes.js";
@@ -54,6 +56,10 @@ router.use("/brands", brandRoutes);
 
 router.use("/products", productRoutes);
 
+// Purchase Orders, Goods Receipts, invoices, and related workflows
+router.use("/purchases", purchaseRoutes);
+
+// Purchase Returns remain available under the same prefix
 router.use("/purchases", purchaseReturnRoutes);
 
 router.use("/sales", saleRoutes);

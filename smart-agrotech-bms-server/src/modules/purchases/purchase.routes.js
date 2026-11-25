@@ -11,7 +11,7 @@ import { createPurchaseInvoiceSchema } from './purchase.validation.js';
 import verifyToken from '../../middlewares/auth.middleware.js';
 import authorize from '../../middlewares/authorize.middleware.js';
 import validateRequest from '../../middlewares/validate.middleware.js';
-import { ROLES } from '../../constants/roles.js'; // Reuses your project's active roles enum matrix
+import ROLES from '../../constants/roles.js'; // Reuses your project's active roles enum matrix 
 
 
 const router = express.Router();

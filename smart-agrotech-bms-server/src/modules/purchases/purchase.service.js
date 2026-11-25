@@ -21,7 +21,7 @@ import { PurchaseOrderCommunication } from './purchaseCommunication.model.js';
 import { transformToSupplierViewDTO } from './purchase.utils.js';
 import Counter from "../../shared/schemas/counter.model.js";
 import { calculatePOTotals } from './purchase.utils.js';
-import { Product } from '../products/product.model.js';
+import Product from '../products/product.model.js'; 
 import { GoodsReceipt } from './goodsReceipt.model.js';
 import { SupplierResponse } from './supplierResponse.model.js';
 import { InventoryTransaction } from './inventoryTransaction.model.js';
@@ -31,7 +31,7 @@ import { PurchasePayment } from './purchasePayment.model.js';
 import { AccountsPayable } from './accountsPayable.model.js';
 import { PurchaseInvoice } from './purchaseInvoice.model.js';
 import { InvoiceMatchResult } from './invoiceMatchResult.model.js';
-import { Supplier } from '../suppliers/supplier.model.js';
+import Supplier from '../suppliers/supplier.model.js';
 import { comparePurchaseInvoiceMatrix } from './purchase.utils.js';
 import { InventoryService } from "../inventory/inventory.service.js";
 

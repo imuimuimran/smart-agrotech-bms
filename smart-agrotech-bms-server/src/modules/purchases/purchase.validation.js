@@ -1,5 +1,11 @@
 // src/modules/purchases/purchase.validation.js
 import { z } from "zod";
+import { 
+  SUPPLIER_RESPONSE_TYPES, 
+  RESPONSE_CHANNELS,
+  DISCREPANCY_TYPES,
+  RESOLUTION_TYPES
+} from './purchase.constants.js';
 
 /**
  * Reusable ObjectId Validation

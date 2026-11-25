@@ -29,4 +29,5 @@ const PurchasePaymentSchema = new Schema({
   paymentDate: { type: Date, default: Date.now, required: true, index: true } // Page 3, 8
 }, { timestamps: true });
 
-export const PurchasePayment = mongoose.model('PurchasePayment', PurchasePaymentSchema);
+// export const PurchasePayment = mongoose.model('PurchasePayment', PurchasePaymentSchema);
+export const PurchasePayment = mongoose.models.PurchasePayment || mongoose.model('PurchasePayment', PurchasePaymentSchema);
