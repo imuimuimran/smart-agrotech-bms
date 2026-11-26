@@ -4,23 +4,25 @@ import * as purchaseInvoiceService from './purchase.service.js';
 import * as communicationService from './purchase.service.js';
 import * as validation from './purchase.validation.js';
 import * as service from './purchase.service.js';
-import { 
-  createPOSchema, 
-  poApprovalDecisionSchema, 
-  poRejectionDecisionSchema 
+import {
+  createPOSchema,
+  poApprovalDecisionSchema,
+  poRejectionDecisionSchema
 } from './purchase.validation.js';
 
 export const handleCreatePO = async (req, res, next) => {
   try {
     // 1. Initial Structural Request Zod Validation Run
     const validationResult = createPOSchema.safeParse(req.body);
-    
+
     if (!validationResult.success) {
       return res.status(400).json({
         success: false,
         message: 'Validation failed',
         // Formats Zod errors into a clean human-readable list
-        details: validationResult.error.errors.map(err => `${err.path.join('.')}: ${err.message}`)
+
+        // details: validationResult.error.errors.map(err => `${err.path.join('.')}: ${err.message}`)
+        details: validationResult.error.issues?.map(err => `${err.path.join('.')}: ${err.message}`) || []
       });
     }
 
@@ -28,8 +30,17 @@ export const handleCreatePO = async (req, res, next) => {
     const validatedData = validationResult.data;
 
     // 3. Extract Authenticated Principal Identity
-    const userId = req.user?._id || req.body.mockUserId; 
-    if (!userId) return res.status(401).json({ success: false, message: 'Authentication required' });
+    // const userId = req.user?._id || req.body.mockUserId; 
+    // if (!userId) return res.status(401).json({ success: false, message: 'Authentication required' });
+
+    const userId = req.user?.id || req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
 
     // 4. Delegation downstream to Orchestration Service Layer
     const purchaseOrder = await poService.createPurchaseOrder(validatedData, userId);
@@ -40,7 +51,7 @@ export const handleCreatePO = async (req, res, next) => {
       data: purchaseOrder
     });
   } catch (err) {
-    next(err); 
+    next(err);
   }
 };
 
@@ -78,7 +89,7 @@ export const handleApprovePO = async (req, res, next) => {
 
     const userId = req.user?._id;
     const userRole = req.user?.role; // e.g., 'purchasing_manager' derived from secure access token
-    
+
     const updatedPO = await approvalService.approvePurchaseOrder(req.params.id, userId, userRole, parsed.data.comment);
     return res.status(200).json({ success: true, message: 'PO authorized and approved.', data: updatedPO });
   } catch (err) { next(err); }
@@ -176,17 +187,17 @@ export const handleSupplierResponseSubmission = async (req, res, next) => {
     }
 
     const executionUserId = req.user?._id;
-    
+
     // Safety Layer: Extract supplier tracking metadata context from authenticated session profile
     // If incoming route is an automated external webhook API, bind req.supplier._id here
-    const supplierId = req.supplier?._id || req.body.supplierId; 
+    const supplierId = req.supplier?._id || req.body.supplierId;
     if (!supplierId) return res.status(400).json({ success: false, message: "Missing tracking supplier identification context profile." });
 
     const finalInputData = { ...parsedPayload.data, supplierId };
 
     const responseRecord = await service.processSupplierResponse(
-      req.params.id, 
-      finalInputData, 
+      req.params.id,
+      finalInputData,
       executionUserId
     );
 
@@ -249,8 +260,8 @@ export const handleRaiseDiscrepancy = async (req, res, next) => {
 
     const executionUserId = req.user?._id;
     const exceptionRecord = await service.captureReceivingDiscrepancy(
-      req.params.receiptId, 
-      parsedPayload.data, 
+      req.params.receiptId,
+      parsedPayload.data,
       executionUserId
     );
 
@@ -588,9 +599,9 @@ export const handleRevisePurchaseInvoice = async (req, res, next) => {
   try {
     const { id } = req.params;
     const executionUserId = req.user?._id || req.user?.id;
-    
+
     // Extract new line parameters from request body, pass down to internal math engine, then delegate
-    const { items, totals } = req.body; 
+    const { items, totals } = req.body;
 
     const revisedInvoice = await purchaseInvoiceService.revisePurchaseInvoice(
       id,
@@ -616,7 +627,7 @@ export const handleRevisePurchaseInvoice = async (req, res, next) => {
     if (msg.includes('State Violation')) return res.status(422).json({ success: false, message: msg });
     next(error);
   }
-}; 
+};
 
 /**
  * Accounts Payable Ledger Command Trigger Handler (Page 10)
