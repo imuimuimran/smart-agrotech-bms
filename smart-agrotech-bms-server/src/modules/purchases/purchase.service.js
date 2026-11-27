@@ -21,7 +21,7 @@ import { PurchaseOrderCommunication } from './purchaseCommunication.model.js';
 import { transformToSupplierViewDTO } from './purchase.utils.js';
 import Counter from "../../shared/schemas/counter.model.js";
 import { calculatePOTotals } from './purchase.utils.js';
-import Product from '../products/product.model.js'; 
+import Product from '../products/product.model.js';
 import { GoodsReceipt } from './goodsReceipt.model.js';
 import { SupplierResponse } from './supplierResponse.model.js';
 import { InventoryTransaction } from './inventoryTransaction.model.js';
@@ -45,7 +45,7 @@ export const createPurchaseOrder = async (poInput, userId) => {
     if (!supplier) {
       throw new Error('Target procurement Supplier not found');
     }
-    if (supplier.status !== 'ACTIVE') {
+    if (supplier.status !== 'active') {
       throw new Error('Target supplier is currently marked INACTIVE and cannot be used for procurement');
     }
 
@@ -80,12 +80,30 @@ export const createPurchaseOrder = async (poInput, userId) => {
     const financialReport = calculatePOTotals(poInput.items, poInput.shippingCost, poInput.otherCharges);
 
     // Inject Point-in-Time Master Data Snapshots into the final item tracking array
+    // const finalItems = financialReport.processedItems.map(item => {
+    //   const dbProduct = productLookupMap[item.productId];
+    //   return {
+    //     ...item,
+    //     productNameSnapshot: dbProduct.name, // Safeguards history from future master database drifts
+    //     skuSnapshot: dbProduct.sku          // Safeguards history from future master database drifts
+    //   };
+    // });
+
+
+    // Inject Point-in-Time Master Data Snapshots into the final item tracking array
     const finalItems = financialReport.processedItems.map(item => {
-      const dbProduct = productLookupMap[item.productId];
+      const dbProduct = productLookupMap[String(item.productId)];
+
+      if (!dbProduct) {
+        throw new Error(
+          `Product not found while preparing purchase order snapshot: ${item.productId}`
+        );
+      }
+
       return {
         ...item,
-        productNameSnapshot: dbProduct.name, // Safeguards history from future master database drifts
-        skuSnapshot: dbProduct.sku          // Safeguards history from future master database drifts
+        productNameSnapshot: dbProduct.productName,
+        skuSnapshot: dbProduct.sku
       };
     });
 
@@ -146,7 +164,7 @@ const evaluateRequiredRole = (grandTotal) => {
  */
 const runMidFlightSanityRecheck = async (po, session) => {
   const supplier = await Supplier.findById(po.supplierId).session(session);
-  if (!supplier || supplier.status !== 'ACTIVE') {
+  if (!supplier || supplier.status !== 'active') {
     throw new Error('Procurement Blocked: The designated Supplier is no longer active.');
   }
 
@@ -1128,7 +1146,7 @@ export const createPurchaseInvoice = async (invoiceInput, executionUserId) => {
     if (!supplier) {
       throw new Error('Target procurement Supplier not found.');
     }
-    if (supplier.status !== 'ACTIVE') {
+    if (supplier.status !== 'active') {
       throw new Error('Target supplier is currently INACTIVE and cannot be used for procurement.');
     }
 
